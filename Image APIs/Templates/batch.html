@@ -1,0 +1,21 @@
+<? var copies = 3;
+var perPage = 9;
+var pageNo = 1;
+var page;
+var completed = 0;
+var all = cards.flatMap(i => Array.from({ length: copies }).fill(i));
+
+do {
+	page = all.slice((pageNo - 1) * perPage, pageNo * perPage); ?>
+<div class="page">
+    <div class="sheet">
+<? for(var slot = 0; slot < perPage; slot++) { ?>
+        <div class="card-slot">
+            <?!= slot < page.length ? HtmlHelper.renderCard(pack, page[slot]) : '' ?>
+        </div>
+<? } ?>
+    </div>
+</div>
+<? pageNo++;
+completed += page.length;
+} while(completed < all.length); ?>

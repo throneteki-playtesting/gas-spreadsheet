@@ -1,0 +1,50 @@
+<div class="card <?= card.faction ?> plot">
+    <div class="top-panel">
+        <div class="left-panel">
+            <span class="card-income plot-stat auto-size"><?= card.plotStats.income ?></span>
+            <span class="card-initiative plot-stat auto-size"><?= card.plotStats.initiative ?></span>
+            <span class="card-claim plot-stat auto-size"><?= card.plotStats.claim ?></span>
+        </div>
+        <div class="right-panel">
+            <div class="name-box auto-size">
+                <span class="card-name"><?= card.name ?></span>
+            </div>
+        </div>
+    </div>
+    <div class="center-panel">
+        <div class="left-panel">
+            <div class="type-box">
+                <span class="card-type">Plot</span>
+            </div>
+            <div class="decklimit-box">
+                <span class="card-decklimit"><?= card.deckLimit ?></span>
+            </div>
+        </div>
+        <div class="center-panel">
+            <div class="watermark-box">
+                <span class="card-code"><?= pack.short ? `${pack.short} ` : ''?>#<?= card.code ?></span>
+                <span class="card-version">v<?= card.development.version ?></span>
+                <span class="card-wip">Work in Progress</span>
+            </div>
+        </div>
+        <div class="right-panel">
+            <div class="faction-box">
+                <span class="card-faction icon-<?= card.faction ?>"></span>
+            </div>
+            <div class="loyal-box">
+                <span class="card-loyal"><?= card.loyal ? 'Loyal' : '' ?></span>
+            </div>
+            <span class="card-reserve plot-stat auto-size"><?= card.plotStats.reserve ?></span>
+        </div>
+    </div>
+    <div class="bottom-panel">
+        <div class="text-box">
+            <div class="traits-box auto-size">
+                <span class="card-traits"><b><i><?= card.traits ?></b></i></span>
+            </div>
+            <div class="ability-box auto-size">
+                <span class="card-ability"><?!= card.text ?></span>
+            </div>
+        </div>
+    </div>
+</div>

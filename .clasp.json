@@ -1,0 +1,13 @@
+{
+    "scriptId": "1rdas11vc8Og2dtQ2gtypy_xPxZPRWRrWCyjBWog37sNdg3JKv9MMr_Cn",
+    "filePushOrder": [
+        "Common/Enums.ts",
+        "DataLayer/RichTextRow.ts",
+        "DataLayer/Data.ts",
+        "DataLayer/Spreadsheet.ts",
+        "DataLayer/Models/Card.ts",
+        "DataLayer/Models/Pack.ts",
+        "DataLayer/Models/Review.ts",
+        "DataLayer/Models/Project.ts"
+    ]
+}

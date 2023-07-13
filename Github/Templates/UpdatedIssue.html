@@ -1,0 +1,25 @@
+<h2><?= Emoji["CardUpdate"] ?> Update requested for <?= newCard.name ?> (<?= pack.short ?>)</h2>
+<em>Date requested: <?= date ?></em>
+<nl>
+<h3>What needs to be done?</h3>
+Latest adjustment involves changes to this card's text box (<em>excluding keywords</em>), which will require code changes.
+<em>Non-text box & keyword adjustments are automatically processed with updates to [<?= jsonRepoData.name ?>](<?!= jsonRepoData.link ?>).</em>
+
+Previous Version (<?= oldCard.development.version ?>) | Updated Version (<?= newCard.development.version ?>)
+:-------------------------:|:-------------------------:
+![image](<?= oldCard.development.image?.url ?>) |![image](<?= newCard.development.image?.url ?>)
+<nl>
+<h3>Change Notes</h3>
+<?= Emoji.Notes[newCard.development.note?.type] ?> <b><?= newCard.development.note?.type ?></b> - <?!= newCard.development.note?.text ?><nl>
+<nl>
+---
+<nl>
+<h3>Suggested Implementation Steps</h3>
+1. Create a branch from `development-<?= pack.short ?>`
+2. Update card file for this card (within 'server/game/cards/<?= pack.short ?>')
+3. (Optional) Test the implementation locally
+4. Create Pull Request into `development-<?= pack.short ?>` branch, linking this issue in the description as 'Closes: #[issue number]'
+<nl>
+---
+<nl>
+<em>:robot: Issue was automatically created, and will close itself when card update is pushed to the playtesting website.</em>
