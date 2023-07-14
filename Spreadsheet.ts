@@ -2,6 +2,7 @@ import { Forms } from "./Forms/Form";
 import { Github } from "./Github/Github";
 import { Data } from "./DataLayer/Data";
 import { Settings } from "./DataLayer/Settings";
+import { PDFAPI } from "./Image APIs/PdfAPI";
 
 function onSpreadsheetOpen() {
   const ui = SpreadsheetApp.getUi();
@@ -19,7 +20,7 @@ function onSpreadsheetOpen() {
             .addSubMenu(
               ui.createMenu("Generate Card Images")
                 .addItem("Digital Images (PNG)", "syncDigitalCardImages")
-                .addItem("Print Sheet (PDF)", "generatePhysicalSheets")
+                .addItem("Print Sheet (PDF)", "openPDFSheetsDialog")
             )
             .addItem("Update Pull Request", "updatePullRequest")
             .addItem("Generate Update Notes", "openUpdateNotesDialog")
@@ -53,7 +54,7 @@ function openJSONDevDialog() {
   const pack = data.getDevelopmentPack();
   const json = JSON.stringify(pack.toJSON(), null, 4);
 
-  const htmlTemplate = HtmlService.createTemplateFromFile("Clipboard Popup");
+  const htmlTemplate = HtmlService.createTemplateFromFile("Templates/Clipboard Popup");
   htmlTemplate.instructions = `Copy + Paste the following into the <strong>${pack.code}.json</strong> file in the <strong>development-${data.project.short}</strong> branch of <strong>throneteki-json-data</strong>`;
   htmlTemplate.text = json;
 
@@ -74,25 +75,32 @@ function updateFormCards() {
 
 function syncDigitalCardImages() {
   const data = Data.instance;
-  for(const card of data.latestCards) {
+  for(const card of data.latestCards.filter(a => a.development.number === 44)) {
     card.syncImage(data.project);
   }
 
   data.sync();
 }
 
-function generatePhysicalSheets() {
+function openPDFSheetsDialog() {
+  const data = Data.instance;
 
-  // const updatedCards = updated || DataHandler.getInstance().updatingCards;
+  const allPdf = PDFAPI.syncLatestPhysicalPDFSheet();
+  const updatedPdf = PDFAPI.syncUpdatedPhysicalPDFSheet();
 
-  // const data = DataHandler.getInstance();
-  // data.project.latestPDFs.all = CardImages.getPDFSheetUrl(data.project, data.latestCards, (data.project.short + "_Playtesting_Sheet_v" + data.project.playtestVersion.toString() + "_all").replace(".", "_"), true);
-  // if (updatedCards.length > 0) {
-  //   data.project.latestPDFs.changed = CardImages.getPDFSheetUrl(data.project, updatedCards, (data.project.short + "_Playtesting_Sheet_v" + data.project.playtestVersion.toString() + "_changed").replace(".", "_"), true);
+  const htmlTemplate = HtmlService.createTemplateFromFile("Templates/Clipboard Popup");
+  htmlTemplate.instructions = "Print PDF sheets to physically playtest!";
+  htmlTemplate.text = "All Cards: " + allPdf + "\nUpdated Cards: " + updatedPdf;
 
-  //   return data.project.latestPDFs;
-  // }
-  // return null;
+  openDialogWindow(data.project.code + " PDF Sheets (v" + data.project.version.toString() + ")", htmlTemplate.evaluate().getContent());
+}
+
+function syncUpdatedPhysicalPDFSheet() {
+  PDFAPI.syncUpdatedPhysicalPDFSheet();
+}
+
+function syncLatestPhysicalPDFSheet() {
+  PDFAPI.syncLatestPhysicalPDFSheet();
 }
 
 function openUpdateNotesDialog() {

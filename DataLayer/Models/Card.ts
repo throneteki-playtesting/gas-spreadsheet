@@ -216,7 +216,7 @@ class Card extends RichTextRow {
         if (this.illustrator !== "?") {
             this.setText(CardColumn.Illustrator, this.illustrator);
         }
-        if (this.development.image?.url) {
+        if (this.development.image) {
             this.row[CardColumn.ImageUrl] = SpreadsheetApp.newRichTextValue().setText(this.development.image.version.toString()).setLinkUrl(this.development.image.url).build();
         }
         if (this.development.note) {

@@ -16,12 +16,12 @@ class Project {
       this.type = type || ProjectType[Settings.getScriptProperty("type")];
     }
 
-    get version(): SemanticVersion | null {
+    get version(): SemanticVersion {
         const str = PropertiesService.getScriptProperties().getProperty("playtestVersion");
         return SemanticVersion.fromString(str || this.code + ".0.0");
     }
 
-    set version(value: SemanticVersion | null) {
+    set version(value: SemanticVersion) {
       if(!value) {
         PropertiesService.getScriptProperties().deleteProperty("playtestVersion");
       } else {

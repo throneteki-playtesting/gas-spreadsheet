@@ -106,11 +106,15 @@ class Data {
     return new Pack(cards, project);
   }
 
-  archiveCompletedUpdates() {
+  getCompletedCards() {
     const hasBeenImplemented = (card: Card) => !card.development.playtestVersion && card.development.note?.type === NoteType.Implemented;
     const isBeingUpdated = (card: Card) => !card.development.version.equals(card.development.playtestVersion);
 
-    const archiving = this.latestCards.filter(card => (hasBeenImplemented(card) || isBeingUpdated(card)) && card.development.githubIssue?.status === "closed");
+    return this.latestCards.filter(card => (hasBeenImplemented(card) || isBeingUpdated(card)) && card.development.githubIssue?.status === "closed");
+  }
+
+  archiveCompletedUpdates() {
+    const archiving = this.getCompletedCards();
 
     const successful: string[] = [];
     for(const card of archiving) {
