@@ -79,7 +79,7 @@ function syncDigitalCardImages() {
     card.syncImage(data.project);
   }
 
-  data.sync();
+  data.commit();
 }
 
 function openPDFSheetsDialog() {
@@ -115,7 +115,7 @@ function syncIssues() {
   const data = Data.instance;
 
   if(Github.syncIssues(data.project, data.latestCards)) {
-    data.sync();
+    data.commit();
   }
 }
 

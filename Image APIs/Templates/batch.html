@@ -11,7 +11,7 @@ do {
     <div class="sheet">
 <? for(var slot = 0; slot < perPage; slot++) { ?>
         <div class="card-slot">
-            <?!= slot < page.length ? HtmlHelper.renderCard(pack, page[slot]) : '' ?>
+            <?!= slot < page.length ? HTMLRenderEngine.card(pack, page[slot]) : '' ?>
         </div>
 <? } ?>
     </div>

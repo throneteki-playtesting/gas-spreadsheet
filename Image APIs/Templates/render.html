@@ -1,609 +1,761 @@
 <html>
-  <head>
-      <style>
-          @import url("https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,700;1,400;1,700&family=Open+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap");
-          @font-face {
-            font-family: thronesdb;
-            src: url(https://agot-playtesting.s3.us-west-1.amazonaws.com/fonts/thronesdb.ttf) format("truetype");
-            font-weight: normal;
-            font-style: normal;
-          }
-          [class*=icon-] {
-            font-family: "thronesdb";
-            font-style: normal;
-            font-weight: normal;
-            font-variant: normal;
-            text-transform: none;
-            line-height: 1;
-          }
 
-          .icon-baratheon:before {
-            content: "\e600";
-          }
-          .icon-greyjoy:before {
-            content: "\e601";
-          }
-          .icon-lannister:before {
-            content: "\e603";
-          }
-          .icon-martell:before {
-            content: "\e604";
-          }
-          .icon-thenightswatch:before {
-            content: "\e606";
-          }
-          .icon-stark:before {
-            content: "\e608";
-          }
-          .icon-targaryen:before {
-            content: "\e609";
-          }
-          .icon-tyrell:before {
-            content: "\e60a";
-          }
-          .icon-neutral:before {
-            content: "\e612";
-          }
-          .icon-military:before {
-            content: "\e605";
-          }
-          .icon-intrigue:before {
-            content: "\e602";
-          }
-          .icon-power:before {
-            content: "\e607";
-          }
-          .icon-unique:before {
-            content: "\e60b";
-          }
-          .icon-character:before {
-            content: "\e60f";
-          }
-          .icon-location:before {
-            content: "\e60e";
-          }
-          .icon-attachment:before {
-            content: "\e60d";
-          }
-          .icon-event:before {
-            content: "\e610";
-          }
-          .icon-plot:before {
-            content: "\e60c";
-          }
-          .icon-agenda:before {
-            content: "\e611";
-          }
+<head>
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,700;1,400;1,700&family=Open+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap");
 
-          .baratheon {
-            border-color: #E3D852 !important;
-          }
+    @font-face {
+      font-family: thronesdb;
+      src: url(https://agot-playtesting.s3.us-west-1.amazonaws.com/fonts/thronesdb.ttf) format("truetype");
+      font-weight: normal;
+      font-style: normal;
+    }
 
-          .greyjoy {
-            border-color: #1D7A99 !important;
-          }
+    [class*=icon-] {
+      font-family: "thronesdb";
+      font-style: normal;
+      font-weight: normal;
+      font-variant: normal;
+      text-transform: none;
+      line-height: 1;
+    }
 
-          .lannister {
-            border-color: #C00106 !important;
-          }
+    .icon-baratheon:before {
+      content: "\e600";
+    }
 
-          .martell {
-            border-color: #E89521 !important;
-          }
+    .icon-greyjoy:before {
+      content: "\e601";
+    }
 
-          .thenightswatch {
-            border-color: #7A7A7A !important;
-          }
+    .icon-lannister:before {
+      content: "\e603";
+    }
 
-          .stark {
-            border-color: #CFCFCF !important;
-          }
+    .icon-martell:before {
+      content: "\e604";
+    }
 
-          .targaryen {
-            border-color: #1C1C1C !important;
-          }
+    .icon-thenightswatch:before {
+      content: "\e606";
+    }
 
-          .tyrell {
-            border-color: #509F16 !important;
-          }
+    .icon-stark:before {
+      content: "\e608";
+    }
 
-          .neutral {
-            border-color: #A99560 !important;
-          }
+    .icon-targaryen:before {
+      content: "\e609";
+    }
 
-          .character .gold-box, .location .gold-box, .attachment .gold-box, .event .gold-box {
-            position: relative;
-            top: -7.5px;
-            left: -7.5px;
-            width: 35px;
-            height: 35px;
-            line-height: 35px;
-            border-radius: 50%;
-            border: 2px solid black;
-            background-color: white;
-            text-align: center;
-            font-size: 35px;
-          }
-          .character .type-box, .location .type-box, .attachment .type-box, .event .type-box {
-            position: relative;
-            top: -5px;
-            left: 2px;
-          }
-          .character .watermark-box, .location .watermark-box, .attachment .watermark-box, .event .watermark-box {
-            padding-top: 40px;
-          }
-          .character .name-box, .location .name-box, .attachment .name-box, .event .name-box {
-            height: 35px;
-            background-color: white;
-          }
-          .character .faction-box, .location .faction-box, .attachment .faction-box, .event .faction-box {
-            background-color: white;
-            border: 2px solid black;
-          }
+    .icon-tyrell:before {
+      content: "\e60a";
+    }
 
-          .name-box {
-            font-size: 14px;
-            text-align: center;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-sizing: border-box;
-            padding: 0px 5px 0px 5px;
-          }
+    .icon-neutral:before {
+      content: "\e612";
+    }
 
-          .faction-box {
-            height: 35px;
-            width: 35px;
-            font-size: 22px;
-            box-sizing: border-box;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-          }
+    .icon-military:before {
+      content: "\e605";
+    }
 
-          .type-box {
-            font-size: 8px;
-          }
+    .icon-intrigue:before {
+      content: "\e602";
+    }
 
-          .loyal-box {
-            width: 35px;
-            height: 15px;
-            font-size: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-          }
+    .icon-power:before {
+      content: "\e607";
+    }
 
-          .text-box {
-            line-height: 1.2;
-            padding-top: 5px;
-            padding-left: 10px;
-            padding-right: 10px;
-            padding-bottom: 5px;
-            font-family: "Crimson Text", serif;
-            font-size: 12px;
-            display: flex;
-            flex-flow: column nowrap;
-          }
+    .icon-unique:before {
+      content: "\e60b";
+    }
 
-          .watermark-box {
-            width: 100%;
-            flex-grow: 1;
-            display: flex;
-            color: #EAEAEA;
-            font-weight: bold;
-            font-size: 14px;
-            align-items: center;
-            flex-flow: column nowrap;
-          }
-          .watermark-box .card-version {
-            font-size: 36px;
-            line-height: 36px;
-          }
+    .icon-character:before {
+      content: "\e60f";
+    }
 
-          .traits-box {
-            width: 100%;
-            height: 20px;
-            font-size: 12px;
-            text-align: center;
-          }
+    .icon-location:before {
+      content: "\e60e";
+    }
 
-          .ability-box {
-            width: 100%;
-          }
-          .ability-box .card-ability br {
-            display: block;
-            content: "";
-            margin-top: 0.5em;
-          }
-          .ability-box .card-ability i {
-            font-weight: 700;
-            font-style: italic;
-          }
+    .icon-attachment:before {
+      content: "\e60d";
+    }
 
-          body {
-            margin: 0px;
-            font-family: "Open Sans", sans-serif;
-            display: inline-block;
-          }
+    .icon-event:before {
+      content: "\e610";
+    }
 
-          .page {
-            /* A4 @ 96 PPI/DPI */
-            width: 794px;
-            height: 1123px;
-          }
-          .page .sheet {
-            height: 100%;
-            transform: scale(1);
-            transform-origin: 0 0;
-            display: flex;
-            flex-flow: row wrap;
-            justify-content: center;
-            align-content: center;
-          }
-          .page .sheet .card-slot {
-            margin: 0.5px;
-            width: 240px;
-            height: 333px;
-          }
-          .page .sheet .card-slot .card {
-            border-radius: 0px;
-          }
-          .page .sheet .card-slot .card.plot {
-            transform-origin: 166.5px 166.5px;
-            transform: rotate(-90deg);
-          }
+    .icon-plot:before {
+      content: "\e60c";
+    }
 
-          .card-slot {
-            display: inline-block;
-          }
-          .card-slot .card {
-            width: 216px;
-            height: 309px;
-            border-width: 12px;
-            border-radius: 12px;
-            border-style: solid;
-          }
-          .card-slot .card.character {
-            display: flex;
-            flex-flow: column nowrap;
-          }
-          .card-slot .card.character > .top-panel {
-            flex-grow: 1;
-            display: flex;
-          }
-          .card-slot .card.character > .top-panel > .left-panel, .card-slot .card.character > .top-panel > .right-panel {
-            width: 35px;
-            display: flex;
-          }
-          .card-slot .card.character > .top-panel > .left-panel {
-            position: relative;
-            flex-flow: column nowrap;
-          }
-          .card-slot .card.character > .top-panel > .left-panel .challenge-icon-box {
-            flex-grow: 1;
-            display: flex;
-            flex-flow: column nowrap;
-            align-items: center;
-            justify-content: center;
-          }
-          .card-slot .card.character > .top-panel > .left-panel .challenge-icon-box [class*=icon-] {
-            font-size: 20px;
-            height: 33%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-          }
-          .card-slot .card.character > .top-panel > .center-panel {
-            display: flex;
-            flex-grow: 1;
-          }
-          .card-slot .card.character > .top-panel > .right-panel {
-            align-items: flex-end;
-          }
-          .card-slot .card.character > .center-panel {
-            height: 35px;
-            display: flex;
-            justify-content: center;
-            align-items: flex-end;
-          }
-          .card-slot .card.character > .center-panel .strength-box {
-            height: 35px;
-            width: 35px;
-            font-size: 22px;
-            background-color: #ebebeb;
-            border: 2px solid black;
-            box-sizing: border-box;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-          }
-          .card-slot .card.character > .center-panel .name-box {
-            flex-grow: 1;
-            height: 30px;
-            background-color: white;
-            border-top: 2px solid black;
-            border-bottom: 2px solid black;
-            border-left: 0px;
-            border-right: 0px;
-          }
-          .card-slot .card.character > .bottom-panel .text-box {
-            height: 115px;
-          }
-          .card-slot .card.character > .bottom-panel .text-box .traits-box {
-            height: 20px;
-          }
-          .card-slot .card.character > .bottom-panel .text-box .ability-box {
-            height: 95px;
-          }
-          .card-slot .card.location {
-            display: flex;
-            flex-flow: row nowrap;
-          }
-          .card-slot .card.location > .left-panel {
-            position: relative;
-            width: 35px;
-            display: flex;
-            flex-flow: column nowrap;
-          }
-          .card-slot .card.location > .left-panel .name-box {
-            width: 35px;
-            height: 150px;
-            border-top: 0px;
-            border-bottom: 2px solid black;
-            border-left: 2px solid black;
-            border-right: 2px solid black;
-            padding: 5px 0px 5px 0px;
-            writing-mode: vertical-lr;
-            transform: rotate(180deg);
-          }
-          .card-slot .card.location > .right-panel {
-            display: flex;
-            flex-flow: column nowrap;
-            justify-content: space-between;
-          }
-          .card-slot .card.location > .right-panel .text-box {
-            height: 150px;
-          }
-          .card-slot .card.location > .right-panel .text-box .traits-box {
-            height: 20px;
-          }
-          .card-slot .card.location > .right-panel .text-box .ability-box {
-            height: 130px;
-          }
-          .card-slot .card.attachment {
-            display: flex;
-            flex-flow: column nowrap;
-          }
-          .card-slot .card.attachment > .top-panel {
-            display: flex;
-            flex-grow: 1;
-          }
-          .card-slot .card.attachment > .top-panel > .left-panel, .card-slot .card.attachment > .top-panel > .right-panel {
-            width: 35px;
-          }
-          .card-slot .card.attachment > .top-panel > .center-panel {
-            flex-grow: 1;
-          }
-          .card-slot .card.attachment > .center-panel {
-            display: flex;
-            flex-flow: column nowrap;
-            align-items: flex-end;
-          }
-          .card-slot .card.attachment > .center-panel .text-box {
-            height: 110px;
-          }
-          .card-slot .card.attachment > .center-panel .text-box .traits-box {
-            height: 20px;
-          }
-          .card-slot .card.attachment > .center-panel .text-box .ability-box {
-            height: 90px;
-          }
-          .card-slot .card.attachment > .bottom-panel {
-            height: 35px;
-            width: 100%;
-            display: flex;
-          }
-          .card-slot .card.attachment > .bottom-panel .name-box {
-            flex-grow: 1;
-          }
-          .card-slot .card.attachment > .bottom-panel .name-box {
-            border-top: 2px solid black;
-            border-bottom: 2px solid black;
-            border-left: 2px solid black;
-            border-right: 0px;
-          }
-          .card-slot .card.event {
-            display: flex;
-            flex-flow: column nowrap;
-          }
-          .card-slot .card.event > .top-panel {
-            flex-grow: 1;
-            display: flex;
-          }
-          .card-slot .card.event > .top-panel > .left-panel, .card-slot .card.event > .top-panel > .right-panel {
-            width: 35px;
-          }
-          .card-slot .card.event > .top-panel > .center-panel {
-            flex-grow: 1;
-          }
-          .card-slot .card.event > .top-panel > .center-panel > .top-panel {
-            display: flex;
-          }
-          .card-slot .card.event > .top-panel > .center-panel > .top-panel .name-box {
-            flex-grow: 1;
-            border-top: 2px solid black;
-            border-bottom: 2px solid black;
-            border-left: 2px solid black;
-            border-right: 0px;
-          }
-          .card-slot .card.event > .top-panel > .center-panel > .bottom-panel .watermark-box {
-            padding-top: 25px;
-          }
-          .card-slot .card.event > .top-panel > .right-panel {
-            display: flex;
-            flex-flow: column nowrap;
-          }
-          .card-slot .card.event > .bottom-panel .text-box {
-            height: 150px;
-          }
-          .card-slot .card.event > .bottom-panel .text-box .traits-box {
-            height: 20px;
-          }
-          .card-slot .card.event > .bottom-panel .text-box .ability-box {
-            height: 130px;
-          }
-          .card-slot .card.plot {
-            width: 309px;
-            height: 216px;
-            display: flex;
-            flex-flow: column nowrap;
-          }
-          .card-slot .card.plot .plot-stat {
-            height: 32px;
-            width: 32px;
-            font-size: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-          }
-          .card-slot .card.plot > .top-panel {
-            display: flex;
-            flex-flow: row nowrap;
-            height: 40px;
-          }
-          .card-slot .card.plot > .top-panel > .left-panel {
-            display: flex;
-            flex-flow: row nowrap;
-            height: 35px;
-            width: 110px;
-            padding: 5px 0px 0px 5px;
-            justify-content: space-between;
-          }
-          .card-slot .card.plot > .top-panel > .left-panel .card-income {
-            border-radius: 50%;
-            background-color: #FFD240;
-          }
-          .card-slot .card.plot > .top-panel > .left-panel .card-initiative {
-            background-color: #9A6E43;
-            border-radius: 10%;
-          }
-          .card-slot .card.plot > .top-panel > .left-panel .card-claim {
-            border-radius: 50%;
-            background-color: #919191;
-          }
-          .card-slot .card.plot > .top-panel > .right-panel {
-            width: 193px;
-          }
-          .card-slot .card.plot > .top-panel > .right-panel .name-box {
-            height: 35px;
-            font-size: 18px;
-            padding: 5px 5px 0px 5px;
-          }
-          .card-slot .card.plot > .center-panel {
-            display: flex;
-            flex-grow: 1;
-          }
-          .card-slot .card.plot > .center-panel > .left-panel, .card-slot .card.plot > .center-panel > .right-panel {
-            width: 35px;
-          }
-          .card-slot .card.plot > .center-panel > .left-panel {
-            padding-left: 5px;
-            display: flex;
-            flex-flow: column nowrap;
-          }
-          .card-slot .card.plot > .center-panel > .left-panel .decklimit-box {
-            font-size: 8px;
-            flex-grow: 1;
-            writing-mode: vertical-rl;
-            transform: rotate(180deg);
-            transform-origin: 50% 50%;
-            display: flex;
-            align-items: flex-start;
-            justify-content: center;
-          }
-          .card-slot .card.plot > .center-panel > .center-panel {
-            flex-grow: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-          }
-          .card-slot .card.plot > .center-panel > .right-panel {
-            width: 35px;
-            display: flex;
-            flex-flow: row wrap;
-            justify-content: center;
-            padding-right: 5px;
-          }
-          .card-slot .card.plot > .center-panel > .right-panel .faction-box {
-            width: 35px;
-          }
-          .card-slot .card.plot > .center-panel > .right-panel .card-reserve {
-            border-radius: 30%;
-            background-color: #E84F27;
-            align-self: flex-end;
-          }
-          .card-slot .card.plot > .bottom-panel {
-            display: flex;
-            flex-flow: column nowrap;
-          }
-          .card-slot .card.plot > .bottom-panel .text-box {
-            height: 80px;
-            padding-bottom: 0px;
-          }
-          .card-slot .card.plot > .bottom-panel .text-box .traits-box {
-            height: 20px;
-          }
-          .card-slot .card.plot > .bottom-panel .text-box .ability-box {
-            height: 60px;
-          }
-          .card-slot .card.agenda {
-            display: flex;
-            flex-flow: column nowrap;
-          }
-          .card-slot .card.agenda > .top-panel .name-box {
-            height: 35px;
-          }
-          .card-slot .card.agenda > .top-panel .type-box {
-            height: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-          }
-          .card-slot .card.agenda > .center-panel {
-            flex-grow: 1;
-          }
-          .card-slot .card.agenda > .center-panel .watermark-box {
-            padding-top: 10px;
-          }
-          .card-slot .card.agenda > .bottom-panel {
-            display: flex;
-            flex-flow: column nowrap;
-          }
-          .card-slot .card.agenda > .bottom-panel .text-box {
-            height: 150px;
-          }
-          .card-slot .card.agenda > .bottom-panel .text-box .traits-box {
-            height: 20px;
-          }
-          .card-slot .card.agenda > .bottom-panel .text-box .ability-box {
-            height: 130px;
-          }
-      </style>
-  </head>
-  <script>
-      window.onload = function() {
-          document.querySelectorAll('.auto-size').forEach(function(item) {
-              let fontSize = parseInt(window.getComputedStyle(item, null).getPropertyValue("font-size"), 10);
-              while(fontSize > 0 && (item.scrollHeight > item.clientHeight || item.scrollWidth > item.clientWidth)) {
-                  fontSize -= 0.5;
-                  item.style.fontSize = fontSize + "px";
-              }
-          });
-      };
-  </script>
-  <body>
-    <?!= body ?>
-  </body>
+    .icon-agenda:before {
+      content: "\e611";
+    }
+
+    .baratheon {
+      border-color: #E3D852 !important;
+    }
+
+    .greyjoy {
+      border-color: #1D7A99 !important;
+    }
+
+    .lannister {
+      border-color: #C00106 !important;
+    }
+
+    .martell {
+      border-color: #E89521 !important;
+    }
+
+    .thenightswatch {
+      border-color: #7A7A7A !important;
+    }
+
+    .stark {
+      border-color: #CFCFCF !important;
+    }
+
+    .targaryen {
+      border-color: #1C1C1C !important;
+    }
+
+    .tyrell {
+      border-color: #509F16 !important;
+    }
+
+    .neutral {
+      border-color: #A99560 !important;
+    }
+
+    .character .gold-box,
+    .location .gold-box,
+    .attachment .gold-box,
+    .event .gold-box {
+      position: relative;
+      top: -7.5px;
+      left: -7.5px;
+      width: 35px;
+      height: 35px;
+      line-height: 35px;
+      border-radius: 50%;
+      border: 2px solid black;
+      background-color: white;
+      text-align: center;
+      font-size: 26px;
+    }
+
+    .character .type-box,
+    .location .type-box,
+    .attachment .type-box,
+    .event .type-box {
+      position: relative;
+      top: -5px;
+      left: 2px;
+    }
+
+    .character .watermark-box,
+    .location .watermark-box,
+    .attachment .watermark-box,
+    .event .watermark-box {
+      padding-top: 40px;
+    }
+
+    .character .name-box,
+    .location .name-box,
+    .attachment .name-box,
+    .event .name-box {
+      height: 35px;
+      background-color: white;
+    }
+
+    .character .faction-box,
+    .location .faction-box,
+    .attachment .faction-box,
+    .event .faction-box {
+      background-color: white;
+      border: 2px solid black;
+    }
+
+    .name-box {
+      font-size: 14px;
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+      padding: 0px 5px 0px 5px;
+    }
+
+    .faction-box {
+      height: 35px;
+      width: 35px;
+      font-size: 22px;
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .type-box {
+      font-size: 8px;
+    }
+
+    .loyal-box {
+      width: 35px;
+      height: 15px;
+      font-size: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .text-box {
+      line-height: 1.2;
+      padding-top: 5px;
+      padding-left: 10px;
+      padding-right: 10px;
+      padding-bottom: 5px;
+      font-family: "Crimson Text", serif;
+      font-size: 12px;
+      display: flex;
+      flex-flow: column nowrap;
+    }
+
+    .watermark-box {
+      width: 100%;
+      flex-grow: 1;
+      display: flex;
+      color: #EAEAEA;
+      font-weight: bold;
+      font-size: 14px;
+      align-items: center;
+      flex-flow: column nowrap;
+    }
+
+    .watermark-box .card-version {
+      font-size: 36px;
+      line-height: 36px;
+    }
+
+    .traits-box {
+      width: 100%;
+      height: 20px;
+      font-size: 12px;
+      text-align: center;
+    }
+
+    .ability-box {
+      width: 100%;
+    }
+
+    .ability-box .card-ability br {
+      display: block;
+      content: "";
+      margin-top: 0.5em;
+    }
+
+    .ability-box .card-ability i {
+      font-weight: 700;
+      font-style: italic;
+    }
+
+    body {
+      margin: 0px;
+      font-family: "Open Sans", sans-serif;
+      display: inline-block;
+    }
+
+    .page {
+      /* A4 @ 96 PPI/DPI */
+      width: 792px;
+      height: 1122px;
+    }
+
+    .page .sheet {
+      height: 100%;
+      transform: scale(1);
+      transform-origin: 0 0;
+      display: flex;
+      flex-flow: row wrap;
+      justify-content: center;
+      align-content: center;
+    }
+
+    .page .sheet .card-slot {
+      margin: 0.5px;
+      width: 240px;
+      height: 333px;
+    }
+
+    .page .sheet .card-slot .card {
+      border-radius: 0px;
+    }
+
+    .page .sheet .card-slot .card.plot {
+      transform-origin: 166.5px 166.5px;
+      transform: rotate(-90deg);
+    }
+
+    .card-slot {
+      display: inline-block;
+    }
+
+    .card-slot .card {
+      width: 216px;
+      height: 309px;
+      border-width: 12px;
+      border-radius: 12px;
+      border-style: solid;
+    }
+
+    .card-slot .card.character {
+      display: flex;
+      flex-flow: column nowrap;
+    }
+
+    .card-slot .card.character>.top-panel {
+      flex-grow: 1;
+      display: flex;
+    }
+
+    .card-slot .card.character>.top-panel>.left-panel,
+    .card-slot .card.character>.top-panel>.right-panel {
+      width: 35px;
+      display: flex;
+    }
+
+    .card-slot .card.character>.top-panel>.left-panel {
+      position: relative;
+      flex-flow: column nowrap;
+    }
+
+    .card-slot .card.character>.top-panel>.left-panel .challenge-icon-box {
+      flex-grow: 1;
+      display: flex;
+      flex-flow: column nowrap;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .card-slot .card.character>.top-panel>.left-panel .challenge-icon-box [class*=icon-] {
+      font-size: 20px;
+      height: 33%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .card-slot .card.character>.top-panel>.center-panel {
+      display: flex;
+      flex-grow: 1;
+    }
+
+    .card-slot .card.character>.top-panel>.right-panel {
+      align-items: flex-end;
+    }
+
+    .card-slot .card.character>.center-panel {
+      height: 35px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+    }
+
+    .card-slot .card.character>.center-panel .strength-box {
+      height: 35px;
+      width: 35px;
+      font-size: 22px;
+      background-color: #ebebeb;
+      border: 2px solid black;
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .card-slot .card.character>.center-panel .name-box {
+      flex-grow: 1;
+      height: 30px;
+      background-color: white;
+      border-top: 2px solid black;
+      border-bottom: 2px solid black;
+      border-left: 0px;
+      border-right: 0px;
+    }
+
+    .card-slot .card.character>.bottom-panel .text-box {
+      height: 115px;
+    }
+
+    .card-slot .card.character>.bottom-panel .text-box .traits-box {
+      height: 20px;
+    }
+
+    .card-slot .card.character>.bottom-panel .text-box .ability-box {
+      height: 95px;
+    }
+
+    .card-slot .card.location {
+      display: flex;
+      flex-flow: row nowrap;
+    }
+
+    .card-slot .card.location>.left-panel {
+      position: relative;
+      width: 35px;
+      display: flex;
+      flex-flow: column nowrap;
+    }
+
+    .card-slot .card.location>.left-panel .name-box {
+      width: 35px;
+      height: 150px;
+      border-top: 0px;
+      border-bottom: 2px solid black;
+      border-left: 2px solid black;
+      border-right: 2px solid black;
+      padding: 5px 0px 5px 0px;
+      writing-mode: vertical-lr;
+      transform: rotate(180deg);
+    }
+
+    .card-slot .card.location>.right-panel {
+      display: flex;
+      flex-flow: column nowrap;
+      justify-content: space-between;
+    }
+
+    .card-slot .card.location>.right-panel .text-box {
+      height: 150px;
+    }
+
+    .card-slot .card.location>.right-panel .text-box .traits-box {
+      height: 20px;
+    }
+
+    .card-slot .card.location>.right-panel .text-box .ability-box {
+      height: 130px;
+    }
+
+    .card-slot .card.attachment {
+      display: flex;
+      flex-flow: column nowrap;
+    }
+
+    .card-slot .card.attachment>.top-panel {
+      display: flex;
+      flex-grow: 1;
+    }
+
+    .card-slot .card.attachment>.top-panel>.left-panel,
+    .card-slot .card.attachment>.top-panel>.right-panel {
+      width: 35px;
+    }
+
+    .card-slot .card.attachment>.top-panel>.center-panel {
+      flex-grow: 1;
+    }
+
+    .card-slot .card.attachment>.center-panel {
+      display: flex;
+      flex-flow: column nowrap;
+      align-items: flex-end;
+    }
+
+    .card-slot .card.attachment>.center-panel .text-box {
+      height: 110px;
+    }
+
+    .card-slot .card.attachment>.center-panel .text-box .traits-box {
+      height: 20px;
+    }
+
+    .card-slot .card.attachment>.center-panel .text-box .ability-box {
+      height: 90px;
+    }
+
+    .card-slot .card.attachment>.bottom-panel {
+      height: 35px;
+      width: 100%;
+      display: flex;
+    }
+
+    .card-slot .card.attachment>.bottom-panel .name-box {
+      flex-grow: 1;
+    }
+
+    .card-slot .card.attachment>.bottom-panel .name-box {
+      border-top: 2px solid black;
+      border-bottom: 2px solid black;
+      border-left: 2px solid black;
+      border-right: 0px;
+    }
+
+    .card-slot .card.event {
+      display: flex;
+      flex-flow: column nowrap;
+    }
+
+    .card-slot .card.event>.top-panel {
+      flex-grow: 1;
+      display: flex;
+    }
+
+    .card-slot .card.event>.top-panel>.left-panel,
+    .card-slot .card.event>.top-panel>.right-panel {
+      width: 35px;
+    }
+
+    .card-slot .card.event>.top-panel>.center-panel {
+      flex-grow: 1;
+    }
+
+    .card-slot .card.event>.top-panel>.center-panel>.top-panel {
+      display: flex;
+    }
+
+    .card-slot .card.event>.top-panel>.center-panel>.top-panel .name-box {
+      flex-grow: 1;
+      border-top: 2px solid black;
+      border-bottom: 2px solid black;
+      border-left: 2px solid black;
+      border-right: 0px;
+    }
+
+    .card-slot .card.event>.top-panel>.center-panel>.bottom-panel .watermark-box {
+      padding-top: 25px;
+    }
+
+    .card-slot .card.event>.top-panel>.right-panel {
+      display: flex;
+      flex-flow: column nowrap;
+    }
+
+    .card-slot .card.event>.bottom-panel .text-box {
+      height: 150px;
+    }
+
+    .card-slot .card.event>.bottom-panel .text-box .traits-box {
+      height: 20px;
+    }
+
+    .card-slot .card.event>.bottom-panel .text-box .ability-box {
+      height: 130px;
+    }
+
+    .card-slot .card.plot {
+      width: 309px;
+      height: 216px;
+      display: flex;
+      flex-flow: column nowrap;
+    }
+
+    .card-slot .card.plot>.top-panel {
+      display: flex;
+      flex-flow: row nowrap;
+      height: 40px;
+    }
+
+    .card-slot .card.plot>.top-panel>.left-panel {
+      display: flex;
+      flex-flow: row nowrap;
+      height: 35px;
+      width: 110px;
+      padding: 5px 0px 0px 5px;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .card-slot .card.plot>.top-panel>.right-panel {
+      width: 193px;
+    }
+
+    .card-slot .card.plot>.top-panel>.right-panel .name-box {
+      height: 35px;
+      font-size: 18px;
+      padding: 5px 5px 0px 5px;
+    }
+
+    .card-slot .card.plot>.center-panel {
+      display: flex;
+      flex-grow: 1;
+    }
+
+    .card-slot .card.plot>.center-panel>.left-panel,
+    .card-slot .card.plot>.center-panel>.right-panel {
+      width: 35px;
+    }
+
+    .card-slot .card.plot>.center-panel>.left-panel {
+      padding-left: 5px;
+      display: flex;
+      flex-flow: column nowrap;
+    }
+
+    .card-slot .card.plot>.center-panel>.left-panel .decklimit-box {
+      font-size: 8px;
+      flex-grow: 1;
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+      transform-origin: 50% 50%;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+    }
+
+    .card-slot .card.plot>.center-panel>.center-panel {
+      flex-grow: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .card-slot .card.plot>.center-panel>.right-panel {
+      width: 35px;
+      display: flex;
+      flex-flow: row wrap;
+      justify-content: center;
+      padding-right: 5px;
+    }
+
+    .card-slot .card.plot>.center-panel>.right-panel .faction-box {
+      width: 35px;
+    }
+
+    .card-slot .card.plot>.center-panel>.right-panel .card-reserve {
+      align-self: flex-end;
+    }
+
+    .card-slot .card.plot>.bottom-panel {
+      display: flex;
+      flex-flow: column nowrap;
+    }
+
+    .card-slot .card.plot>.bottom-panel .text-box {
+      height: 80px;
+      padding-bottom: 0px;
+    }
+
+    .card-slot .card.plot>.bottom-panel .text-box .traits-box {
+      height: 20px;
+    }
+
+    .card-slot .card.plot>.bottom-panel .text-box .ability-box {
+      height: 60px;
+    }
+
+    .card-slot .card.agenda {
+      display: flex;
+      flex-flow: column nowrap;
+    }
+
+    .card-slot .card.agenda>.top-panel .name-box {
+      height: 35px;
+    }
+
+    .card-slot .card.agenda>.top-panel .type-box {
+      height: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .card-slot .card.agenda>.center-panel {
+      flex-grow: 1;
+    }
+
+    .card-slot .card.agenda>.center-panel .watermark-box {
+      padding-top: 10px;
+    }
+
+    .card-slot .card.agenda>.bottom-panel {
+      display: flex;
+      flex-flow: column nowrap;
+    }
+
+    .card-slot .card.agenda>.bottom-panel .text-box {
+      height: 150px;
+    }
+
+    .card-slot .card.agenda>.bottom-panel .text-box .traits-box {
+      height: 20px;
+    }
+
+    .card-slot .card.agenda>.bottom-panel .text-box .ability-box {
+      height: 130px;
+    }
+
+    .card-slot .card .plot-modifiers {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .card-slot .card .plot-modifiers .plot-stat {
+      margin-left: 2px;
+      margin-right: 2px;
+    }
+
+    .card-slot .card .plot-stat {
+      position: relative;
+      height: 30px;
+      width: 30px;
+      line-height: 30px;
+      text-align: center;
+      font-size: 20px;
+      border: 2px solid rgba(0, 0, 0, 0);
+      font-family: "Open Sans", sans-serif;
+    }
+
+    .card-slot .card .plot-stat.income {
+      background-color: #FFD240;
+      -webkit-clip-path: circle(50%);
+      clip-path: circle(50%);
+    }
+
+    .card-slot .card .plot-stat.initiative {
+      border: 4px solid rgba(0, 0, 0, 0);
+      background-color: #9A6E43;
+      -webkit-clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+      clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+    }
+
+    .card-slot .card .plot-stat.claim {
+      border-top: 3px solid rgba(0, 0, 0, 0);
+      border-bottom: 3px solid rgba(0, 0, 0, 0);
+      border-left: 1px solid rgba(0, 0, 0, 0);
+      border-right: 1px solid rgba(0, 0, 0, 0);
+      background-color: #919191;
+      -webkit-clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+      clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    }
+
+    .card-slot .card .plot-stat.reserve {
+      background-color: #E84F27;
+      -webkit-clip-path: polygon(20% 0%, 80% 0%, 100% 20%, 100% 80%, 80% 100%, 20% 100%, 0% 80%, 0% 20%);
+      clip-path: polygon(20% 0%, 80% 0%, 100% 20%, 100% 80%, 80% 100%, 20% 100%, 0% 80%, 0% 20%);
+    }
+  </style>
+</head>
+<script>
+  window.onload = function () {
+    document.querySelectorAll('.auto-size').forEach(function (item) {
+      let fontSize = parseInt(window.getComputedStyle(item, null).getPropertyValue("font-size"), 10);
+      while (fontSize > 0 && (item.scrollHeight > item.clientHeight || item.scrollWidth > item.clientWidth)) {
+        fontSize -= 0.5;
+        item.style.fontSize = fontSize + "px";
+      }
+    });
+  };
+</script>
+
+<body>
+  <?!= body ?>
+</body>
+
 </html>

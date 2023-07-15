@@ -15,37 +15,43 @@ class Review extends RichTextRow {
     reason?: string;
     additional?: string;
 
-    constructor(row: (GoogleAppsScript.Spreadsheet.RichTextValue | null)[]) {
-        super(row);
-        
-        this.number = this.getNumber(ReviewColumn.Number, true);
-        this.version = SemanticVersion.fromString(this.getText(ReviewColumn.Version, true));
-        this.faction = this.getEnumFromValue<Faction>(Faction, ReviewColumn.Faction, true);
-        this.date = new Date(this.getText(ReviewColumn.Date, true));
-        this.reviewer = this.getText(ReviewColumn.Reviewer, true);
-        this.deck = this.getValue(ReviewColumn.Deck).getLinkUrl() || "";
-        this.count = this.getNumber(ReviewColumn.Count, true);
-        this.rating = this.getNumber(ReviewColumn.Rating, true);
-        const release = this.getText(ReviewColumn.Release, true);
-        this.release = release !== "Unsure" ? (release === "Yes") : undefined;
-        this.reason = this.hasText(ReviewColumn.Reason) ? this.getText(ReviewColumn.Reason) : undefined;
-        this.additional = this.hasText(ReviewColumn.Additional) ? this.getText(ReviewColumn.Additional) : undefined;
-    }
-
     static fromResponse(response: GoogleAppsScript.Forms.FormResponse) {
         //TODO: Implement
 
         // return new Review()
     }
 
+    static fromRichTextValues(richTextValues: (GoogleAppsScript.Spreadsheet.RichTextValue | null)[]): Review {
+        const review = new Review();
+        review.rowValues = richTextValues.map(rtv => rtv ? rtv : SpreadsheetApp.newRichTextValue().build());
+
+        review.number = review.getNumber(ReviewColumn.Number, true);
+        review.version = SemanticVersion.fromString(review.getText(ReviewColumn.Version, true));
+        review.faction = review.getEnumFromValue<Faction>(Faction, ReviewColumn.Faction, true);
+        review.date = new Date(review.getText(ReviewColumn.Date, true));
+        review.reviewer = review.getText(ReviewColumn.Reviewer, true);
+        review.deck = review.getValue(ReviewColumn.Deck).getLinkUrl() || "";
+        review.count = review.getNumber(ReviewColumn.Count, true);
+        review.rating = review.getNumber(ReviewColumn.Rating, true);
+        const release = review.getText(ReviewColumn.Release, true);
+        review.release = release !== "Unsure" ? (release === "Yes") : undefined;
+        review.reason = review.hasText(ReviewColumn.Reason) ? review.getText(ReviewColumn.Reason) : undefined;
+        review.additional = review.hasText(ReviewColumn.Additional) ? review.getText(ReviewColumn.Additional) : undefined;
+
+        return review.track();
+    }
+
     toRichTextValues(): GoogleAppsScript.Spreadsheet.RichTextValue[] {
-        this.row = Array.from({ length: ColumnHelper.getCount(ReviewColumn) }, () => SpreadsheetApp.newRichTextValue().build());
+        if(!this.isDirty) {
+            return this.rowValues;
+        }
+        this.rowValues = Array.from({ length: ColumnHelper.getCount(ReviewColumn) }, () => SpreadsheetApp.newRichTextValue().build());
         this.setText(ReviewColumn.Number, this.number);
         this.setText(ReviewColumn.Version, this.version.toString());
         this.setText(ReviewColumn.Faction, this.faction);
         this.setText(ReviewColumn.Date, this.date.toUTCString());
         this.setText(ReviewColumn.Reviewer, this.reviewer);
-        this.row[ReviewColumn.Deck] = SpreadsheetApp.newRichTextValue().setText("ThronesDB").setLinkUrl(this.deck).build();
+        this.rowValues[ReviewColumn.Deck] = SpreadsheetApp.newRichTextValue().setText("ThronesDB").setLinkUrl(this.deck).build();
         this.setText(ReviewColumn.Count, this.count);
         this.setText(ReviewColumn.Rating, this.rating);
         this.setText(ReviewColumn.Release, this.release !== undefined ? (this.release ? "Yes" : "No") : "Unsure");
@@ -56,7 +62,7 @@ class Review extends RichTextRow {
             this.setText(ReviewColumn.Additional, this.additional);
         }
 
-        return this.row;
+        return this.rowValues;
     }
 }
 export { Review }

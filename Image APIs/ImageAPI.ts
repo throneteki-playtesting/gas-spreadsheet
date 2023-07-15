@@ -1,5 +1,5 @@
 import { Settings } from "../DataLayer/Settings";
-import { HtmlHelper } from "./Helpers";
+import { HTMLRenderEngine } from "./HTMLRenderEngine";
 
 class ImageAPI {
   static generateCard(project: any, card: any) {
@@ -7,7 +7,7 @@ class ImageAPI {
     const apiKey = Settings.getUserProperty('image_apiKey');
     const userId = Settings.getUserProperty('image_userId');
 
-    const html = HtmlHelper.renderSingle(project, card);
+    const html = HTMLRenderEngine.single(project, card);
 
     const payload = {
       html,

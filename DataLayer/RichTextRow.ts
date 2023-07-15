@@ -1,17 +1,33 @@
 abstract class RichTextRow {
-    protected row: GoogleAppsScript.Spreadsheet.RichTextValue[];
-
-    constructor(row: (GoogleAppsScript.Spreadsheet.RichTextValue | null)[]) {
-        this.row = row.map(rtv => rtv || SpreadsheetApp.newRichTextValue().build());
-    }
+    protected rowValues: GoogleAppsScript.Spreadsheet.RichTextValue[];
+    isDirty: boolean = false;
 
     abstract toRichTextValues(): GoogleAppsScript.Spreadsheet.RichTextValue[];
+    
+    track() {
+        const tracking = this;
+        const handler = () => ({
+            get: function(obj: any, prop: any) {
+                if(typeof obj[prop] === "object" &&  prop !== "rowValues") {
+                    return new Proxy(obj[prop], handler());
+                }
+                return obj[prop];
+            },
+            set: function(obj: any, prop: any, val: any) {
+                tracking.isDirty = true;
+                obj[prop] = val;
+                return true;
+            }
+        });
+        
+        return new Proxy(this, handler());
+    }
 
     getText(column: number, required: boolean = false) {
-        const str = this.row[column]?.getText();
+        const str = this.rowValues[column]?.getText();
         const text = !str || str === "-" ? "" : str;
         if (!text && required) {
-            throw new Error("Failed to build required string from '" + str + "' for column index " + column + ". Full Row Data:\n" + this.row.map(rtv => rtv.getText()));
+            throw new Error("Failed to build required string from '" + str + "' for column index " + column + ". Full Row Data:\n" + this.rowValues.map(rtv => rtv.getText()));
         }
         return text;
     }
@@ -25,7 +41,7 @@ abstract class RichTextRow {
         const str = this.getText(column, required);
         const number = parseInt(str);
         if (Number.isNaN(number) && required) {
-            throw new Error("Failed to build required number from '" + str + "' for column index " + column + ". Full Row Data:\n" + this.row.map(rtv => rtv.getText()))
+            throw new Error("Failed to build required number from '" + str + "' for column index " + column + ". Full Row Data:\n" + this.rowValues.map(rtv => rtv.getText()))
         }
         return parseInt(str);
     }
@@ -34,15 +50,15 @@ abstract class RichTextRow {
         const str = this.getText(column, required);
         const e = Object.entries(enumType).find(([key, value]) => value === str)?.[1];
         if (!e && required) {
-            throw new Error("Failed to find required '" + enumType + "' enum of value '" + str + "' for column index " + column + ". Full Row Data:\n" + this.row.map(rtv => rtv.getText()));
+            throw new Error("Failed to find required '" + enumType + "' enum of value '" + str + "' for column index " + column + ". Full Row Data:\n" + this.rowValues.map(rtv => rtv.getText()));
         }
         return e as E;
     }
 
     getValue(column: number, required: boolean = false) {
-        const rtv = this.row[column];
+        const rtv = this.rowValues[column];
         if (!rtv && required) {
-            throw new Error("Failed to find required value for column index " + column + ". Full Row Data:\n" + this.row.map(rtv => rtv.getText()));
+            throw new Error("Failed to find required value for column index " + column + ". Full Row Data:\n" + this.rowValues.map(rtv => rtv.getText()));
         }
         return rtv;
     }
@@ -61,7 +77,7 @@ abstract class RichTextRow {
             && !ts.isStrikethrough()
             && !ts.isUnderline()
 
-        for (let run of this.row[column]?.getRuns() ?? []) {
+        for (let run of this.rowValues[column]?.getRuns() ?? []) {
             let text = run.getText();
             const style = run.getTextStyle();
 
@@ -131,12 +147,12 @@ abstract class RichTextRow {
         }
 
         const richTextValue = builder.build();
-        this.row[column] = richTextValue;
+        this.rowValues[column] = richTextValue;
     }
 
     setText(column: number, text: string | number) {
-        const rtv = this.row[column]?.copy() ?? SpreadsheetApp.newRichTextValue();
-        this.row[column] = rtv.setText(text.toString()).build();
+        const rtv = this.rowValues[column]?.copy() ?? SpreadsheetApp.newRichTextValue();
+        this.rowValues[column] = rtv.setText(text.toString()).build();
     }
 }
 

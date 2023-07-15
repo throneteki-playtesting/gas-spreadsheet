@@ -53,84 +53,83 @@ class Card extends RichTextRow {
         reserve: number
     };
 
-    constructor(project: Project, row: (GoogleAppsScript.Spreadsheet.RichTextValue | null)[]) {
-        super(row);
-        if (!this.getText(CardColumn.Version)) {
-            // Handle missing version as "TBA" card
+    static fromRichTextValues(project: Project, richTextValues: (GoogleAppsScript.Spreadsheet.RichTextValue | null)[]): Card {
+        const card = new Card();
+        card.rowValues = richTextValues.map(rtv => rtv ? rtv : SpreadsheetApp.newRichTextValue().build());
+
+        if (!card.getText(CardColumn.Version)) {
+            // TODO: Handle missing version as "TBA" card
         }
-        const number = this.getNumber(CardColumn.Number, true);
+        const number = card.getNumber(CardColumn.Number, true);
         // Cycles require ranges 0-499 for "live" cards, and 500-999 for "development" cards
-        this.code = parseInt(project.code + (project.type === ProjectType.Cycle ? (number + 500) : number).toString().padStart(3, "0"));
-        this.development = {
+        card.code = parseInt(project.code + (project.type === ProjectType.Cycle ? (number + 500) : number).toString().padStart(3, "0"));
+        card.development = {
             project,
             number: number,
-            version: SemanticVersion.fromString(this.getText(CardColumn.Version, true)),
-            playtestVersion: this.hasText(CardColumn.PlaytestVersion) ? SemanticVersion.fromString(this.getText(CardColumn.PlaytestVersion)) : undefined,
-            note: this.hasText(CardColumn.NoteType) ? {
-                type: NoteType[this.getText(CardColumn.NoteType, true)],
-                text: this.getAsHtml(CardColumn.NoteText)
+            version: SemanticVersion.fromString(card.getText(CardColumn.Version, true)),
+            playtestVersion: card.hasText(CardColumn.PlaytestVersion) ? SemanticVersion.fromString(card.getText(CardColumn.PlaytestVersion)) : undefined,
+            note: card.hasText(CardColumn.NoteType) ? {
+                type: NoteType[card.getText(CardColumn.NoteType, true)],
+                text: card.getAsHtml(CardColumn.NoteText)
             } : undefined,
-            image: this.hasText(CardColumn.ImageUrl) ? {
-                url: this.getValue(CardColumn.ImageUrl).getLinkUrl() || "",
-                version: SemanticVersion.fromString(this.getText(CardColumn.ImageUrl, true))
+            image: card.hasText(CardColumn.ImageUrl) ? {
+                url: card.getValue(CardColumn.ImageUrl).getLinkUrl() || "",
+                version: SemanticVersion.fromString(card.getText(CardColumn.ImageUrl, true))
             } : undefined,
-            githubIssue: this.hasText(CardColumn.GithubIssue) ? {
-                status: this.getText(CardColumn.GithubIssue, true),
-                url: this.getValue(CardColumn.GithubIssue).getLinkUrl() || ""
+            githubIssue: card.hasText(CardColumn.GithubIssue) ? {
+                status: card.getText(CardColumn.GithubIssue, true),
+                url: card.getValue(CardColumn.GithubIssue).getLinkUrl() || ""
             } : undefined
         };
-        this.faction = this.getEnumFromValue<Faction>(Faction, CardColumn.Faction, true);
-        this.name = this.getText(CardColumn.Name, true);
-        this.type = CardType[this.getText(CardColumn.Type, true)];
-        this.traits = this.getText(CardColumn.Traits).split(".").filter(t => t).map(t => t.trim());
-        this.text = this.getAsHtml(CardColumn.Textbox);
-        if (this.hasText(CardColumn.Flavor)) {
-            this.flavor = this.getAsHtml(CardColumn.Flavor);
+        card.faction = card.getEnumFromValue<Faction>(Faction, CardColumn.Faction, true);
+        card.name = card.getText(CardColumn.Name, true);
+        card.type = CardType[card.getText(CardColumn.Type, true)];
+        card.traits = card.getText(CardColumn.Traits).split(".").filter(t => t).map(t => t.trim());
+        card.text = card.getAsHtml(CardColumn.Textbox);
+        if (card.hasText(CardColumn.Flavor)) {
+            card.flavor = card.getAsHtml(CardColumn.Flavor);
         }
-        this.illustrator = this.getText(CardColumn.Illustrator) || "?";
-        if (this.hasText(CardColumn.Designer)) {
-            this.designer = this.getText(CardColumn.Designer);
+        card.illustrator = card.getText(CardColumn.Illustrator) || "?";
+        if (card.hasText(CardColumn.Designer)) {
+            card.designer = card.getText(CardColumn.Designer);
         }
-        if (this.faction !== Faction.Neutral) {
-            this.loyal = this.getText(CardColumn.Loyal).toLowerCase() === "loyal";
+        if (card.faction !== Faction.Neutral) {
+            card.loyal = card.getText(CardColumn.Loyal).toLowerCase() === "loyal";
         }
-        switch (this.type) {
+        switch (card.type) {
             case CardType.Character:
-                this.strength = this.getNumber(CardColumn.Strength, true)
-                this.icons = {
-                    military: this.getText(CardColumn.Icons).includes("M"),
-                    intrigue: this.getText(CardColumn.Icons).includes("I"),
-                    power: this.getText(CardColumn.Icons).includes("P")
+                card.strength = card.getNumber(CardColumn.Strength, true)
+                card.icons = {
+                    military: card.getText(CardColumn.Icons).includes("M"),
+                    intrigue: card.getText(CardColumn.Icons).includes("I"),
+                    power: card.getText(CardColumn.Icons).includes("P")
                 };
             case CardType.Attachment:
             case CardType.Location:
-                this.unique = this.getText(CardColumn.Unique, true) === "Unique";
+                card.unique = card.getText(CardColumn.Unique, true) === "Unique";
             case CardType.Event:
-                const cost = this.getNumber(CardColumn.Cost);
-                this.cost = !isNaN(cost) ? cost : this.getText(CardColumn.Cost) || "-";
+                const cost = card.getNumber(CardColumn.Cost);
+                card.cost = !isNaN(cost) ? cost : card.getText(CardColumn.Cost) || "-";
                 break;
             case CardType.Plot:
-                this.plotStats = {
-                    income: this.getNumber(CardColumn.Income, true),
-                    initiative: this.getNumber(CardColumn.Initiative, true),
-                    claim: this.getNumber(CardColumn.Claim, true),
-                    reserve: this.getNumber(CardColumn.Reserve, true)
+                card.plotStats = {
+                    income: card.getNumber(CardColumn.Income, true),
+                    initiative: card.getNumber(CardColumn.Initiative, true),
+                    claim: card.getNumber(CardColumn.Claim, true),
+                    reserve: card.getNumber(CardColumn.Reserve, true)
                 };
             case CardType.Agenda:
                 // Nothing additional to add
                 break;
         }
 
-        this.deckLimit = this.hasText(CardColumn.Limit) ? this.getNumber(CardColumn.Limit) : DefaultDeckLimit[CardType[this.type]]
+        card.deckLimit = card.hasText(CardColumn.Limit) ? card.getNumber(CardColumn.Limit) : DefaultDeckLimit[CardType[card.type]];
 
-        // TODO: Revisit this once pack is being released
-        // const packStr = encodeURIComponent(data.project.short);
-        // const cardStr = encodeURIComponent(this.development.number.toString().padStart(2, "0") + "_" + this.name.replace("'", "_"));
-        // this.imageUrl = "https://throneteki.ams3.cdn.digitaloceanspaces.com/packs/" + packStr + "/" + cardStr + ".png";
-    }
+        return card.track();
+    };
 
     clone() {
-        return new Card(this.development.project, this.toRichTextValues());
+        return Card.fromRichTextValues(this.development.project, this.rowValues);
     }
 
     requiresIssue() {
@@ -187,11 +186,12 @@ class Card extends RichTextRow {
     }
 
     toRichTextValues() {
+        if(!this.isDirty) {
+            return this.rowValues;
+        }
         const dashColumns = [CardColumn.Loyal, CardColumn.Unique, CardColumn.Cost, CardColumn.Strength, CardColumn.Icons, CardColumn.Traits];
 
-        const testing = this;
-
-        this.row = Array.from({ length: ColumnHelper.getCount(CardColumn) }, (v, i) => SpreadsheetApp.newRichTextValue().setText(dashColumns.includes(i) ? "-" : "").build());
+        this.rowValues = Array.from({ length: ColumnHelper.getCount(CardColumn) }, (v, i) => SpreadsheetApp.newRichTextValue().setText(dashColumns.includes(i) ? "-" : "").build());
         this.setText(CardColumn.Number, this.development.number);
         this.setText(CardColumn.Version, this.development.version.toString());
         this.setText(CardColumn.Faction, this.faction);
@@ -217,7 +217,7 @@ class Card extends RichTextRow {
             this.setText(CardColumn.Illustrator, this.illustrator);
         }
         if (this.development.image) {
-            this.row[CardColumn.ImageUrl] = SpreadsheetApp.newRichTextValue().setText(this.development.image.version.toString()).setLinkUrl(this.development.image.url).build();
+            this.rowValues[CardColumn.ImageUrl] = SpreadsheetApp.newRichTextValue().setText(this.development.image.version.toString()).setLinkUrl(this.development.image.url).build();
         }
         if (this.development.note) {
             this.setText(CardColumn.NoteType, NoteType[this.development.note.type]);
@@ -230,7 +230,7 @@ class Card extends RichTextRow {
         }
 
         if (this.development.githubIssue) {
-            this.row[CardColumn.GithubIssue] = SpreadsheetApp.newRichTextValue().setText(this.development.githubIssue.status).setLinkUrl(this.development.githubIssue.url).build();
+            this.rowValues[CardColumn.GithubIssue] = SpreadsheetApp.newRichTextValue().setText(this.development.githubIssue.status).setLinkUrl(this.development.githubIssue.url).build();
         }
 
         switch (this.type) {
@@ -258,7 +258,7 @@ class Card extends RichTextRow {
             case CardType.Agenda:
             // Nothing to set
         }
-        return this.row;
+        return this.rowValues;
     }
 }
 

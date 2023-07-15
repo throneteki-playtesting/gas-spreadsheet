@@ -3,7 +3,7 @@ import { Data } from "../DataLayer/Data";
 import { Card } from "../DataLayer/Models/Card";
 import { Project, SemanticVersion } from "../DataLayer/Models/Project";
 import { Settings } from "../DataLayer/Settings";
-import { HtmlHelper } from "./Helpers";
+import { HTMLRenderEngine } from "./HTMLRenderEngine";
 
 class PDFAPI {
   static generateSheet(project: Project, cards: Card[], fileName: string, sandbox = false): string {
@@ -11,7 +11,7 @@ class PDFAPI {
     const baseFolder = "s3://agot-playtesting/printing";
     const apiKey = Settings.getUserProperty('pdf_apiKey');
 
-    const html = HtmlHelper.renderBatch(project, cards);
+    const html = HTMLRenderEngine.batch(project, cards);
 
     const payload = {
       source: html,

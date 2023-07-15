@@ -1,4 +1,3 @@
-import { RichTextRow } from "./RichTextRow";
 import { Card } from "./Models/Card";
 import { CardColumn, ColumnHelper, NoteType, ProjectType, ReviewColumn } from "../Common/Enums";
 import { Project, SemanticVersion } from "./Models/Project";
@@ -10,9 +9,9 @@ class Data {
   private static instance_: Data;
   readonly project: Project;
 
-  private latestCardsSheet: DataSheet<Card>;
-  private archivedCardsSheet: DataSheet<Card>;
-  private archivedReviewsSheet: DataSheet<Review>;
+  private latestCardsSheet: DataSheet;
+  private archivedCardsSheet: DataSheet;
+  private archivedReviewsSheet: DataSheet;
   
   private latestCards_: Card[];
   private archivedCards_: Card[];
@@ -25,35 +24,13 @@ class Data {
     }
     this.project = new Project();
 
-    this.latestCardsSheet = new DataSheet(this.getSheetByName("Latest Cards"), 5, 2, ColumnHelper.getCount(CardColumn), this.project.totalCards, false);
-    this.archivedCardsSheet = new DataSheet(this.getSheetByName("Archived Cards"), 5, 2, ColumnHelper.getCount(CardColumn), null, true);
-    this.archivedReviewsSheet = new DataSheet(this.getSheetByName("Archived Reviews"), 4, 2, ColumnHelper.getCount(ReviewColumn), null, true);
+    this.latestCardsSheet = new DataSheet("Latest Cards", 5, 2, ColumnHelper.getCount(CardColumn), this.project.totalCards, false);
+    this.archivedCardsSheet = new DataSheet("Archived Cards", 5, 2, ColumnHelper.getCount(CardColumn), null, true);
+    this.archivedReviewsSheet = new DataSheet("Archived Reviews", 4, 2, ColumnHelper.getCount(ReviewColumn), null, true);
 
-    this.latestCards_ = this.latestCardsSheet.getRichTextData().map(rtv => new Card(this.project, rtv));
-    this.archivedCards_ = this.archivedCardsSheet.getRichTextData().map(rtv => new Card(this.project, rtv));
-    this.archivedReviews_ = this.archivedReviewsSheet.getRichTextData().map(rtv => new Review(rtv));
-  }
-
-  get latestCards() {
-    return this.latestCards_;
-  }
-  set latestCards(value) {
-    this.latestCardsSheet.isDirty = true;
-    this.latestCards_ = value;
-  }
-  get archivedCards() {
-    return this.archivedCards_;
-  }
-  set archivedCards(value) {
-    this.archivedCardsSheet.isDirty = true;
-    this.archivedCards_ = value;
-  }
-  get archivedReviews() {
-    return this.archivedReviews_;
-  }
-  set archivedReviews(value) {
-    this.archivedReviewsSheet.isDirty = true;
-    this.archivedReviews_ = value;
+    this.latestCards_ = this.latestCardsSheet.getRichTextData().map(rtv => Card.fromRichTextValues(this.project, rtv));
+    this.archivedCards_ = this.archivedCardsSheet.getRichTextData().map(rtv => Card.fromRichTextValues(this.project, rtv));
+    this.archivedReviews_ = this.archivedReviewsSheet.getRichTextData().map(rtv => Review.fromRichTextValues(rtv));
   }
 
   static get instance(): Data {
@@ -65,18 +42,23 @@ class Data {
     return Data.instance_;
   }
 
-  private getSheetByName(name: string) {
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name);
-    if (!sheet) {
-      throw new Error("Failed to find sheet of name '" + name + "'.");
-    }
-    return sheet;
+  get latestCards() {
+    return this.latestCards_;
   }
-
-  sync() {
-    this.latestCardsSheet.setRichTextData(this.latestCards.map(card => card.toRichTextValues()));
-    this.archivedCardsSheet.setRichTextData(this.archivedCards.map(card => card.toRichTextValues()));
-    this.archivedReviewsSheet.setRichTextData(this.archivedReviews.map(review => review.toRichTextValues()));
+  set latestCards(value) {
+    this.latestCards_ = value;
+  }
+  get archivedCards() {
+    return this.archivedCards_;
+  }
+  set archivedCards(value) {
+    this.archivedCards_ = value;
+  }
+  get archivedReviews() {
+    return this.archivedReviews_;
+  }
+  set archivedReviews(value) {
+    this.archivedReviews_ = value;
   }
 
   get playtestingCards(): Card[] {
@@ -91,6 +73,12 @@ class Data {
 
       return archivedCard;
     });
+  }
+
+  commit() {
+    this.latestCardsSheet.setRichTextData(this.latestCards.map(card => card.toRichTextValues()));
+    this.archivedCardsSheet.setRichTextData(this.archivedCards.map(card => card.toRichTextValues()));
+    this.archivedReviewsSheet.setRichTextData(this.archivedReviews.map(review => review.toRichTextValues()));
   }
 
   findCard(number: number, version: SemanticVersion): Card | undefined {
@@ -127,16 +115,21 @@ class Data {
       // Note: Image is synced/updated when issue is created, not when card is archived
     }
 
-    this.sync();
+    this.commit();
 
     console.log("Successfully archived " + successful.length + " card(s): " + successful.join(", "));
   }
 }
 
-class DataSheet<T extends RichTextRow> {
-  isDirty: boolean;
-  constructor(private sheet: GoogleAppsScript.Spreadsheet.Sheet, private firstRow: number, private firstColumn: number, private numColumns: number, private numRows: number | null, private hasTemplateRow: boolean) {
-    this.isDirty = false;
+class DataSheet {
+  private sheet: GoogleAppsScript.Spreadsheet.Sheet;
+
+  constructor(sheetName: string, private firstRow: number, private firstColumn: number, private numColumns: number, private numRows: number | null, private hasTemplateRow: boolean) {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+    if (!sheet) {
+      throw new Error("Failed to find sheet of name '" + sheetName + "'.");
+    }
+    this.sheet = sheet;
   }
 
   private get numTemplateRows() {
@@ -153,16 +146,16 @@ class DataSheet<T extends RichTextRow> {
   }
 
   setRichTextData(data: GoogleAppsScript.Spreadsheet.RichTextValue[][]) {
+    const saving = data.map(a => a.map(b => b.getText()));
+
     if (data.length > 0 && data[0].length != this.numColumns) {
       throw new Error("Cannot setRichTextData as data length (" + data[0].length + ") does not match '" + this.sheet.getName() + "' column length (" + this.numColumns + ").");
     }
-    
-    if(!this.isDirty) {
-      return;
-    }
-
     // If there is a set number of rows, then rows cannot be added or removed
     if (this.numRows) {
+      if (data.length !== this.numRows) {
+        throw new Error("Cannot setRichTextData as data length (" + data.length + ") does not match '" + this.sheet.getName() + "' number of rows (" + this.numRows + ").");
+      }
       this.sheet.getRange(this.firstRow, this.firstColumn, this.numRows, this.numColumns).setRichTextValues(data);
     } else {
       // Calculate how many rows to be added or removed via rowOffset
@@ -192,30 +185,6 @@ class DataSheet<T extends RichTextRow> {
         this.sheet.getRange(this.firstRow, this.firstColumn, data.length, this.numColumns).setRichTextValues(data);
       }
     }
-  }
-
-  addRow(row: T) {
-    const rtvs = row.toRichTextValues();
-    if (rtvs.length !== this.numColumns) {
-      throw new Error("Cannot addRichTextRow as row length (" + rtvs.length + ") does not match '" + this.sheet.getName() + "' column length (" + this.numColumns + ").");
-    }
-
-    const current = this.getRichTextData();
-    const lastRow = this.sheet.getLastRow();
-
-    // Inserts rows when the current data is at or beyond the template rows
-    if (current.length >= this.numTemplateRows) {
-      // Insert 1 row, and save that range in insertedRange
-      const insertedRange = this.sheet.insertRowsAfter(lastRow, 1).getRange(lastRow + 1, this.firstColumn, lastRow + 1, this.numColumns);
-
-      if (this.hasTemplateRow) {
-        // Copy the template row into the newly inserted range
-        const templateRange = this.sheet.getRange(this.firstRow, this.firstColumn, this.numTemplateRows, this.numColumns);
-        templateRange.copyTo(insertedRange, SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
-      }
-    }
-
-    this.sheet.getRange(lastRow + 1, this.firstColumn, 1, this.numColumns).setRichTextValues([row.toRichTextValues()]);
   }
 }
 export { Data }

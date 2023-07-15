@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@octokit/types": "^11.1.0",
     "@types/google-apps-script": "^1.0.64",
     "typescript": "^5.1.6"
   }
