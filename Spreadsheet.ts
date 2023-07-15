@@ -58,7 +58,7 @@ function openJSONDevDialog() {
   htmlTemplate.instructions = `Copy + Paste the following into the <strong>${pack.code}.json</strong> file in the <strong>development-${data.project.short}</strong> branch of <strong>throneteki-json-data</strong>`;
   htmlTemplate.text = json;
 
-  openDialogWindow(pack.code + " exported as JSON", htmlTemplate.evaluate().getContent());
+  openDialogWindow(pack.code + " exported as JSON", htmlTemplate.evaluate().getContent().replace(/\n\n/g, "\n"));
 }
 
 function finalizeChanges() {
@@ -92,7 +92,7 @@ function openPDFSheetsDialog() {
   htmlTemplate.instructions = "Print PDF sheets to physically playtest!";
   htmlTemplate.text = "All Cards: " + allPdf + "\nUpdated Cards: " + updatedPdf;
 
-  openDialogWindow(data.project.code + " PDF Sheets (v" + data.project.version.toString() + ")", htmlTemplate.evaluate().getContent());
+  openDialogWindow(data.project.code + " PDF Sheets (v" + data.project.version.toString() + ")", htmlTemplate.evaluate().getContent().replace(/\n\n/g, "\n"));
 }
 
 function syncUpdatedPhysicalPDFSheet() {

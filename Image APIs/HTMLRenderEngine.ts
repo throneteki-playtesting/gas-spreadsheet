@@ -10,7 +10,7 @@ class HTMLRenderEngine {
     const renderHtml = HtmlService.createTemplateFromFile("Image APIs/Templates/render");
     renderHtml.body = singleHtml;
 
-    return renderHtml.evaluate().getContent();
+    return renderHtml.evaluate().getContent().replace(/\n\n/g, "\n");
   }
 
   static batch(project: any, cards: any[]) {
@@ -22,7 +22,7 @@ class HTMLRenderEngine {
     const renderHtml = HtmlService.createTemplateFromFile("Image APIs/Templates/render");
     renderHtml.body = batchHtml;
 
-    return renderHtml.evaluate().getContent();
+    return renderHtml.evaluate().getContent().replace(/\n\n/g, "\n");
   }
 
   static card(project: any, card: any) {
@@ -44,7 +44,7 @@ class HTMLRenderEngine {
 
     cardTemplate.card = card;
 
-    return cardTemplate.evaluate().getContent();
+    return cardTemplate.evaluate().getContent().replace(/\n\n/g, "\n");
   }
 }
 
