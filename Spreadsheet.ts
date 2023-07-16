@@ -13,6 +13,7 @@ function onSpreadsheetOpen() {
         .addItem("Finalize Changes", "finalizeChanges")
         .addSubMenu(
           ui.createMenu("Individual Tasks")
+            .addItem("Sync Reviews", "syncReviews")
             .addItem("Sync Github Issues", "syncIssues")
             .addItem("Archive Completed Cards", "archiveCompletedCards")
             .addItem("Update Form Cards", "updateFormCards")

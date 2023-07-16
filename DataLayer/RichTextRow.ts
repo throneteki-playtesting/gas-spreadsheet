@@ -1,27 +1,7 @@
 abstract class RichTextRow {
     protected rowValues: GoogleAppsScript.Spreadsheet.RichTextValue[];
-    isDirty: boolean = false;
 
     abstract toRichTextValues(): GoogleAppsScript.Spreadsheet.RichTextValue[];
-    
-    track() {
-        const tracking = this;
-        const handler = () => ({
-            get: function(obj: any, prop: any) {
-                if(typeof obj[prop] === "object" &&  prop !== "rowValues") {
-                    return new Proxy(obj[prop], handler());
-                }
-                return obj[prop];
-            },
-            set: function(obj: any, prop: any, val: any) {
-                tracking.isDirty = true;
-                obj[prop] = val;
-                return true;
-            }
-        });
-        
-        return new Proxy(this, handler());
-    }
 
     getText(column: number, required: boolean = false) {
         const str = this.rowValues[column]?.getText();

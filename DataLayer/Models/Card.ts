@@ -125,7 +125,7 @@ class Card extends RichTextRow {
 
         card.deckLimit = card.hasText(CardColumn.Limit) ? card.getNumber(CardColumn.Limit) : DefaultDeckLimit[CardType[card.type]];
 
-        return card.track();
+        return card;
     };
 
     clone() {
@@ -157,7 +157,7 @@ class Card extends RichTextRow {
     }
 
     toString() {
-        return this.code + " - " + this.name + "(v " + this.development.version.toString() + ")";
+        return this.name + " (v" + this.development.version.toString() + ")";
     }
 
     toJSON(): JSON {
@@ -186,9 +186,6 @@ class Card extends RichTextRow {
     }
 
     toRichTextValues() {
-        if(!this.isDirty) {
-            return this.rowValues;
-        }
         const dashColumns = [CardColumn.Loyal, CardColumn.Unique, CardColumn.Cost, CardColumn.Strength, CardColumn.Icons, CardColumn.Traits];
 
         this.rowValues = Array.from({ length: ColumnHelper.getCount(CardColumn) }, (v, i) => SpreadsheetApp.newRichTextValue().setText(dashColumns.includes(i) ? "-" : "").build());

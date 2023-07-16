@@ -12,7 +12,7 @@ class Data {
   private latestCardsSheet: DataSheet;
   private archivedCardsSheet: DataSheet;
   private archivedReviewsSheet: DataSheet;
-  
+
   private latestCards_: Card[];
   private archivedCards_: Card[];
   private archivedReviews_: Review[];
@@ -27,10 +27,6 @@ class Data {
     this.latestCardsSheet = new DataSheet("Latest Cards", 5, 2, ColumnHelper.getCount(CardColumn), this.project.totalCards, false);
     this.archivedCardsSheet = new DataSheet("Archived Cards", 5, 2, ColumnHelper.getCount(CardColumn), null, true);
     this.archivedReviewsSheet = new DataSheet("Archived Reviews", 4, 2, ColumnHelper.getCount(ReviewColumn), null, true);
-
-    this.latestCards_ = this.latestCardsSheet.getRichTextData().map(rtv => Card.fromRichTextValues(this.project, rtv));
-    this.archivedCards_ = this.archivedCardsSheet.getRichTextData().map(rtv => Card.fromRichTextValues(this.project, rtv));
-    this.archivedReviews_ = this.archivedReviewsSheet.getRichTextData().map(rtv => Review.fromRichTextValues(rtv));
   }
 
   static get instance(): Data {
@@ -43,18 +39,27 @@ class Data {
   }
 
   get latestCards() {
+    if (!this.latestCards_) {
+      this.latestCards_ = this.latestCardsSheet.getRichTextData().map(rtv => Card.fromRichTextValues(this.project, rtv));
+    }
     return this.latestCards_;
   }
   set latestCards(value) {
     this.latestCards_ = value;
   }
   get archivedCards() {
+    if (!this.archivedCards_) {
+      this.archivedCards_ = this.archivedCardsSheet.getRichTextData().map(rtv => Card.fromRichTextValues(this.project, rtv));
+    }
     return this.archivedCards_;
   }
   set archivedCards(value) {
     this.archivedCards_ = value;
   }
   get archivedReviews() {
+    if (!this.archivedReviews_) {
+      this.archivedReviews_ = this.archivedReviewsSheet.getRichTextData().map(rtv => Review.fromRichTextValues(rtv));
+    }
     return this.archivedReviews_;
   }
   set archivedReviews(value) {
@@ -105,7 +110,7 @@ class Data {
     const archiving = this.getCompletedCards();
 
     const successful: string[] = [];
-    for(const card of archiving) {
+    for (const card of archiving) {
       successful.push(card.toString());
       this.archivedCards.push(card.clone());
 
@@ -166,7 +171,7 @@ class DataSheet {
 
       if (rowOffset > 0) {
         // Insert the required number of rows, and save that range in insertedRange
-        const insertedRange = this.sheet.insertRowsAfter(lastRow, rowOffset).getRange(lastRow + 1, this.firstColumn, rowOffset, this.numColumns);
+        const insertedRange = this.sheet.insertRowsAfter(Math.max(lastRow, this.firstRow), rowOffset).getRange(lastRow + 1, this.firstColumn, rowOffset, this.numColumns);
 
         if (this.hasTemplateRow) {
           // Copy the template row into the newly inserted range

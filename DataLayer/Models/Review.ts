@@ -1,11 +1,12 @@
 import { RichTextRow } from "../RichTextRow";
 import { ColumnHelper, Faction, FormQuestion, ReviewColumn } from "../../Common/Enums";
 import { SemanticVersion } from "./Project";
+import { Card } from "./Card";
+import { Data } from "../Data";
 
 class Review extends RichTextRow {
-    number: number;
-    version: SemanticVersion;
-    faction: Faction;
+    id: string;
+    card: Card;
     date: Date;
     reviewer: string;
     deck: string;
@@ -15,19 +16,50 @@ class Review extends RichTextRow {
     reason?: string;
     additional?: string;
 
-    static fromResponse(response: GoogleAppsScript.Forms.FormResponse) {
-        //TODO: Implement
+    spreadsheetUrl?: string;
 
-        // return new Review()
+    static fromResponse(response: GoogleAppsScript.Forms.FormResponse): Review {
+        const review = new Review();
+        review.id = response.getId();
+        const cardName = response.getItemResponses()[FormQuestion.ReviewingCard].getResponse() as string;
+        const data = Data.instance;
+        const card = data.playtestingCards.find(card => card.toString() === cardName) ?? data.latestCards.find(card => card.toString() === cardName);
+        
+        if(!card) {
+            throw new Error("Failed to build review as card/version cannot be found: " + cardName + ".");
+        }
+
+        review.card = card;
+        review.date = new Date(response.getTimestamp().toUTCString());
+        review.reviewer = response.getItemResponses()[FormQuestion.DiscordName].getResponse() as string;
+        review.deck = response.getItemResponses()[FormQuestion.DeckLink].getResponse() as string;
+        review.count = parseInt(response.getItemResponses()[FormQuestion.GamesPlayed].getResponse() as string);
+        review.rating = parseInt(response.getItemResponses()[FormQuestion.Rating].getResponse() as string);
+        const release = response.getItemResponses()[FormQuestion.ReleaseReady].getResponse() as string;
+        review.release = release === "Yes" ? true : (release === "No" ? false : undefined);
+        const reason = response.getItemResponses()[FormQuestion.Reason].getResponse() as string;
+        review.reason = reason ? reason : undefined;
+        const additional = response.getItemResponses()[FormQuestion.Additional].getResponse() as string;
+        review.additional = additional ? additional : undefined;
+
+        review.rowValues = review.toRichTextValues();
+
+        return review;
     }
 
     static fromRichTextValues(richTextValues: (GoogleAppsScript.Spreadsheet.RichTextValue | null)[]): Review {
         const review = new Review();
         review.rowValues = richTextValues.map(rtv => rtv ? rtv : SpreadsheetApp.newRichTextValue().build());
-
-        review.number = review.getNumber(ReviewColumn.Number, true);
-        review.version = SemanticVersion.fromString(review.getText(ReviewColumn.Version, true));
-        review.faction = review.getEnumFromValue<Faction>(Faction, ReviewColumn.Faction, true);
+        review.id = review.getText(ReviewColumn.ResponseId, true);
+        const number = review.getNumber(ReviewColumn.Number, true);
+        const version = SemanticVersion.fromString(review.getText(ReviewColumn.Version, true));
+        
+        const data = Data.instance;
+        const card = data.findCard(number, version);
+        if(!card) {
+            throw new Error("Attempted to build review from non-existent card (number: " + number + ", version: " + version.toString() + ").");
+        }
+        review.card = card;
         review.date = new Date(review.getText(ReviewColumn.Date, true));
         review.reviewer = review.getText(ReviewColumn.Reviewer, true);
         review.deck = review.getValue(ReviewColumn.Deck).getLinkUrl() || "";
@@ -38,18 +70,16 @@ class Review extends RichTextRow {
         review.reason = review.hasText(ReviewColumn.Reason) ? review.getText(ReviewColumn.Reason) : undefined;
         review.additional = review.hasText(ReviewColumn.Additional) ? review.getText(ReviewColumn.Additional) : undefined;
 
-        return review.track();
+        return review;
     }
 
     toRichTextValues(): GoogleAppsScript.Spreadsheet.RichTextValue[] {
-        if(!this.isDirty) {
-            return this.rowValues;
-        }
-        this.rowValues = Array.from({ length: ColumnHelper.getCount(ReviewColumn) }, () => SpreadsheetApp.newRichTextValue().build());
-        this.setText(ReviewColumn.Number, this.number);
-        this.setText(ReviewColumn.Version, this.version.toString());
-        this.setText(ReviewColumn.Faction, this.faction);
-        this.setText(ReviewColumn.Date, this.date.toUTCString());
+        this.rowValues = Array.from({ length: ColumnHelper.getCount(ReviewColumn) }, () => SpreadsheetApp.newRichTextValue().setText("").build());
+        this.setText(ReviewColumn.Number, this.card.development.number);
+        this.setText(ReviewColumn.Version, this.card.development.version.toString());
+        this.setText(ReviewColumn.Faction, this.card.faction);
+        this.setText(ReviewColumn.Name, this.card.name);
+        this.setText(ReviewColumn.Date, this.date.toDateString());
         this.setText(ReviewColumn.Reviewer, this.reviewer);
         this.rowValues[ReviewColumn.Deck] = SpreadsheetApp.newRichTextValue().setText("ThronesDB").setLinkUrl(this.deck).build();
         this.setText(ReviewColumn.Count, this.count);
@@ -61,6 +91,7 @@ class Review extends RichTextRow {
         if(this.additional) {
             this.setText(ReviewColumn.Additional, this.additional);
         }
+        this.setText(ReviewColumn.ResponseId, this.id);
 
         return this.rowValues;
     }

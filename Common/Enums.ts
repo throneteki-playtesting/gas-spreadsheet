@@ -38,7 +38,8 @@ enum ReviewColumn {
     Rating,
     Release,
     Reason,
-    Additional
+    Additional,
+    ResponseId
 }
 
 enum NoteType {
