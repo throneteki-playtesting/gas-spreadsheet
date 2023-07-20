@@ -14,12 +14,13 @@ Previous Card | Replacement Card
 <nl>
 ---
 <nl>
-<h3>Suggested Implementation Steps</h3>
-1. Create a branch from `development-<?= pack.short ?>`
+<h3>Implementation Steps</h3>
+1. Create a branch from `development-<?= pack.short ?>` (you may use a single branch for multiple implementations/updates)
 2. Remove the previous card file, and any external methods/files that were created for it
 3. Create & implement new card file for this card (within 'server/game/cards/<?= pack.short ?>')
-4. (Optional) Test the implementation locally
-5. Create Pull Request into `development-<?= pack.short ?>` branch, linking this issue in the description as 'Closes: #[issue number]'
+4. (Important) Set the card version (near bottom of file) to `ReplacementCardClass.version = '<?= newCard.development.version ?>'`
+5. (Optional) Test the implementation locally
+6. When ready (single or in bulk), create Pull Request into `development-<?= pack.short ?>` branch, linking this issue in the description as 'Closes: #[this issue number]'
 <nl>
 ---
 <nl>

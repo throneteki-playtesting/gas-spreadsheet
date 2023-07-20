@@ -14,11 +14,12 @@ Previous Version (<?= oldCard.development.version ?>) | Updated Version (<?= new
 <nl>
 ---
 <nl>
-<h3>Suggested Implementation Steps</h3>
+<h3>Implementation Steps</h3>
 1. Create a branch from `development-<?= pack.short ?>`
 2. Update card file for this card (within 'server/game/cards/<?= pack.short ?>')
-3. (Optional) Test the implementation locally
-4. Create Pull Request into `development-<?= pack.short ?>` branch, linking this issue in the description as 'Closes: #[issue number]'
+3. (Important) Update the card version (near bottom of file) to `UpdatedCardClass.version = '<?= newCard.development.version ?>'`
+4. (Optional) Test the implementation locally
+5. When ready (single or in bulk), create Pull Request into `development-<?= pack.short ?>` branch, linking this issue in the description as 'Closes: #[this issue number]'
 <nl>
 ---
 <nl>
