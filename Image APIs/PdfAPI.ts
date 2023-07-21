@@ -36,17 +36,17 @@ class PDFAPI {
   }
 
   static getFileName(short: string, version: SemanticVersion, type: BatchType) {
-    return (short + "_Playtesting_Sheet_v" + version.toString() + "_" + BatchType[type].toLowerCase()).replace(".", "_");
+    return (short + "_Playtesting_Sheet_v" + version.toString() + "_" + BatchType[type].toLowerCase()).replace("\.", "_");
   }
 
-  static syncUpdatedPhysicalPDFSheet() {
+  static syncUpdatedPhysicalPDFSheet(sandbox = false) {
     const data = Data.instance;
     const updated = data.getCompletedCards();
     let updatedPdfUrl = PropertiesService.getDocumentProperties().getProperty("pdf_updated");
+    const newFileName = PDFAPI.getFileName(data.project.short, data.project.version, BatchType.Updated);
 
-    if(updated.length > 0 && !(updatedPdfUrl?.includes("v" + data.project.version.toString()))) {
-      const fileName = PDFAPI.getFileName(data.project.short, data.project.version, BatchType.Updated);
-      const generatedPdfUrl = PDFAPI.generateSheet(data.project, updated, fileName, true);
+    if(updated.length > 0 && !(updatedPdfUrl?.includes(newFileName))) {
+      const generatedPdfUrl = PDFAPI.generateSheet(data.project, updated, newFileName, sandbox);
       updatedPdfUrl = generatedPdfUrl;
       PropertiesService.getDocumentProperties().setProperty("pdf_updated", updatedPdfUrl);
     }
@@ -54,14 +54,13 @@ class PDFAPI {
     return updatedPdfUrl;
   }
 
-  static syncLatestPhysicalPDFSheet() {
+  static syncLatestPhysicalPDFSheet(sandbox = false) {
     const data = Data.instance;
-
     let latestPdfUrl = PropertiesService.getDocumentProperties().getProperty("pdf_all");
+    const newFileName = PDFAPI.getFileName(data.project.short, data.project.version, BatchType.All);
 
-    if(!(latestPdfUrl?.includes("v" + data.project.version.toString()))) {
-      const fileName = PDFAPI.getFileName(data.project.short, data.project.version, BatchType.All);
-      const generatedPdfUrl = PDFAPI.generateSheet(data.project, data.latestCards, fileName, true);
+    if(!(latestPdfUrl?.includes(newFileName))) {
+      const generatedPdfUrl = PDFAPI.generateSheet(data.project, data.latestCards, newFileName, sandbox);
       latestPdfUrl = generatedPdfUrl;
       PropertiesService.getDocumentProperties().setProperty("pdf_all", latestPdfUrl);
     }

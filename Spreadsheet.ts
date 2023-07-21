@@ -76,7 +76,7 @@ function updateFormCards() {
 
 function syncDigitalCardImages() {
   const data = Data.instance;
-  for(const card of data.latestCards.filter(a => a.development.number === 44)) {
+  for(const card of data.latestCards) {
     card.syncImage(data.project);
   }
 
@@ -91,9 +91,12 @@ function openPDFSheetsDialog() {
 
   const htmlTemplate = HtmlService.createTemplateFromFile("Templates/Clipboard Popup");
   htmlTemplate.instructions = "Print PDF sheets to physically playtest!";
-  htmlTemplate.text = "All Cards: " + allPdf + "\nUpdated Cards: " + updatedPdf;
+  htmlTemplate.text = "All Cards:\n" + allPdf;
+  if(updatedPdf) {
+    htmlTemplate.text += "\nUpdated Cards:\n" + updatedPdf;
+  }
 
-  openDialogWindow(data.project.code + " PDF Sheets (v" + data.project.version.toString() + ")", htmlTemplate.evaluate().getContent().replace(/\n\n/g, "\n"));
+  openDialogWindow(data.project.short + " PDF Sheets (v" + data.project.version.toString() + ")", htmlTemplate.evaluate().getContent().replace(/\n\n/g, "\n"));
 }
 
 function syncUpdatedPhysicalPDFSheet() {
