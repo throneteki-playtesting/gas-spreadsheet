@@ -264,6 +264,12 @@
       font-style: italic;
     }
 
+    .ability-box .card-designer {
+      font-size: 11px;
+      font-weight: 700;
+      padding-top: 0.5em;
+    }
+
     body {
       margin: 0px;
       font-family: "Open Sans", sans-serif;
@@ -477,6 +483,12 @@
 
     .card-slot .card.attachment>.center-panel .text-box .ability-box {
       height: 90px;
+    }
+
+    .card-slot .card.attachment>.center-panel .lower-text-box {
+      display: flex;
+      flex-flow: row nowrap;
+      align-items: flex-end;
     }
 
     .card-slot .card.attachment>.bottom-panel {
@@ -745,10 +757,16 @@
 <script>
   window.onload = function () {
     document.querySelectorAll('.auto-size').forEach(function (item) {
-      let fontSize = parseInt(window.getComputedStyle(item, null).getPropertyValue("font-size"), 10);
-      while (fontSize > 0 && (item.scrollHeight > item.clientHeight || item.scrollWidth > item.clientWidth)) {
-        fontSize -= 0.5;
-        item.style.fontSize = fontSize + "px";
+      let reachedMinimumSize = false;
+      while (!reachedMinimumSize && item.scrollHeight > item.clientHeight || item.scrollWidth > item.clientWidth) {
+        for (let child of item.children) {
+          let fontSize = parseInt(window.getComputedStyle(child, null).getPropertyValue("font-size"), 10);
+          fontSize -= 0.1;
+          child.style.fontSize = fontSize + "px";
+          if (fontSize <= 0.1) {
+            reachedMinimumSize = true;
+          }
+        }
       }
     });
   };

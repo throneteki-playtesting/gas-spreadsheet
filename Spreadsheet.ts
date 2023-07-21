@@ -20,7 +20,8 @@ function onSpreadsheetOpen() {
             .addItem("Increment Project Version", "incrementProjectVersion")
             .addSubMenu(
               ui.createMenu("Generate Card Images")
-                .addItem("Digital Images (PNG)", "syncDigitalCardImages")
+                .addItem("All Digital Images (PNG)", "syncDigitalCardImages")
+                .addItem("Some Digital Images (PNG)", "syncSomeDigitalCardImages")
                 .addItem("Print Sheet (PDF)", "openPDFSheetsDialog")
             )
             .addItem("Update Pull Request", "updatePullRequest")
@@ -77,6 +78,25 @@ function updateFormCards() {
 function syncDigitalCardImages() {
   const data = Data.instance;
   for(const card of data.latestCards) {
+    card.syncImage(data.project);
+  }
+
+  data.commit();
+}
+
+function syncSomeDigitalCardImages() {
+  const response = SpreadsheetApp.getUi().prompt("Please list which card numbers you would like to generate for (separated by commmas).").getResponseText();
+  const splitResponse = response.split(",").map(r => r.trim()).filter(r => r);
+
+  const invalid = splitResponse.filter(r => isNaN(parseInt(r)));
+  if(invalid.length > 0) {
+    throw new Error("Invalid card numbers given: " + invalid.join(", "));
+  }
+  const numbers = splitResponse.map(r => parseInt(r));
+
+  const data = Data.instance;
+  const cards = data.latestCards.filter(card => numbers.includes(card.development.number));
+  for(const card of cards) {
     card.syncImage(data.project);
   }
 
