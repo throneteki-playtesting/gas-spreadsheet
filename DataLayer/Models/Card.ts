@@ -36,7 +36,7 @@ class Card extends RichTextRow {
     quantity: number
 
     // Draw Card Properties
-    strength?: number;
+    strength?: number | string;
     icons?: {
         military: boolean,
         intrigue: boolean,
@@ -98,7 +98,8 @@ class Card extends RichTextRow {
         }
         switch (card.type) {
             case CardType.Character:
-                card.strength = card.getNumber(CardColumn.Strength, true)
+                const strength = card.getNumber(CardColumn.Strength);
+                card.strength = !isNaN(strength) ? strength : (card.getText(CardColumn.Strength) || "-");
                 card.icons = {
                     military: card.getText(CardColumn.Icons).includes("M"),
                     intrigue: card.getText(CardColumn.Icons).includes("I"),
@@ -109,7 +110,7 @@ class Card extends RichTextRow {
                 card.unique = card.getText(CardColumn.Unique, true) === "Unique";
             case CardType.Event:
                 const cost = card.getNumber(CardColumn.Cost);
-                card.cost = !isNaN(cost) ? cost : card.getText(CardColumn.Cost) || "-";
+                card.cost = !isNaN(cost) ? cost : (card.getText(CardColumn.Cost) || "-");
                 break;
             case CardType.Plot:
                 card.plotStats = {
@@ -168,13 +169,13 @@ class Card extends RichTextRow {
             name: this.name,
             octgnId: null,
             quantity: this.quantity,
-            ...(this.unique && { unique: this.unique }),
+            ...(this.unique !== undefined && { unique: this.unique }),
             faction: Object.keys(Faction)[Object.values(Faction).indexOf(this.faction)].toLowerCase(),
             ...(this.plotStats && { plotStats: this.plotStats }),
-            ...(this.loyal && { loyal: this.loyal }),
-            ...(this.cost && { cost: this.cost }),
+            ...(this.loyal !== undefined && { loyal: this.loyal }),
+            ...(this.cost !== undefined && { cost: this.cost }),
             ...(this.icons && { icons: this.icons }),
-            ...(this.strength && { strength: this.strength }),
+            ...(this.strength !== undefined && { strength: this.strength }),
             traits: this.traits,
             text: this.text,
             ...(this.flavor && { flavor: this.flavor }),
@@ -195,7 +196,7 @@ class Card extends RichTextRow {
         this.setText(CardColumn.Faction, this.faction);
         this.setText(CardColumn.Name, this.name);
         this.setText(CardColumn.Type, CardType[this.type]);
-        if (this.loyal != undefined) {
+        if (this.loyal !== undefined) {
             this.setText(CardColumn.Loyal, this.loyal ? "Loyal" : "Non-Loyal");
         }
         if (this.traits.length > 0) {
@@ -233,7 +234,7 @@ class Card extends RichTextRow {
 
         switch (this.type) {
             case CardType.Character:
-                this.setText(CardColumn.Strength, this.strength || 0);
+                this.setText(CardColumn.Strength, this.strength !== undefined ? this.strength : "-");
                 const iconLetters = [
                     ... this.icons?.military ? ["M"] : [],
                     ... this.icons?.intrigue ? ["I"] : [],
@@ -244,9 +245,7 @@ class Card extends RichTextRow {
             case CardType.Location:
                 this.setText(CardColumn.Unique, this.unique ? "Unique" : "Non-Unique");
             case CardType.Event:
-                if (this.cost) {
-                    this.setText(CardColumn.Cost, this.cost);
-                }
+                this.setText(CardColumn.Cost, this.cost !== undefined ? this.cost : "-");
                 break;
             case CardType.Plot:
                 this.setText(CardColumn.Income, this.plotStats?.income || 0);
