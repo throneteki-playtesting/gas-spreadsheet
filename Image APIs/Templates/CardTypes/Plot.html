@@ -1,9 +1,9 @@
 <div class="card <?= card.faction ?> plot">
     <div class="top-panel">
         <div class="left-panel">
-            <span class="card-income plot-stat auto-size"><?= card.plotStats.income ?></span>
-            <span class="card-initiative plot-stat auto-size"><?= card.plotStats.initiative ?></span>
-            <span class="card-claim plot-stat auto-size"><?= card.plotStats.claim ?></span>
+            <span class="plot-stat income auto-size"><?= card.plotStats.income ?></span>
+            <span class="plot-stat initiative auto-size"><?= card.plotStats.initiative ?></span>
+            <span class="plot-stat claim auto-size"><?= card.plotStats.claim ?></span>
         </div>
         <div class="right-panel">
             <div class="name-box auto-size">
@@ -34,7 +34,7 @@
             <div class="loyal-box">
                 <span class="card-loyal"><?= card.loyal ? 'Loyal' : '' ?></span>
             </div>
-            <span class="card-reserve plot-stat auto-size"><?= card.plotStats.reserve ?></span>
+            <span class="plot-stat reserve auto-size"><?= card.plotStats.reserve ?></span>
         </div>
     </div>
     <div class="bottom-panel">
