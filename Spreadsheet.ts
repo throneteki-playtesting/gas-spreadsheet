@@ -77,7 +77,7 @@ function updateFormCards() {
 
 function syncDigitalCardImages() {
   const data = Data.instance;
-  for(const card of data.latestCards) {
+  for (const card of data.latestCards) {
     card.syncImage(data.project);
   }
 
@@ -89,14 +89,14 @@ function syncSomeDigitalCardImages() {
   const splitResponse = response.split(",").map(r => r.trim()).filter(r => r);
 
   const invalid = splitResponse.filter(r => isNaN(parseInt(r)));
-  if(invalid.length > 0) {
+  if (invalid.length > 0) {
     throw new Error("Invalid card numbers given: " + invalid.join(", "));
   }
   const numbers = splitResponse.map(r => parseInt(r));
 
   const data = Data.instance;
   const cards = data.latestCards.filter(card => numbers.includes(card.development.number));
-  for(const card of cards) {
+  for (const card of cards) {
     card.syncImage(data.project);
   }
 
@@ -112,7 +112,7 @@ function openPDFSheetsDialog() {
   const htmlTemplate = HtmlService.createTemplateFromFile("Templates/Clipboard Popup");
   htmlTemplate.instructions = "Print PDF sheets to physically playtest!";
   htmlTemplate.text = "All Cards:\n" + allPdf;
-  if(updatedPdf) {
+  if (updatedPdf) {
     htmlTemplate.text += "\nUpdated Cards:\n" + updatedPdf;
   }
 
@@ -138,7 +138,10 @@ function syncPullRequests() {
 function syncIssues() {
   const data = Data.instance;
 
-  if(Github.syncIssues(data.project, data.latestCards)) {
+  try {
+    Github.syncIssues(data.project, data.latestCards);
+    data.commit();
+  } catch (e) {
     data.commit();
   }
 }

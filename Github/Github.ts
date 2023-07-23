@@ -20,6 +20,9 @@ class Github {
         for (const card of cards) {
             const currentIssue = issues.find(issue => issue.title.includes(card.code.toString()) && issue.title.includes("v" + card.development.version.toString()));
             if (card.requiresIssue()) {
+                // Sync image before pushing new issue
+                card.syncImage(project);
+                
                 if (currentIssue) {
                     // Check & Update issue if body is different
                     const potentialIssue = Issue.for(card);
@@ -35,8 +38,6 @@ class Github {
                     };
                     dataChanged = true;
                 } else {
-                    // Sync image before pushing new issue
-                    card.syncImage(project);
                     // Create new issue
                     const newIssue = GithubAPI.addIssue(Issue.for(card));
                     // Sync new github issue
@@ -76,22 +77,31 @@ class GithubAPI {
             searchQuery += card.code + " in:title v" + card.development.version + " in:title";
         }
 
-        const url = "https://api.github.com/search/issues?q=" + searchQuery;
-        const params: GoogleAppsScript.URL_Fetch.URLFetchRequestOptions = {
-            method: "get",
-            headers: {
-                accept: 'application/vnd.github+json',
-                authorization: "Bearer " + Settings.getUserProperty("github_apiKey")
-            },
-            muteHttpExceptions: true
-        }
+        let results: Endpoints["GET /search/issues"]["response"]["data"]["items"] = [];
+        let page = 0;
+        let total = 0;
+        do {
+            page ++;
+            const url = "https://api.github.com/search/issues?page=" + page + "&q=" + searchQuery;
+            const params: GoogleAppsScript.URL_Fetch.URLFetchRequestOptions = {
+                method: "get",
+                headers: {
+                    accept: 'application/vnd.github+json',
+                    authorization: "Bearer " + Settings.getUserProperty("github_apiKey")
+                },
+                muteHttpExceptions: true
+            }
+    
+            const response = UrlFetchApp.fetch(url, params);
+            const json = JSON.parse(response.getContentText());
+            if (json.errors?.length > 0) {
+                throw new Error("Failed to getIssues: " + json.errors.map(e => e.message).join(", "));
+            }
+            results = results.concat(...json.items);
+            total = json.total_count;
+        } while(results.length < total);
 
-        const response = UrlFetchApp.fetch(url, params);
-        const json = JSON.parse(response.getContentText());
-        if (json.errors?.length > 0) {
-            throw new Error("Failed to getIssues: " + json.errors.map(e => e.message).join(", "));
-        }
-        return json.items;
+        return results;
     }
 
     static addIssue(issue: Issue): Endpoints["POST /repos/{owner}/{repo}/issues"]["response"]["data"] {

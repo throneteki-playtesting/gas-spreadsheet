@@ -130,6 +130,7 @@ class Card extends RichTextRow {
     };
 
     clone() {
+        this.rowValues = this.toRichTextValues();
         return Card.fromRichTextValues(this.development.project, this.rowValues);
     }
 
@@ -188,74 +189,80 @@ class Card extends RichTextRow {
     }
 
     toRichTextValues() {
-        const dashColumns = [CardColumn.Loyal, CardColumn.Unique, CardColumn.Cost, CardColumn.Strength, CardColumn.Icons, CardColumn.Traits];
+        const tempRowValues = [...this.rowValues];
+        try {
+            const dashColumns = [CardColumn.Loyal, CardColumn.Unique, CardColumn.Cost, CardColumn.Strength, CardColumn.Icons, CardColumn.Traits];
 
-        this.rowValues = Array.from({ length: ColumnHelper.getCount(CardColumn) }, (v, i) => SpreadsheetApp.newRichTextValue().setText(dashColumns.includes(i) ? "-" : "").build());
-        this.setText(CardColumn.Number, this.development.number);
-        this.setText(CardColumn.Version, this.development.version.toString());
-        this.setText(CardColumn.Faction, this.faction);
-        this.setText(CardColumn.Name, this.name);
-        this.setText(CardColumn.Type, CardType[this.type]);
-        if (this.loyal !== undefined) {
-            this.setText(CardColumn.Loyal, this.loyal ? "Loyal" : "Non-Loyal");
-        }
-        if (this.traits.length > 0) {
-            this.setText(CardColumn.Traits, this.traits.map(t => t + ".").join(" "));
-        }
-        this.setFromHtml(CardColumn.Textbox, this.text);
-        if (this.flavor) {
-            this.setFromHtml(CardColumn.Flavor, this.flavor);
-        }
-        if (this.deckLimit !== DefaultDeckLimit[CardType[this.type]]) {
-            this.setText(CardColumn.Limit, this.deckLimit);
-        }
-        if (this.designer) {
-            this.setText(CardColumn.Designer, this.designer);
-        }
-        if (this.illustrator !== "?") {
-            this.setText(CardColumn.Illustrator, this.illustrator);
-        }
-        if (this.development.image) {
-            this.rowValues[CardColumn.ImageUrl] = SpreadsheetApp.newRichTextValue().setText(this.development.image.version.toString()).setLinkUrl(this.development.image.url).build();
-        }
-        if (this.development.note) {
-            this.setText(CardColumn.NoteType, NoteType[this.development.note.type]);
-            if (this.development.note.text) {
-                this.setFromHtml(CardColumn.NoteText, this.development.note.text);
+            this.rowValues = Array.from({ length: ColumnHelper.getCount(CardColumn) }, (v, i) => SpreadsheetApp.newRichTextValue().setText(dashColumns.includes(i) ? "-" : "").build());
+            this.setText(CardColumn.Number, this.development.number);
+            this.setText(CardColumn.Version, this.development.version.toString());
+            this.setText(CardColumn.Faction, this.faction);
+            this.setText(CardColumn.Name, this.name);
+            this.setText(CardColumn.Type, CardType[this.type]);
+            if (this.loyal !== undefined) {
+                this.setText(CardColumn.Loyal, this.loyal ? "Loyal" : "Non-Loyal");
             }
+            if (this.traits.length > 0) {
+                this.setText(CardColumn.Traits, this.traits.map(t => t + ".").join(" "));
+            }
+            this.setFromHtml(CardColumn.Textbox, this.text);
+            if (this.flavor) {
+                this.setFromHtml(CardColumn.Flavor, this.flavor);
+            }
+            if (this.deckLimit !== DefaultDeckLimit[CardType[this.type]]) {
+                this.setText(CardColumn.Limit, this.deckLimit);
+            }
+            if (this.designer) {
+                this.setText(CardColumn.Designer, this.designer);
+            }
+            if (this.illustrator !== "?") {
+                this.setText(CardColumn.Illustrator, this.illustrator);
+            }
+            if (this.development.image) {
+                this.rowValues[CardColumn.ImageUrl] = SpreadsheetApp.newRichTextValue().setText(this.development.image.version.toString()).setLinkUrl(this.development.image.url).build();
+            }
+            if (this.development.note) {
+                this.setText(CardColumn.NoteType, NoteType[this.development.note.type]);
+                if (this.development.note.text) {
+                    this.setFromHtml(CardColumn.NoteText, this.development.note.text);
+                }
+            }
+            if (this.development.playtestVersion) {
+                this.setText(CardColumn.PlaytestVersion, this.development.playtestVersion.toString());
+            }
+    
+            if (this.development.githubIssue?.status && this.development.githubIssue?.url) {
+                this.rowValues[CardColumn.GithubIssue] = SpreadsheetApp.newRichTextValue().setText(this.development.githubIssue.status).setLinkUrl(this.development.githubIssue.url).build();
+            }
+    
+            switch (this.type) {
+                case CardType.Character:
+                    this.setText(CardColumn.Strength, this.strength !== undefined ? this.strength : "-");
+                    const iconLetters = [
+                        ... this.icons?.military ? ["M"] : [],
+                        ... this.icons?.intrigue ? ["I"] : [],
+                        ... this.icons?.power ? ["P"] : []
+                    ];
+                    this.setText(CardColumn.Icons, iconLetters.join(" / "));
+                case CardType.Attachment:
+                case CardType.Location:
+                    this.setText(CardColumn.Unique, this.unique ? "Unique" : "Non-Unique");
+                case CardType.Event:
+                    this.setText(CardColumn.Cost, this.cost !== undefined ? this.cost : "-");
+                    break;
+                case CardType.Plot:
+                    this.setText(CardColumn.Income, this.plotStats?.income || 0);
+                    this.setText(CardColumn.Initiative, this.plotStats?.initiative || 0);
+                    this.setText(CardColumn.Claim, this.plotStats?.claim || 0);
+                    this.setText(CardColumn.Reserve, this.plotStats?.reserve || 0);
+                case CardType.Agenda:
+                // Nothing to set
+            }
+            return this.rowValues;
+        } catch(e) {
+            console.log("Failed toRichTextValues for card #" + this.development.number);
+            return tempRowValues;
         }
-        if (this.development.playtestVersion) {
-            this.setText(CardColumn.PlaytestVersion, this.development.playtestVersion.toString());
-        }
-
-        if (this.development.githubIssue) {
-            this.rowValues[CardColumn.GithubIssue] = SpreadsheetApp.newRichTextValue().setText(this.development.githubIssue.status).setLinkUrl(this.development.githubIssue.url).build();
-        }
-
-        switch (this.type) {
-            case CardType.Character:
-                this.setText(CardColumn.Strength, this.strength !== undefined ? this.strength : "-");
-                const iconLetters = [
-                    ... this.icons?.military ? ["M"] : [],
-                    ... this.icons?.intrigue ? ["I"] : [],
-                    ... this.icons?.power ? ["P"] : []
-                ];
-                this.setText(CardColumn.Icons, iconLetters.join(" / "));
-            case CardType.Attachment:
-            case CardType.Location:
-                this.setText(CardColumn.Unique, this.unique ? "Unique" : "Non-Unique");
-            case CardType.Event:
-                this.setText(CardColumn.Cost, this.cost !== undefined ? this.cost : "-");
-                break;
-            case CardType.Plot:
-                this.setText(CardColumn.Income, this.plotStats?.income || 0);
-                this.setText(CardColumn.Initiative, this.plotStats?.initiative || 0);
-                this.setText(CardColumn.Claim, this.plotStats?.claim || 0);
-                this.setText(CardColumn.Reserve, this.plotStats?.reserve || 0);
-            case CardType.Agenda:
-            // Nothing to set
-        }
-        return this.rowValues;
     }
 }
 
