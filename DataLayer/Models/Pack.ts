@@ -17,8 +17,7 @@ class Pack {
             this.releaseDate = releaseDate;
         } else {
             if (project.type === ProjectType.Cycle) {
-                this.code += "-dev";
-                this.name = "In Development";
+                this.name = "Unreleased (In Development)";
             }
             this.releaseDate = null;
         }
@@ -26,7 +25,7 @@ class Pack {
 
     get releaseDateString() {
         if (!this.releaseDate) {
-            return "";
+            return null;
         }
         const year = this.releaseDate.getFullYear();
         const month = this.releaseDate.getMonth().toString().padStart(2, "0");
@@ -35,12 +34,14 @@ class Pack {
     }
 
     toJSON() {
+        const workInProgress = !this.releaseDate;
         return {
             cgdbId: null,
             code: this.code,
             name: this.name,
             releaseDate: this.releaseDateString,
-            cards: this.cards.map(cd => cd.toJSON())
+            ...(workInProgress && { workInProgress }),
+            cards: this.cards.map(cd => cd.toJSON(workInProgress))
         };
     }
 }

@@ -162,10 +162,10 @@ class Card extends RichTextRow {
         return this.name + " (v" + this.development.version.toString() + ")";
     }
 
-    toJSON(): JSON {
+    toJSON(workInProgress = false): JSON {
         const obj: any = {
             code: this.code.toString(),
-            version: this.development.version.toString(),
+            ...(workInProgress && { version: this.development.version.toString() }),
             type: CardType[this.type].toLowerCase(),
             name: this.name,
             octgnId: null,
