@@ -17,7 +17,7 @@ class Pack {
             this.releaseDate = releaseDate;
         } else {
             if (project.type === ProjectType.Cycle) {
-                this.name = "Unreleased (In Development)";
+                this.name += " (Unreleased)";
             }
             this.releaseDate = null;
         }
