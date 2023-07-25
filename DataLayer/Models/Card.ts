@@ -125,7 +125,7 @@ class Card extends RichTextRow {
         }
 
         card.deckLimit = card.hasText(CardColumn.Limit) ? card.getNumber(CardColumn.Limit) : DefaultDeckLimit[CardType[card.type]];
-
+        card.quantity = 3;
         return card;
     };
 
