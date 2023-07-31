@@ -2,31 +2,31 @@ import { CardType, DefaultDeckLimit, Faction, NoteType } from "../Common/Enums";
 
 class HTMLRenderEngine {
   static single(project: any, card: any) {
-    const singleTemplate = HtmlService.createTemplateFromFile("Image APIs/Templates/single");
+    const singleTemplate = HtmlService.createTemplateFromFile("Imaging/Templates/single");
     singleTemplate.pack = project;
     singleTemplate.card = card;
     const singleHtml = singleTemplate.evaluate().getContent();
 
-    const renderHtml = HtmlService.createTemplateFromFile("Image APIs/Templates/render");
+    const renderHtml = HtmlService.createTemplateFromFile("Imaging/Templates/render");
     renderHtml.body = singleHtml;
 
     return renderHtml.evaluate().getContent().replace(/\n\n/g, "\n");
   }
 
   static batch(project: any, cards: any[]) {
-    const batchTemplate = HtmlService.createTemplateFromFile("Image APIs/Templates/batch");
+    const batchTemplate = HtmlService.createTemplateFromFile("Imaging/Templates/batch");
     batchTemplate.pack = project;
     batchTemplate.cards = cards;
     const batchHtml = batchTemplate.evaluate().getContent();
 
-    const renderHtml = HtmlService.createTemplateFromFile("Image APIs/Templates/render");
+    const renderHtml = HtmlService.createTemplateFromFile("Imaging/Templates/render");
     renderHtml.body = batchHtml;
 
     return renderHtml.evaluate().getContent().replace(/\n\n/g, "\n");
   }
 
   static card(project: any, card: any) {
-    var cardTemplate = HtmlService.createTemplateFromFile("Image APIs/Templates/CardTypes/" + CardType[card.type]);
+    var cardTemplate = HtmlService.createTemplateFromFile("Imaging/Templates/CardTypes/" + CardType[card.type]);
     cardTemplate.pack = project;
 
     card = card.clone();

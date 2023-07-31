@@ -12,7 +12,7 @@ class Pack {
         this.cards = cards;
         this.code = project.short;
         this.name = project.name;
-        
+
         if (releaseDate) {
             this.releaseDate = releaseDate;
         } else {

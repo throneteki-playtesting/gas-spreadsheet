@@ -36,23 +36,41 @@ function onFormSubmitted({ response }) {
 }
 
 function syncReviews() {
-  const form = Forms.get();
-  const responses = form.getResponses();
-  const data = Data.instance;
-  const formReviews = responses.map(response => Review.fromResponse(response));
+    const form = Forms.get();
+    const responses = form.getResponses();
+    const data = Data.instance;
+    const archivedIds = data.archivedReviews.map(review => review.id);
+    const newReviews = responses.filter(response => !archivedIds.includes(response.getId())).map(response => Review.fromResponse(response));
 
-  const newReviews = formReviews.filter(review => !data.archivedReviews.some(formReview => formReview.id === review.id))
-  data.archivedReviews = formReviews;
+    const successfullySent: Review[] = [];
+    
+    for (const review of newReviews) {
+        try {
+            DiscordHandler.sendReview(review);
+            successfullySent.push(review);
+        } catch(e) {
+            console.log("Failed to send " + review.toString() + " (Id: " + review.id + ") to discord: " + e);
+        }
+    }
 
-  data.commit();
+    if(successfullySent.length > 0) {
+        data.archivedReviews = data.archivedReviews.concat(successfullySent).sort((a, b) => a.date.getTime() - b.date.getTime());
 
-  for(const review of newReviews) {
-    DiscordHandler.sendReview(review);
-  }
+        data.commit();
+        console.log("Successfully synced " + successfullySent.length + " reviews:\n" + successfullySent.map(review => review.toString()).join("\n- "));
+    } else {
+        console.log("No reviews have been synced");
+    }
+    
 }
 
 function manualSubmit() {
     const form = Forms.get();
     onFormSubmitted({ response: form.getResponses()[0] });
 }
+
+function updateFormCards() {
+    Forms.updateFormCards();
+}
+
 export { Forms }

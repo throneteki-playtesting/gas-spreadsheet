@@ -24,8 +24,8 @@ class Review extends RichTextRow {
         const cardName = response.getItemResponses()[FormQuestion.ReviewingCard].getResponse() as string;
         const data = Data.instance;
         const card = data.playtestingCards.find(card => card.toString() === cardName) ?? data.latestCards.find(card => card.toString() === cardName);
-        
-        if(!card) {
+
+        if (!card) {
             throw new Error("Failed to build review as card/version cannot be found: " + cardName + ".");
         }
 
@@ -53,10 +53,10 @@ class Review extends RichTextRow {
         review.id = review.getText(ReviewColumn.ResponseId, true);
         const number = review.getNumber(ReviewColumn.Number, true);
         const version = SemanticVersion.fromString(review.getText(ReviewColumn.Version, true));
-        
+
         const data = Data.instance;
         const card = data.findCard(number, version);
-        if(!card) {
+        if (!card) {
             throw new Error("Attempted to build review from non-existent card (number: " + number + ", version: " + version.toString() + ").");
         }
         review.card = card;
@@ -85,15 +85,19 @@ class Review extends RichTextRow {
         this.setText(ReviewColumn.Count, this.count);
         this.setText(ReviewColumn.Rating, this.rating);
         this.setText(ReviewColumn.Release, this.release !== undefined ? (this.release ? "Yes" : "No") : "Unsure");
-        if(this.reason) {
+        if (this.reason) {
             this.setText(ReviewColumn.Reason, this.reason);
         }
-        if(this.additional) {
+        if (this.additional) {
             this.setText(ReviewColumn.Additional, this.additional);
         }
         this.setText(ReviewColumn.ResponseId, this.id);
 
         return this.rowValues;
+    }
+
+    toString() {
+        return "Review for '" + this.card.toString() + "' by " + this.reviewer;
     }
 }
 export { Review }

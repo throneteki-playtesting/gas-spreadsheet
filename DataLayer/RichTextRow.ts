@@ -94,7 +94,7 @@ abstract class RichTextRow {
             if (match.index === regex.lastIndex) {
                 regex.lastIndex++;
             }
-            
+
             const element = match[1];
             const text = match[2] || "";
             let textStyle: GoogleAppsScript.Spreadsheet.TextStyle | null = null;

@@ -67,11 +67,11 @@ class Data {
   }
 
   get playtestingCards(): Card[] {
-    return this.latestCards.filter(card => card.development.playtestVersion).map(card => {
-      if (card.development.playtestVersion === card.development.version) {
+    return this.latestCards.map(card => {
+      if (!card.development.playtestVersion) {
         return card;
       }
-      let archivedCard = this.archivedCards.find(archivedCard => archivedCard.code === card.code && archivedCard.development.version === card.development.playtestVersion);
+      let archivedCard = this.archivedCards.find(archivedCard => archivedCard.code === card.code && archivedCard.development.version.equals(card.development.playtestVersion));
       if (!archivedCard) {
         throw new Error("Failed to find archived card for '" + card.name + "' with version '" + card.development.playtestVersion + "'.");
       }
@@ -81,9 +81,11 @@ class Data {
   }
 
   commit() {
+    console.log("Saving data to spreadsheet...");
     this.latestCardsSheet.setRichTextData(this.latestCards.map(card => card.toRichTextValues()));
     this.archivedCardsSheet.setRichTextData(this.archivedCards.map(card => card.toRichTextValues()));
     this.archivedReviewsSheet.setRichTextData(this.archivedReviews.map(review => review.toRichTextValues()));
+    console.log("Successfully saved data to spreadsheet!");
   }
 
   findCard(number: number, version: SemanticVersion): Card | undefined {
@@ -192,4 +194,12 @@ class DataSheet {
     }
   }
 }
+
+function incrementProjectVersion() {
+  const data = Data.instance;
+  const oldVersion = data.project.version.toString();
+  data.project.version = data.project.version.increment(0, 0, 1);
+  console.log("Incremented Project Version from '" + oldVersion + "' to '" + data.project.version.toString() + "'");
+}
+
 export { Data }

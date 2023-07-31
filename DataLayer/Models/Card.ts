@@ -1,7 +1,10 @@
 import { RichTextRow } from "../RichTextRow";
 import { NoteType, Faction, CardType, CardColumn, DefaultDeckLimit, ColumnHelper, ProjectType } from "../../Common/Enums";
 import { Project, SemanticVersion } from "./Project";
-import { ImageAPI } from "../../Image APIs/ImageAPI";
+import { ImageAPI } from "../../Imaging/ImageAPI";
+import { Issue } from "../../Github/Issues";
+import { Github, GithubAPI } from "../../Github/Github";
+import { Endpoints } from "@octokit/types";
 
 class Card extends RichTextRow {
     code: number;
@@ -134,19 +137,47 @@ class Card extends RichTextRow {
         return Card.fromRichTextValues(this.development.project, this.rowValues);
     }
 
-    requiresIssue() {
-        switch (this.development.note?.type) {
-            case NoteType.Replaced:
-            case NoteType.Reworked:
-            case NoteType.Updated:
-                return true;
-            default:
-                return this.requiresImplementation();
-        }
-    }
+    syncIssue(project: Project, existing?: Endpoints["GET /search/issues"]["response"]["data"]["items"] ): "Added" | "Updated" | "Closed" | undefined {
+        const requiresImplementation = this.development.version.is(1, 0) && !this.development.note && !this.development.playtestVersion;
 
-    requiresImplementation() {
-        return this.development.version.is(1, 0) && !this.development.note && !this.development.playtestVersion;
+        const noteType = this.development.note?.type;
+        // Ignore if there is no note type & card is not an initial implementation
+        if (!(noteType || requiresImplementation)) {
+            return;
+        }
+        // Sync image before pushing new or updating old issue
+        this.syncImage(project);
+
+        const potentialIssue = Issue.for(this);
+        const currentIssue = existing?.find(existing => existing.title === potentialIssue.title) ?? GithubAPI.getIssues(this).find(a => a);
+
+        let action: "Added" | "Updated" | "Closed" | undefined;
+
+        if (currentIssue) {
+            this.development.githubIssue = { status: currentIssue.state, url: currentIssue.html_url };
+
+            // Check & Update issue if body is different
+            if (potentialIssue.body !== currentIssue.body) {
+                potentialIssue.number = currentIssue.number;
+                let { state, html_url } = GithubAPI.updateIssue(potentialIssue);
+                this.development.githubIssue = { status: state, url: html_url };
+                action = "Updated";
+            }
+        } else {
+            // Create new issue
+            let { state, html_url } = GithubAPI.addIssue(Issue.for(this));
+            this.development.githubIssue = { status: state, url: html_url };
+            action = "Added";
+        }
+
+        if (requiresImplementation && this.development.githubIssue.status === "closed") {
+            this.development.note = {
+                type: NoteType.Implemented
+            }
+
+            action = "Closed";
+        }
+        return action;
     }
 
     syncImage(project: Project) {
@@ -230,11 +261,11 @@ class Card extends RichTextRow {
             if (this.development.playtestVersion) {
                 this.setText(CardColumn.PlaytestVersion, this.development.playtestVersion.toString());
             }
-    
+
             if (this.development.githubIssue?.status && this.development.githubIssue?.url) {
                 this.rowValues[CardColumn.GithubIssue] = SpreadsheetApp.newRichTextValue().setText(this.development.githubIssue.status).setLinkUrl(this.development.githubIssue.url).build();
             }
-    
+
             switch (this.type) {
                 case CardType.Character:
                     this.setText(CardColumn.Strength, this.strength !== undefined ? this.strength : "-");
@@ -259,7 +290,7 @@ class Card extends RichTextRow {
                 // Nothing to set
             }
             return this.rowValues;
-        } catch(e) {
+        } catch (e) {
             console.log("Failed toRichTextValues for card #" + this.development.number);
             return tempRowValues;
         }

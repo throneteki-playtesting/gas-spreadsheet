@@ -41,11 +41,12 @@ class PDFAPI {
 
   static syncUpdatedPhysicalPDFSheet(sandbox = false) {
     const data = Data.instance;
-    const updated = data.getCompletedCards();
+    // Only fetch completed cards which are updated from a previous version
+    const updated = data.getCompletedCards().filter(card => card.development.playtestVersion);
     let updatedPdfUrl = PropertiesService.getDocumentProperties().getProperty("pdf_updated");
     const newFileName = PDFAPI.getFileName(data.project.short, data.project.version, BatchType.Updated);
 
-    if(updated.length > 0 && !(updatedPdfUrl?.includes(newFileName))) {
+    if (updated.length > 0 && !(updatedPdfUrl?.includes(newFileName))) {
       const generatedPdfUrl = PDFAPI.generateSheet(data.project, updated, newFileName, sandbox);
       updatedPdfUrl = generatedPdfUrl;
       PropertiesService.getDocumentProperties().setProperty("pdf_updated", updatedPdfUrl);
@@ -53,13 +54,12 @@ class PDFAPI {
 
     return updatedPdfUrl;
   }
-
   static syncLatestPhysicalPDFSheet(sandbox = false) {
     const data = Data.instance;
     let latestPdfUrl = PropertiesService.getDocumentProperties().getProperty("pdf_all");
     const newFileName = PDFAPI.getFileName(data.project.short, data.project.version, BatchType.All);
 
-    if(!(latestPdfUrl?.includes(newFileName))) {
+    if (!(latestPdfUrl?.includes(newFileName))) {
       const generatedPdfUrl = PDFAPI.generateSheet(data.project, data.latestCards, newFileName, sandbox);
       latestPdfUrl = generatedPdfUrl;
       PropertiesService.getDocumentProperties().setProperty("pdf_all", latestPdfUrl);
@@ -67,6 +67,14 @@ class PDFAPI {
 
     return latestPdfUrl;
   }
+}
+
+function syncUpdatedPhysicalPDFSheet(sandbox = false) {
+  PDFAPI.syncUpdatedPhysicalPDFSheet(sandbox);
+}
+
+function syncLatestPhysicalPDFSheet(sandbox = false) {
+  PDFAPI.syncLatestPhysicalPDFSheet(sandbox);
 }
 
 export { PDFAPI }

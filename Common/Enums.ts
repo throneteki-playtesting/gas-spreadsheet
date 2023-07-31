@@ -46,8 +46,7 @@ enum NoteType {
     Implemented,
     Replaced,
     Reworked,
-    Updated,
-    Bugfixed
+    Updated
 }
 
 enum ProjectType {
@@ -98,12 +97,12 @@ enum DefaultDeckLimit {
 }
 
 enum RenderType {
-  Single,
-  Batch
+    Single,
+    Batch
 }
 enum BatchType {
-  All,
-  Updated
+    All,
+    Updated
 }
 
 class ColumnHelper {
@@ -112,7 +111,7 @@ class ColumnHelper {
     }
 }
 
-export{
+export {
     CardColumn,
     ReviewColumn,
     NoteType,
