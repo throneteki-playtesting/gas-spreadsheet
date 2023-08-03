@@ -1,103 +1,103 @@
-import { RichTextRow } from "../RichTextRow";
-import { ColumnHelper, Faction, FormQuestion, ReviewColumn } from "../../Common/Enums";
-import { SemanticVersion } from "./Project";
+import { FormQuestion } from "../../Common/Enums";
 import { Card } from "./Card";
-import { Data } from "../Data";
+import { Data, DataRow } from "../Data";
+import { Columns, ReviewColumn } from "../../Common/Columns";
+import { DataObject } from "./DataObject";
+import { SemanticVersion } from "./Project";
 
-class Review extends RichTextRow {
-    id: string;
-    card: Card;
-    date: Date;
-    reviewer: string;
-    deck: string;
-    count: number;
-    rating: number;
-    release?: boolean;
-    reason?: string;
-    additional?: string;
-
-    spreadsheetUrl?: string;
-
-    static fromResponse(response: GoogleAppsScript.Forms.FormResponse): Review {
-        const review = new Review();
-        review.id = response.getId();
-        const cardName = response.getItemResponses()[FormQuestion.ReviewingCard].getResponse() as string;
-        const data = Data.instance;
-        const card = data.playtestingCards.find(card => card.toString() === cardName) ?? data.latestCards.find(card => card.toString() === cardName);
-
-        if (!card) {
-            throw new Error("Failed to build review as card/version cannot be found: " + cardName + ".");
-        }
-
-        review.card = card;
-        review.date = new Date(response.getTimestamp().toUTCString());
-        review.reviewer = response.getItemResponses()[FormQuestion.DiscordName].getResponse() as string;
-        review.deck = response.getItemResponses()[FormQuestion.DeckLink].getResponse() as string;
-        review.count = parseInt(response.getItemResponses()[FormQuestion.GamesPlayed].getResponse() as string);
-        review.rating = parseInt(response.getItemResponses()[FormQuestion.Rating].getResponse() as string);
-        const release = response.getItemResponses()[FormQuestion.ReleaseReady].getResponse() as string;
-        review.release = release === "Yes" ? true : (release === "No" ? false : undefined);
-        const reason = response.getItemResponses()[FormQuestion.Reason].getResponse() as string;
-        review.reason = reason ? reason : undefined;
-        const additional = response.getItemResponses()[FormQuestion.Additional].getResponse() as string;
-        review.additional = additional ? additional : undefined;
-
-        review.rowValues = review.toRichTextValues();
-
-        return review;
+class Review extends DataObject {
+    constructor(data: DataRow, public id: string, public card: Card, public date: Date, public reviewer: string, public deck: string, public count: number,
+        public rating: number, public release?: boolean, public reason?: string, public additional?: string, public spreadheetUrl?: string) {
+        super(data);
     }
 
-    static fromRichTextValues(richTextValues: (GoogleAppsScript.Spreadsheet.RichTextValue | null)[]): Review {
-        const review = new Review();
-        review.rowValues = richTextValues.map(rtv => rtv ? rtv : SpreadsheetApp.newRichTextValue().build());
-        review.id = review.getText(ReviewColumn.ResponseId, true);
-        const number = review.getNumber(ReviewColumn.Number, true);
-        const version = SemanticVersion.fromString(review.getText(ReviewColumn.Version, true));
+    static fromData(data: DataRow) {
+        const number = data.getNumber(ReviewColumn.Number);
+        const version = SemanticVersion.fromString(data.getString(ReviewColumn.Version));
 
-        const data = Data.instance;
-        const card = data.findCard(number, version);
+        const card = Data.instance.findCard(number, version);
         if (!card) {
             throw new Error("Attempted to build review from non-existent card (number: " + number + ", version: " + version.toString() + ").");
         }
-        review.card = card;
-        review.date = new Date(review.getText(ReviewColumn.Date, true));
-        review.reviewer = review.getText(ReviewColumn.Reviewer, true);
-        review.deck = review.getValue(ReviewColumn.Deck).getLinkUrl() || "";
-        review.count = review.getNumber(ReviewColumn.Count, true);
-        review.rating = review.getNumber(ReviewColumn.Rating, true);
-        const release = review.getText(ReviewColumn.Release, true);
-        review.release = release !== "Unsure" ? (release === "Yes") : undefined;
-        review.reason = review.hasText(ReviewColumn.Reason) ? review.getText(ReviewColumn.Reason) : undefined;
-        review.additional = review.hasText(ReviewColumn.Additional) ? review.getText(ReviewColumn.Additional) : undefined;
+        const id = data.getString(ReviewColumn.ResponseId);
+        const date = new Date(data.getString(ReviewColumn.Date));
+        const reviewer = data.getString(ReviewColumn.Reviewer);
+        const deck = data.getRichTextValue(ReviewColumn.Deck).getLinkUrl() || "";
+        const count = data.getNumber(ReviewColumn.Count);
+        const rating = data.getNumber(ReviewColumn.Rating);
+        const releaseString = data.getString(ReviewColumn.Release);
+        const release = releaseString !== "Unsure" ? (releaseString === "Yes") : undefined;
+        const reason = data.hasValue(ReviewColumn.Reason) ? data.getString(ReviewColumn.Reason) : undefined;
+        const additional = data.hasValue(ReviewColumn.Additional) ? data.getString(ReviewColumn.Additional) : undefined;
 
+        return new Review(data, id, card, date, reviewer, deck, count, rating, release, reason, additional);
+    }
+
+    static fromResponse(response: GoogleAppsScript.Forms.FormResponse): Review {
+
+        const cardString = response.getItemResponses()[FormQuestion.ReviewingCard].getResponse() as string;
+        const card = Data.instance.latestCards.concat(Data.instance.archivedCards).find(card => card.toString() === cardString);
+        if (!card) {
+            throw new Error("Attempted to build form response review for card which does not exist (" + cardString + ")");
+        }
+        const id = response.getId();
+        const date = new Date(response.getTimestamp().toUTCString());
+        const reviewer = response.getItemResponses()[FormQuestion.DiscordName].getResponse() as string;
+        const deck = response.getItemResponses()[FormQuestion.DeckLink].getResponse() as string;
+        const count = parseInt(response.getItemResponses()[FormQuestion.GamesPlayed].getResponse() as string);
+        const rating = parseInt(response.getItemResponses()[FormQuestion.Rating].getResponse() as string);
+        const releaseString = response.getItemResponses()[FormQuestion.ReleaseReady].getResponse() as string;
+        const release = releaseString === "Yes" ? true : (releaseString === "No" ? false : undefined);
+        const reasonString = response.getItemResponses()[FormQuestion.Reason].getResponse() as string;
+        const reason = reasonString ? reasonString : undefined;
+        const additionalString = response.getItemResponses()[FormQuestion.Additional].getResponse() as string;
+        const additional = additionalString ? additionalString : undefined;
+
+        const review = new Review(DataRow.new(Columns.getAmount(ReviewColumn)), id, card, date, reviewer, deck, count, rating, release, reason, additional);
+        review.syncData();
         return review;
     }
 
-    toRichTextValues(): GoogleAppsScript.Spreadsheet.RichTextValue[] {
-        this.rowValues = Array.from({ length: ColumnHelper.getCount(ReviewColumn) }, () => SpreadsheetApp.newRichTextValue().setText("").build());
-        this.setText(ReviewColumn.Number, this.card.development.number);
-        this.setText(ReviewColumn.Version, this.card.development.version.toString());
-        this.setText(ReviewColumn.Faction, this.card.faction);
-        this.setText(ReviewColumn.Name, this.card.name);
-        this.setText(ReviewColumn.Date, this.date.toDateString());
-        this.setText(ReviewColumn.Reviewer, this.reviewer);
-        this.rowValues[ReviewColumn.Deck] = SpreadsheetApp.newRichTextValue().setText("ThronesDB").setLinkUrl(this.deck).build();
-        this.setText(ReviewColumn.Count, this.count);
-        this.setText(ReviewColumn.Rating, this.rating);
-        this.setText(ReviewColumn.Release, this.release !== undefined ? (this.release ? "Yes" : "No") : "Unsure");
-        if (this.reason) {
-            this.setText(ReviewColumn.Reason, this.reason);
-        }
-        if (this.additional) {
-            this.setText(ReviewColumn.Additional, this.additional);
-        }
-        this.setText(ReviewColumn.ResponseId, this.id);
+    syncData() {
+        const newData = DataRow.new(Columns.getAmount(ReviewColumn));
 
-        return this.rowValues;
+        try {
+            newData.setString(ReviewColumn.ResponseId, this.id);
+            newData.setString(ReviewColumn.Number, this.card.development.number);
+            newData.setString(ReviewColumn.Version, this.card.development.version.toString());
+            newData.setString(ReviewColumn.Faction, this.card.faction);
+            newData.setString(ReviewColumn.Name, this.card.name);
+            newData.setString(ReviewColumn.Date, this.date.toDateString());
+            newData.setString(ReviewColumn.Reviewer, this.reviewer);
+            newData.setRichTextValue(ReviewColumn.Deck, SpreadsheetApp.newRichTextValue().setText("ThronesDB").setLinkUrl(this.deck).build());
+            newData.setString(ReviewColumn.Count, this.count);
+            newData.setString(ReviewColumn.Rating, this.rating);
+            newData.setString(ReviewColumn.Release, this.release !== undefined ? (this.release ? "Yes" : "No") : "Unsure");
+            if (this.reason) {
+                newData.setString(ReviewColumn.Reason, this.reason);
+            }
+            if (this.additional) {
+                newData.setString(ReviewColumn.Additional, this.additional);
+            }
+
+            // Update DataRow to newly created data
+            this.data = newData;
+
+            return true;
+        } catch (e) {
+            console.log("Failed to create RowData for review '" + this.id + "'. JSON dump of review values:\n" + JSON.stringify(this));
+            console.log("Caused by the following error: " + e);
+            // DataRow will not be updated (original values retained)
+            return false;
+        }
     }
 
     toString() {
         return "Review for '" + this.card.toString() + "' by " + this.reviewer;
+    }
+
+    clone() {
+        return Review.fromData(this.data);
     }
 }
 export { Review }

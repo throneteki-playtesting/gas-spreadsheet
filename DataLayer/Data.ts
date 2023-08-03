@@ -1,9 +1,10 @@
 import { Card } from "./Models/Card";
-import { CardColumn, ColumnHelper, NoteType, ProjectType, ReviewColumn } from "../Common/Enums";
+import { NoteType, ProjectType } from "../Common/Enums";
 import { Project, SemanticVersion } from "./Models/Project";
 import { Review } from "./Models/Review";
 import { Pack } from "./Models/Pack";
 import { Settings } from "./Settings";
+import { CardColumn, Columns, ReviewColumn } from "../Common/Columns";
 
 class Data {
   private static instance_: Data;
@@ -24,9 +25,9 @@ class Data {
     }
     this.project = new Project();
 
-    this.latestCardsSheet = new DataSheet("Latest Cards", 5, 2, ColumnHelper.getCount(CardColumn), this.project.totalCards, false);
-    this.archivedCardsSheet = new DataSheet("Archived Cards", 5, 2, ColumnHelper.getCount(CardColumn), null, true);
-    this.archivedReviewsSheet = new DataSheet("Archived Reviews", 4, 2, ColumnHelper.getCount(ReviewColumn), null, true);
+    this.latestCardsSheet = new DataSheet("Latest Cards", 5, 2, Columns.getAmount(CardColumn), this.project.totalCards);
+    this.archivedCardsSheet = new DataSheet("Archived Cards", 5, 2, Columns.getAmount(CardColumn));
+    this.archivedReviewsSheet = new DataSheet("Archived Reviews", 4, 2, Columns.getAmount(ReviewColumn));
   }
 
   static get instance(): Data {
@@ -40,7 +41,7 @@ class Data {
 
   get latestCards() {
     if (!this.latestCards_) {
-      this.latestCards_ = this.latestCardsSheet.getRichTextData().map(rtv => Card.fromRichTextValues(this.project, rtv));
+      this.latestCards_ = this.latestCardsSheet.read().dataRows.map(dataRow => Card.fromData(dataRow));
     }
     return this.latestCards_;
   }
@@ -49,7 +50,7 @@ class Data {
   }
   get archivedCards() {
     if (!this.archivedCards_) {
-      this.archivedCards_ = this.archivedCardsSheet.getRichTextData().map(rtv => Card.fromRichTextValues(this.project, rtv));
+      this.archivedCards_ = this.archivedCardsSheet.read().dataRows.map(dataRow => Card.fromData(dataRow));
     }
     return this.archivedCards_;
   }
@@ -58,7 +59,7 @@ class Data {
   }
   get archivedReviews() {
     if (!this.archivedReviews_) {
-      this.archivedReviews_ = this.archivedReviewsSheet.getRichTextData().map(rtv => Review.fromRichTextValues(rtv));
+      this.archivedReviews_ = this.archivedReviewsSheet.read().dataRows.map(dataRow => Review.fromData(dataRow));
     }
     return this.archivedReviews_;
   }
@@ -81,11 +82,9 @@ class Data {
   }
 
   commit() {
-    console.log("Saving data to spreadsheet...");
-    this.latestCardsSheet.setRichTextData(this.latestCards.map(card => card.toRichTextValues()));
-    this.archivedCardsSheet.setRichTextData(this.archivedCards.map(card => card.toRichTextValues()));
-    this.archivedReviewsSheet.setRichTextData(this.archivedReviews.map(review => review.toRichTextValues()));
-    console.log("Successfully saved data to spreadsheet!");
+    this.latestCardsSheet.write(new DataTable(this.latestCards.map(card => card.dataRow)));
+    this.archivedCardsSheet.write(new DataTable(this.archivedCards.map(card => card.dataRow)));
+    this.archivedReviewsSheet.write(new DataTable(this.archivedReviews.map(review => review.dataRow)));
   }
 
   findCard(number: number, version: SemanticVersion): Card | undefined {
@@ -131,7 +130,7 @@ class Data {
 class DataSheet {
   private sheet: GoogleAppsScript.Spreadsheet.Sheet;
 
-  constructor(sheetName: string, private firstRow: number, private firstColumn: number, private numColumns: number, private numRows: number | null, private hasTemplateRow: boolean) {
+  constructor(sheetName: string, private firstRow: number, private firstColumn: number, private numColumns: number, private numRows: number | null = null) {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
     if (!sheet) {
       throw new Error("Failed to find sheet of name '" + sheetName + "'.");
@@ -139,59 +138,307 @@ class DataSheet {
     this.sheet = sheet;
   }
 
+  private get hasTemplateRow() {
+    return this.numRows !== undefined;
+  }
+
   private get numTemplateRows() {
     return this.hasTemplateRow ? 1 : 0;
   }
 
-  getRichTextData(): (GoogleAppsScript.Spreadsheet.RichTextValue | null)[][] {
-    const lastRow = this.sheet.getLastRow();
-    const numRows = this.numRows || (lastRow + 1) - this.firstRow;
+  read(): DataTable {
+    const numRows = this.numRows || (this.sheet.getLastRow() + 1) - this.firstRow;
+    console.log("Reading " + numRows + " rows from " + this.sheet.getName() + "...");
+
     if (numRows <= 0) {
-      return [];
+      return new DataTable([]);
     }
-    return this.sheet.getRange(this.firstRow, this.firstColumn, numRows, this.numColumns).getRichTextValues();
+
+    const range = this.sheet.getRange(this.firstRow, this.firstColumn, numRows, this.numColumns);
+    const richTextValues = range.getRichTextValues();
+    const values = range.getValues();
+
+    const rowData = values.map((value, index) => new DataRow(richTextValues[index], value));
+    return new DataTable(rowData);
   }
 
-  setRichTextData(data: GoogleAppsScript.Spreadsheet.RichTextValue[][]) {
-    const saving = data.map(a => a.map(b => b.getText()));
+  write(data: DataTable) {
+    console.log("Writing " + data.values.length + " data rows to '" + this.sheet.getName() + "'...");
+    this.validate(data);
 
-    if (data.length > 0 && data[0].length != this.numColumns) {
-      throw new Error("Cannot setRichTextData as data length (" + data[0].length + ") does not match '" + this.sheet.getName() + "' column length (" + this.numColumns + ").");
-    }
-    // If there is a set number of rows, then rows cannot be added or removed
-    if (this.numRows) {
-      if (data.length !== this.numRows) {
-        throw new Error("Cannot setRichTextData as data length (" + data.length + ") does not match '" + this.sheet.getName() + "' number of rows (" + this.numRows + ").");
-      }
-      this.sheet.getRange(this.firstRow, this.firstColumn, this.numRows, this.numColumns).setRichTextValues(data);
-    } else {
-      // Calculate how many rows to be added or removed via rowOffset
-      const lastRow = this.sheet.getLastRow();
-      const numRows = this.numRows || (lastRow + 1) - this.firstRow;
-      // Note: rowOffset will keep numTemplateRows in mind, and never offset to delete a template row
-      const rowOffset = Math.max(this.numTemplateRows, data.length) - Math.max(this.numTemplateRows, numRows);
-
-      if (rowOffset > 0) {
-        // Insert the required number of rows, and save that range in insertedRange
-        const insertedRange = this.sheet.insertRowsAfter(Math.max(lastRow, this.firstRow), rowOffset).getRange(lastRow + 1, this.firstColumn, rowOffset, this.numColumns);
-
-        if (this.hasTemplateRow) {
-          // Copy the template row into the newly inserted range
-          const templateRange = this.sheet.getRange(this.firstRow, this.firstColumn, this.numTemplateRows, this.numColumns);
-          templateRange.copyTo(insertedRange, SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
+    try {
+      // If there is a set number of rows, then rows cannot be added or removed
+      if (this.numRows) {
+        if (data.values.length !== this.numRows) {
+          throw new Error("Failed to write to " + this.sheet.getName() + " as data length (" + data.values.length + ") does not match number of rows (" + this.numRows + ")");
         }
-      } else if (rowOffset < 0) {
-        // Delete number of required rows from firstRow (as data will be overridden anyway)
-        this.sheet.deleteRows(this.firstRow, Math.abs(rowOffset));
+        this.sheet.getRange(this.firstRow, this.firstColumn, this.numRows, this.numColumns).setRichTextValues(this.merge(data));
+      } else {
+        // Calculate how many rows to be added or removed via rowOffset
+        const lastRow = this.sheet.getLastRow();
+        const numRows = this.numRows || (lastRow + 1) - this.firstRow;
+        // Note: rowOffset will keep numTemplateRows in mind, and never offset to delete a template row
+        const rowOffset = Math.max(this.numTemplateRows, data.values.length) - Math.max(this.numTemplateRows, numRows);
+
+        if (rowOffset > 0) {
+          // Insert the required number of rows, and save that range in insertedRange
+          const insertedRange = this.sheet.insertRowsAfter(Math.max(lastRow, this.firstRow), rowOffset).getRange(lastRow + 1, this.firstColumn, rowOffset, this.numColumns);
+
+          if (this.hasTemplateRow) {
+            // Copy the template row format into the newly inserted range (note: this isn't working as expected for borders)
+            const templateRange = this.sheet.getRange(this.firstRow, this.firstColumn, this.numTemplateRows, this.numColumns);
+            templateRange.copyTo(insertedRange, SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
+          }
+        } else if (rowOffset < 0) {
+          // Delete number of required rows from firstRow (as data will be overridden anyway)
+          this.sheet.deleteRows(this.firstRow, Math.abs(rowOffset));
+        }
+
+        // Either clear template rows, or set the range
+        if (this.hasTemplateRow && data.values.length === 0) {
+          this.sheet.getRange(this.firstRow, this.firstColumn, this.numTemplateRows, this.numColumns).clearContent();
+        } else if (data.values.length > 0) {
+          this.sheet.getRange(this.firstRow, this.firstColumn, data.values.length, this.numColumns).setRichTextValues(this.merge(data));
+        }
+      }
+      console.log("Complete!");
+      return true;
+    } catch (e) {
+      console.log("Failed to write to sheet: " + e);
+      return false;
+    }
+  }
+
+  private merge(data: DataTable): GoogleAppsScript.Spreadsheet.RichTextValue[][] {
+    return data.richTextValues.map((row, iRow) => row.map((column, iColumn) => column ?? SpreadsheetApp.newRichTextValue().setText(data.values[iRow][iColumn].toString()).build()));
+  }
+
+  private validate(data: DataTable) {
+    const rtvRows = data.richTextValues.length;
+    const valRows = data.richTextValues.length;
+    const rtvColumns = rtvRows > 0 ? data.richTextValues[0].length : this.numColumns;
+    const valColumns = valRows > 0 ? data.values[0].length : this.numColumns;
+
+    if (this.numRows && (rtvRows !== this.numRows || valRows !== this.numRows)) {
+      throw new Error("Rich Text Values or Values are incorrect number of rows (was " + rtvRows + " / " + valRows + ", should be " + this.numRows);
+    }
+    if (rtvColumns != this.numColumns || valColumns != this.numColumns) {
+      throw new Error("Rich Text Values or Values are incorrect number of columns (was " + rtvColumns + " / " + valColumns + ", should be " + this.numColumns);
+    }
+  }
+
+  // getRichTextData(): (GoogleAppsScript.Spreadsheet.RichTextValue | null)[][] {
+  //   const lastRow = this.sheet.getLastRow();
+  //   const numRows = this.numRows || (lastRow + 1) - this.firstRow;
+  //   if (numRows <= 0) {
+  //     return [];
+  //   }
+  //   return this.sheet.getRange(this.firstRow, this.firstColumn, numRows, this.numColumns).getRichTextValues();
+  // }
+
+  // setRichTextData(data: GoogleAppsScript.Spreadsheet.RichTextValue[][]) {
+  //   const saving = data.map(a => a.map(b => b.getText()));
+
+  //   if (data.length > 0 && data[0].length != this.numColumns) {
+  //     throw new Error("Cannot setRichTextData as data length (" + data[0].length + ") does not match '" + this.sheet.getName() + "' column length (" + this.numColumns + ").");
+  //   }
+  //   // If there is a set number of rows, then rows cannot be added or removed
+  //   if (this.numRows) {
+  //     if (data.length !== this.numRows) {
+  //       throw new Error("Cannot setRichTextData as data length (" + data.length + ") does not match '" + this.sheet.getName() + "' number of rows (" + this.numRows + ").");
+  //     }
+  //     this.sheet.getRange(this.firstRow, this.firstColumn, this.numRows, this.numColumns).setRichTextValues(data);
+  //   } else {
+  //     // Calculate how many rows to be added or removed via rowOffset
+  //     const lastRow = this.sheet.getLastRow();
+  //     const numRows = this.numRows || (lastRow + 1) - this.firstRow;
+  //     // Note: rowOffset will keep numTemplateRows in mind, and never offset to delete a template row
+  //     const rowOffset = Math.max(this.numTemplateRows, data.length) - Math.max(this.numTemplateRows, numRows);
+
+  //     if (rowOffset > 0) {
+  //       // Insert the required number of rows, and save that range in insertedRange
+  //       const insertedRange = this.sheet.insertRowsAfter(Math.max(lastRow, this.firstRow), rowOffset).getRange(lastRow + 1, this.firstColumn, rowOffset, this.numColumns);
+
+  //       if (this.hasTemplateRow) {
+  //         // Copy the template row into the newly inserted range
+  //         const templateRange = this.sheet.getRange(this.firstRow, this.firstColumn, this.numTemplateRows, this.numColumns);
+  //         templateRange.copyTo(insertedRange, SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
+  //       }
+  //     } else if (rowOffset < 0) {
+  //       // Delete number of required rows from firstRow (as data will be overridden anyway)
+  //       this.sheet.deleteRows(this.firstRow, Math.abs(rowOffset));
+  //     }
+
+  //     // Either clear template rows, or set the range
+  //     if (this.hasTemplateRow && data.length === 0) {
+  //       this.sheet.getRange(this.firstRow, this.firstColumn, this.numTemplateRows, this.numColumns).clearContent();
+  //     } else if (data.length > 0) {
+  //       this.sheet.getRange(this.firstRow, this.firstColumn, data.length, this.numColumns).setRichTextValues(data);
+  //     }
+  //   }
+  // }
+}
+
+class DataTable {
+  constructor(private rows: DataRow[]) { }
+
+  public get richTextValues() {
+    return this.rows.map(row => row.richTextValues);
+  }
+
+  public get values() {
+    return this.rows.map(row => row.values);
+  }
+
+  public get dataRows() {
+    return this.rows;
+  }
+}
+
+class DataRow {
+  constructor(public richTextValues: (GoogleAppsScript.Spreadsheet.RichTextValue | null)[], public values: any[]) { }
+
+  static new(numColumns: number, dashIndecies: number[] = []) {
+    const raw = Array.from({ length: numColumns }, (v, i) => dashIndecies.includes(i) ? "-" : "");
+    return new DataRow(raw.map(r => SpreadsheetApp.newRichTextValue().setText(r).build()), raw);
+  }
+
+  private getValue(column: number): any {
+    let val = this.richTextValues[column]?.getText() || this.values[column];
+    if (val === "-" || val === "" || val === null || val === undefined) {
+      throw new Error("Failed to get value for column index " + column + ".\nFull Row Values: " + this.values.join(", "));
+    }
+    return val;
+  }
+
+  hasValue(column: number) {
+    const val = this.richTextValues[column]?.getText() || this.values[column];
+    return !(val === "-" || val === "" || val === null || val === undefined);
+  }
+
+  getString(column: number) {
+    return this.getValue(column).toString() as string;
+  }
+
+  getNumber(column: number) {
+    const val = this.getString(column);
+    if (Number.isNaN(val)) {
+      throw new Error("Failed to parse number from '" + val + "' for column index " + column + ".\nFull Row Values: " + this.values.join(", "));
+    }
+    return parseInt(val);
+  }
+
+  getEnum<E>(enumType: any, column: number) {
+    const val = this.getString(column);
+    const e = Object.entries(enumType).find(([key, value]) => value === val)?.[1];
+    if (!e) {
+      throw new Error("Failed to get enum value for '" + enumType + "' from value '" + val + "' for column index " + column + ".\nFull Row Values: " + this.values.join(", "));
+    }
+    return val as E;
+  }
+
+  getRichTextValue(column: number) {
+    const rtv = this.richTextValues[column];
+    if (!rtv) {
+      throw new Error("Failed to get required rich text value for column index " + column + ".\nFull Row Values: " + this.values.join(", "));
+    }
+    return rtv;
+  }
+
+  getHtmlString(column: number) {
+    let htmlString = "";
+    const isTrait = (ts: GoogleAppsScript.Spreadsheet.TextStyle) =>
+      ts.isBold()
+      && ts.isItalic()
+      && !ts.isStrikethrough()
+      && !ts.isUnderline()
+
+    const isTriggeredAbility = (ts: GoogleAppsScript.Spreadsheet.TextStyle) =>
+      ts.isBold()
+      && !ts.isItalic()
+      && !ts.isStrikethrough()
+      && !ts.isUnderline()
+
+    for (let run of this.richTextValues[column]?.getRuns() ?? []) {
+      let text = run.getText();
+      const style = run.getTextStyle();
+
+      // Regex to gather only the text portion of the string, whilst leaving the trim/newlines untouched
+      const regex = /([^ \n]+(?: [^ \n]+)*)/g;
+      if (isTrait(style)) {
+        text = text.replace(regex, "<i>$1</i>");
+      } else if (isTriggeredAbility(style)) {
+        text = text.replace(regex, "<b>$1</b>");
+      }
+      // // Replacing new-line with break
+      // text = text.replace(/\n/g, "<br>");
+      // Replacing icons
+      text = text.replace(/:(\w+):/g, "[$1]");
+      // Replacing citing
+      text = text.replace(/(?<=" )[-~]\s+([\w ]+)/g, "<cite>$1</cite>");
+      htmlString += text;
+    }
+
+    return htmlString;
+  }
+
+  setString(column: number, value: string | number) {
+    const val = value.toString();
+    this.setRichTextValue(column, SpreadsheetApp.newRichTextValue().setText(val).build());
+    this.values[column] = val;
+  }
+
+  setRichTextValue(column: number, richTextValue: GoogleAppsScript.Spreadsheet.RichTextValue) {
+    this.richTextValues[column] = richTextValue;
+  }
+
+  setHtmlString(column: number, html: string) {
+    const regex = /(?:<([^>]+)>)?(?<!<)([^<>]+)?(?!>)(?:<\/[^>]+>)?/gm;
+    const textStyles: {
+      startOffset: number,
+      endOffset: number,
+      textStyle: GoogleAppsScript.Spreadsheet.TextStyle
+    }[] = [];
+    let fullText = "";
+
+    let match: RegExpExecArray | null;
+    while ((match = regex.exec(html)) !== null) {
+      if (match.index === regex.lastIndex) {
+        regex.lastIndex++;
       }
 
-      // Either clear template rows, or set the range
-      if (this.hasTemplateRow && data.length === 0) {
-        this.sheet.getRange(this.firstRow, this.firstColumn, this.numTemplateRows, this.numColumns).clearContent();
-      } else if (data.length > 0) {
-        this.sheet.getRange(this.firstRow, this.firstColumn, data.length, this.numColumns).setRichTextValues(data);
+      const element = match[1];
+      const text = match[2] || "";
+      let textStyle: GoogleAppsScript.Spreadsheet.TextStyle | null = null;
+      switch (element) {
+        case "i":
+          textStyle = SpreadsheetApp.newTextStyle().setBold(true).setItalic(true).build();
+        case "b":
+          textStyle = textStyle || SpreadsheetApp.newTextStyle().setBold(true).build();
+          textStyles.push({
+            startOffset: fullText.length,
+            endOffset: fullText.length + text.length,
+            textStyle
+          });
+          fullText += text;
+          break;
+        case "cite":
+          fullText += "- " + text;
+          break;
+        default:
+          fullText += text;
       }
+
     }
+
+    // Converts all [icons] into :icons:
+    fullText = fullText.replace(/\[([^\]]+)\]/g, ":$1:");
+    let builder = SpreadsheetApp.newRichTextValue().setText(fullText);
+    for (let ts of textStyles) {
+      builder = builder.setTextStyle(ts.startOffset, ts.endOffset, ts.textStyle);
+    }
+
+    this.setRichTextValue(column, builder.build());
   }
 }
 
@@ -202,4 +449,4 @@ function incrementProjectVersion() {
   console.log("Incremented Project Version from '" + oldVersion + "' to '" + data.project.version.toString() + "'");
 }
 
-export { Data }
+export { Data, DataTable, DataRow }

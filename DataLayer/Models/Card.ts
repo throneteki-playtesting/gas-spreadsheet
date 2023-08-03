@@ -1,143 +1,111 @@
-import { RichTextRow } from "../RichTextRow";
-import { NoteType, Faction, CardType, CardColumn, DefaultDeckLimit, ColumnHelper, ProjectType } from "../../Common/Enums";
+import { NoteType, Faction, CardType, DefaultDeckLimit, ProjectType } from "../../Common/Enums";
 import { Project, SemanticVersion } from "./Project";
 import { ImageAPI } from "../../Imaging/ImageAPI";
 import { Issue } from "../../Github/Issues";
-import { Github, GithubAPI } from "../../Github/Github";
+import { GithubAPI } from "../../Github/Github";
 import { Endpoints } from "@octokit/types";
+import { Data, DataRow } from "../Data";
+import { CardColumn, Columns } from "../../Common/Columns";
+import { DataObject } from "./DataObject";
 
-class Card extends RichTextRow {
-    code: number;
-    development: {
-        project: Project,
-        number: number,
-        version: SemanticVersion,
-        playtestVersion?: SemanticVersion | null,
-        note?: {
-            type: NoteType,
-            text?: string // Maybe HTML type?
-        },
-        githubIssue?: {
-            status: string,
-            url: string
-        },
-        image?: {
-            url: string,
-            version: SemanticVersion
+class Card extends DataObject {
+    constructor(data: DataRow, public code: number, public development: Development, public faction: Faction, public name: string,
+        public type: CardType, public traits: string[], public text: string, public illustrator: string, public deckLimit: number,
+        public quantity: number, public flavor?: string, public designer?: string, public loyal?: boolean, public strength?: number | "X",
+        public icons?: Icons, public unique?: boolean, public cost?: number | "X" | "-", public plotStats?: PlotStats) {
+        super(data);
+    }
+    static fromData(data: DataRow): Card {
+        try {
+            const project = Data.instance.project;
+
+            if (!data.getString(CardColumn.Version)) {
+                // TODO: Handle missing version as "TBA" card
+            }
+
+            const number = data.getNumber(CardColumn.Number);
+            // Cycles require ranges 0-499 for "live" cards, and 500-999 for "development" cards
+            const code = parseInt(project.code + (project.type === ProjectType.Cycle ? (number + 500) : number).toString().padStart(3, "0"));
+            const development = {
+                project,
+                number: number,
+                version: SemanticVersion.fromString(data.getString(CardColumn.Version)),
+                playtestVersion: data.hasValue(CardColumn.PlaytestVersion) ? SemanticVersion.fromString(data.getString(CardColumn.PlaytestVersion)) : undefined,
+                note: data.hasValue(CardColumn.NoteType) ? {
+                    type: NoteType[data.getString(CardColumn.NoteType)],
+                    text: data.getHtmlString(CardColumn.NoteText)
+                } : undefined,
+                image: data.hasValue(CardColumn.ImageUrl) ? {
+                    url: data.getRichTextValue(CardColumn.ImageUrl).getLinkUrl() || "",
+                    version: SemanticVersion.fromString(data.getString(CardColumn.ImageUrl))
+                } : undefined,
+                githubIssue: data.hasValue(CardColumn.GithubIssue) ? {
+                    status: data.getString(CardColumn.GithubIssue),
+                    url: data.getRichTextValue(CardColumn.GithubIssue).getLinkUrl() || ""
+                } : undefined
+            } as Development;
+            const faction = data.getEnum<Faction>(Faction, CardColumn.Faction);
+            const name = data.getString(CardColumn.Name);
+            const type = CardType[data.getString(CardColumn.Type)];
+            const traits = data.hasValue(CardColumn.Traits) ? data.getString(CardColumn.Traits).split(".").filter(t => t).map(t => t.trim()) : [];
+            const text = data.getHtmlString(CardColumn.Textbox);
+            const flavor = data.hasValue(CardColumn.Flavor) ? data.getHtmlString(CardColumn.Flavor) : undefined;
+            const illustrator = data.hasValue(CardColumn.Illustrator) ? data.getString(CardColumn.Illustrator) : "?";
+            const designer = data.hasValue(CardColumn.Designer) ? data.getString(CardColumn.Designer) : undefined;
+            const loyal = faction !== Faction.Neutral ? data.getString(CardColumn.Loyal).toLowerCase() === "loyal" : undefined;
+
+            let strength: number | "X" | undefined;
+            let icons: Icons | undefined;
+            let unique: boolean | undefined;
+            let cost: number | "X" | "-" | undefined;
+            let plotStats: PlotStats | undefined;
+            switch (type) {
+                case CardType.Character:
+                    const strengthString = data.getString(CardColumn.Strength);
+                    if (strengthString !== "X" && Number.isNaN(parseInt(strengthString))) {
+                        throw new Error("Invalid strength value '" + strengthString + "': must be 'X' or a Number");
+                    }
+                    strength = strengthString == "X" ? "X" : parseInt(strengthString);
+                    const iconsString = data.hasValue(CardColumn.Icons) ? data.getString(CardColumn.Icons) : "";
+                    icons = {
+                        military: iconsString.includes("M"),
+                        intrigue: iconsString.includes("I"),
+                        power: iconsString.includes("P")
+                    } as Icons;
+                case CardType.Attachment:
+                case CardType.Location:
+                    unique = data.getString(CardColumn.Unique) === "Unique";
+                case CardType.Event:
+                    const costString = data.hasValue(CardColumn.Cost) ? data.getString(CardColumn.Cost) : "-";
+                    if (costString !== "X" && costString !== "-" && Number.isNaN(parseInt(costString))) {
+                        throw new Error("Invalid cost value '" + costString + "': must be 'X', '-' or a Number");
+                    }
+                    cost = costString === "X" || costString === "-" ? costString : parseInt(costString);
+                    break;
+                case CardType.Plot:
+                    plotStats = {
+                        income: data.getNumber(CardColumn.Income),
+                        initiative: data.getNumber(CardColumn.Initiative),
+                        claim: data.getNumber(CardColumn.Claim),
+                        reserve: data.getNumber(CardColumn.Reserve)
+                    } as PlotStats;
+                case CardType.Agenda:
+                    // Nothing additional to add
+                    break;
+            }
+
+            const deckLimit = data.hasValue(CardColumn.Limit) ? data.getNumber(CardColumn.Limit) : DefaultDeckLimit[CardType[type]];
+            const quantity = 3;
+
+            return new Card(data, code, development, faction, name, type, traits, text, illustrator, deckLimit, quantity, flavor, designer,
+                loyal, strength, icons, unique, cost, plotStats);
+        } catch (e) {
+            e.message = "Failed to create from below data row: " + e.message + "\n\n " + data.values.join(", ");
+            throw e;
         }
-    };
-    faction: Faction;
-    name: string;
-    type: CardType;
-    traits: string[];
-    text: string; // Maybe HTML type?
-    flavor?: string; // Maybe HTML type?
-    illustrator: string;
-    designer?: string;
-    loyal?: boolean;
-    deckLimit: number
-    quantity: number
-
-    // Draw Card Properties
-    strength?: number | string;
-    icons?: {
-        military: boolean,
-        intrigue: boolean,
-        power: boolean
-    };
-    unique?: boolean;
-    cost?: number | string;
-
-    // Plot Card Properties
-    plotStats?: {
-        income: number,
-        initiative: number,
-        claim: number,
-        reserve: number
-    };
-
-    static fromRichTextValues(project: Project, richTextValues: (GoogleAppsScript.Spreadsheet.RichTextValue | null)[]): Card {
-        const card = new Card();
-        card.rowValues = richTextValues.map(rtv => rtv ? rtv : SpreadsheetApp.newRichTextValue().build());
-
-        if (!card.getText(CardColumn.Version)) {
-            // TODO: Handle missing version as "TBA" card
-        }
-        const number = card.getNumber(CardColumn.Number, true);
-        // Cycles require ranges 0-499 for "live" cards, and 500-999 for "development" cards
-        card.code = parseInt(project.code + (project.type === ProjectType.Cycle ? (number + 500) : number).toString().padStart(3, "0"));
-        card.development = {
-            project,
-            number: number,
-            version: SemanticVersion.fromString(card.getText(CardColumn.Version, true)),
-            playtestVersion: card.hasText(CardColumn.PlaytestVersion) ? SemanticVersion.fromString(card.getText(CardColumn.PlaytestVersion)) : undefined,
-            note: card.hasText(CardColumn.NoteType) ? {
-                type: NoteType[card.getText(CardColumn.NoteType, true)],
-                text: card.getAsHtml(CardColumn.NoteText)
-            } : undefined,
-            image: card.hasText(CardColumn.ImageUrl) ? {
-                url: card.getValue(CardColumn.ImageUrl).getLinkUrl() || "",
-                version: SemanticVersion.fromString(card.getText(CardColumn.ImageUrl, true))
-            } : undefined,
-            githubIssue: card.hasText(CardColumn.GithubIssue) ? {
-                status: card.getText(CardColumn.GithubIssue, true),
-                url: card.getValue(CardColumn.GithubIssue).getLinkUrl() || ""
-            } : undefined
-        };
-        card.faction = card.getEnumFromValue<Faction>(Faction, CardColumn.Faction, true);
-        card.name = card.getText(CardColumn.Name, true);
-        card.type = CardType[card.getText(CardColumn.Type, true)];
-        card.traits = card.getText(CardColumn.Traits).split(".").filter(t => t).map(t => t.trim());
-        card.text = card.getAsHtml(CardColumn.Textbox);
-        if (card.hasText(CardColumn.Flavor)) {
-            card.flavor = card.getAsHtml(CardColumn.Flavor);
-        }
-        card.illustrator = card.getText(CardColumn.Illustrator) || "?";
-        if (card.hasText(CardColumn.Designer)) {
-            card.designer = card.getText(CardColumn.Designer);
-        }
-        if (card.faction !== Faction.Neutral) {
-            card.loyal = card.getText(CardColumn.Loyal).toLowerCase() === "loyal";
-        }
-        switch (card.type) {
-            case CardType.Character:
-                const strength = card.getNumber(CardColumn.Strength);
-                card.strength = !isNaN(strength) ? strength : (card.getText(CardColumn.Strength) || "-");
-                card.icons = {
-                    military: card.getText(CardColumn.Icons).includes("M"),
-                    intrigue: card.getText(CardColumn.Icons).includes("I"),
-                    power: card.getText(CardColumn.Icons).includes("P")
-                };
-            case CardType.Attachment:
-            case CardType.Location:
-                card.unique = card.getText(CardColumn.Unique, true) === "Unique";
-            case CardType.Event:
-                const cost = card.getNumber(CardColumn.Cost);
-                card.cost = !isNaN(cost) ? cost : (card.getText(CardColumn.Cost) || "-");
-                break;
-            case CardType.Plot:
-                card.plotStats = {
-                    income: card.getNumber(CardColumn.Income, true),
-                    initiative: card.getNumber(CardColumn.Initiative, true),
-                    claim: card.getNumber(CardColumn.Claim, true),
-                    reserve: card.getNumber(CardColumn.Reserve, true)
-                };
-            case CardType.Agenda:
-                // Nothing additional to add
-                break;
-        }
-
-        card.deckLimit = card.hasText(CardColumn.Limit) ? card.getNumber(CardColumn.Limit) : DefaultDeckLimit[CardType[card.type]];
-        card.quantity = 3;
-        return card;
-    };
-
-    clone() {
-        this.rowValues = this.toRichTextValues();
-        return Card.fromRichTextValues(this.development.project, this.rowValues);
     }
 
-    syncIssue(project: Project, existing?: Endpoints["GET /search/issues"]["response"]["data"]["items"] ): "Added" | "Updated" | "Closed" | undefined {
+    syncIssue(project: Project, existing?: Endpoints["GET /search/issues"]["response"]["data"]["items"]): "Added" | "Updated" | "Closed" | undefined {
         const requiresImplementation = this.development.version.is(1, 0) && !this.development.note && !this.development.playtestVersion;
 
         const noteType = this.development.note?.type;
@@ -189,10 +157,6 @@ class Card extends RichTextRow {
         }
     }
 
-    toString() {
-        return this.name + " (v" + this.development.version.toString() + ")";
-    }
-
     toJSON(workInProgress = false): JSON {
         const obj: any = {
             code: this.code.toString(),
@@ -216,85 +180,128 @@ class Card extends RichTextRow {
             ...(this.designer && { designer: this.designer }),
             imageUrl: this.development.image?.url || ""
         }
-        return <JSON>obj;
+        return obj as JSON;
     }
 
-    toRichTextValues() {
-        const tempRowValues = [...this.rowValues];
-        try {
-            const dashColumns = [CardColumn.Loyal, CardColumn.Unique, CardColumn.Cost, CardColumn.Strength, CardColumn.Icons, CardColumn.Traits];
+    syncData() {
+        const newData = DataRow.new(Columns.getAmount(CardColumn), [CardColumn.Loyal, CardColumn.Unique, CardColumn.Cost, CardColumn.Strength, CardColumn.Icons, CardColumn.Traits]);
 
-            this.rowValues = Array.from({ length: ColumnHelper.getCount(CardColumn) }, (v, i) => SpreadsheetApp.newRichTextValue().setText(dashColumns.includes(i) ? "-" : "").build());
-            this.setText(CardColumn.Number, this.development.number);
-            this.setText(CardColumn.Version, this.development.version.toString());
-            this.setText(CardColumn.Faction, this.faction);
-            this.setText(CardColumn.Name, this.name);
-            this.setText(CardColumn.Type, CardType[this.type]);
+        try {
+            newData.setString(CardColumn.Number, this.development.number);
+            newData.setString(CardColumn.Version, this.development.version.toString());
+            newData.setString(CardColumn.Faction, this.faction);
+            newData.setString(CardColumn.Name, this.name);
+            newData.setString(CardColumn.Type, CardType[this.type]);
             if (this.loyal !== undefined) {
-                this.setText(CardColumn.Loyal, this.loyal ? "Loyal" : "Non-Loyal");
+                newData.setString(CardColumn.Loyal, this.loyal ? "Loyal" : "Non-Loyal");
             }
             if (this.traits.length > 0) {
-                this.setText(CardColumn.Traits, this.traits.map(t => t + ".").join(" "));
+                newData.setString(CardColumn.Traits, this.traits.map(t => t + ".").join(" "));
             }
-            this.setFromHtml(CardColumn.Textbox, this.text);
+            newData.setHtmlString(CardColumn.Textbox, this.text);
             if (this.flavor) {
-                this.setFromHtml(CardColumn.Flavor, this.flavor);
+                newData.setHtmlString(CardColumn.Flavor, this.flavor);
             }
             if (this.deckLimit !== DefaultDeckLimit[CardType[this.type]]) {
-                this.setText(CardColumn.Limit, this.deckLimit);
+                newData.setString(CardColumn.Limit, this.deckLimit);
             }
             if (this.designer) {
-                this.setText(CardColumn.Designer, this.designer);
+                newData.setString(CardColumn.Designer, this.designer);
             }
             if (this.illustrator !== "?") {
-                this.setText(CardColumn.Illustrator, this.illustrator);
+                newData.setString(CardColumn.Illustrator, this.illustrator);
             }
             if (this.development.image) {
-                this.rowValues[CardColumn.ImageUrl] = SpreadsheetApp.newRichTextValue().setText(this.development.image.version.toString()).setLinkUrl(this.development.image.url).build();
+                newData.setRichTextValue(CardColumn.ImageUrl, SpreadsheetApp.newRichTextValue().setText(this.development.image.version.toString()).setLinkUrl(this.development.image.url).build());
             }
             if (this.development.note) {
-                this.setText(CardColumn.NoteType, NoteType[this.development.note.type]);
+                newData.setString(CardColumn.NoteType, NoteType[this.development.note.type]);
                 if (this.development.note.text) {
-                    this.setFromHtml(CardColumn.NoteText, this.development.note.text);
+                    newData.setHtmlString(CardColumn.NoteText, this.development.note.text);
                 }
             }
             if (this.development.playtestVersion) {
-                this.setText(CardColumn.PlaytestVersion, this.development.playtestVersion.toString());
+                newData.setString(CardColumn.PlaytestVersion, this.development.playtestVersion.toString());
             }
 
             if (this.development.githubIssue?.status && this.development.githubIssue?.url) {
-                this.rowValues[CardColumn.GithubIssue] = SpreadsheetApp.newRichTextValue().setText(this.development.githubIssue.status).setLinkUrl(this.development.githubIssue.url).build();
+                newData.setRichTextValue(CardColumn.GithubIssue, SpreadsheetApp.newRichTextValue().setText(this.development.githubIssue.status).setLinkUrl(this.development.githubIssue.url).build());
             }
 
             switch (this.type) {
                 case CardType.Character:
-                    this.setText(CardColumn.Strength, this.strength !== undefined ? this.strength : "-");
+                    newData.setString(CardColumn.Strength, this.strength !== undefined ? this.strength : "-");
                     const iconLetters = [
                         ... this.icons?.military ? ["M"] : [],
                         ... this.icons?.intrigue ? ["I"] : [],
                         ... this.icons?.power ? ["P"] : []
                     ];
-                    this.setText(CardColumn.Icons, iconLetters.join(" / "));
+                    newData.setString(CardColumn.Icons, iconLetters.join(" / "));
                 case CardType.Attachment:
                 case CardType.Location:
-                    this.setText(CardColumn.Unique, this.unique ? "Unique" : "Non-Unique");
+                    newData.setString(CardColumn.Unique, this.unique ? "Unique" : "Non-Unique");
                 case CardType.Event:
-                    this.setText(CardColumn.Cost, this.cost !== undefined ? this.cost : "-");
+                    newData.setString(CardColumn.Cost, this.cost !== undefined ? this.cost : "-");
                     break;
                 case CardType.Plot:
-                    this.setText(CardColumn.Income, this.plotStats?.income || 0);
-                    this.setText(CardColumn.Initiative, this.plotStats?.initiative || 0);
-                    this.setText(CardColumn.Claim, this.plotStats?.claim || 0);
-                    this.setText(CardColumn.Reserve, this.plotStats?.reserve || 0);
+                    newData.setString(CardColumn.Income, this.plotStats?.income || 0);
+                    newData.setString(CardColumn.Initiative, this.plotStats?.initiative || 0);
+                    newData.setString(CardColumn.Claim, this.plotStats?.claim || 0);
+                    newData.setString(CardColumn.Reserve, this.plotStats?.reserve || 0);
                 case CardType.Agenda:
                 // Nothing to set
             }
-            return this.rowValues;
+
+            // Update DataRow to newly created data
+            this.data = newData;
+
+            return true;
         } catch (e) {
-            console.log("Failed toRichTextValues for card #" + this.development.number);
-            return tempRowValues;
+            console.log("Failed to create RowData for card #" + this.development.number + ". JSON dump of card values:\n" + JSON.stringify(this));
+            console.log("Caused by the following error: " + e);
+            // DataRow will not be updated (original values retained)
+            return false;
         }
+    }
+
+    toString() {
+        return this.name + " (v" + this.development.version.toString() + ")";
+    }
+
+    clone() {
+        return Card.fromData(this.data);
     }
 }
 
+interface Development {
+    project: Project,
+    number: number,
+    version: SemanticVersion,
+    playtestVersion?: SemanticVersion | null,
+    note?: {
+        type: NoteType,
+        text?: string // Maybe HTML type?
+    },
+    githubIssue?: {
+        status: string,
+        url: string
+    },
+    image?: {
+        url: string,
+        version: SemanticVersion
+    }
+};
+
+interface Icons {
+    military: boolean,
+    intrigue: boolean,
+    power: boolean
+}
+
+interface PlotStats {
+    income: number,
+    initiative: number,
+    claim: number,
+    reserve: number
+}
 export { Card };

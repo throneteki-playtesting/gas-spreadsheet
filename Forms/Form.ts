@@ -18,7 +18,7 @@ class Forms {
     }
 
     static updateFormCards() {
-        const latestNames = Data.instance.latestCards.map(card => card.toString());
+        const latestNames = Data.instance.playtestingCards.map(card => card.toString());
 
         const cardListItem = this.get().getItems()[FormQuestion.ReviewingCard].asListItem();
         cardListItem.setChoiceValues(latestNames);
@@ -43,17 +43,17 @@ function syncReviews() {
     const newReviews = responses.filter(response => !archivedIds.includes(response.getId())).map(response => Review.fromResponse(response));
 
     const successfullySent: Review[] = [];
-    
+
     for (const review of newReviews) {
         try {
             DiscordHandler.sendReview(review);
             successfullySent.push(review);
-        } catch(e) {
+        } catch (e) {
             console.log("Failed to send " + review.toString() + " (Id: " + review.id + ") to discord: " + e);
         }
     }
 
-    if(successfullySent.length > 0) {
+    if (successfullySent.length > 0) {
         data.archivedReviews = data.archivedReviews.concat(successfullySent).sort((a, b) => a.date.getTime() - b.date.getTime());
 
         data.commit();
@@ -61,7 +61,7 @@ function syncReviews() {
     } else {
         console.log("No reviews have been synced");
     }
-    
+
 }
 
 function manualSubmit() {
