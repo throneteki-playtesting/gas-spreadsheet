@@ -101,10 +101,11 @@ class Data {
   }
 
   getCompletedCards() {
-    const hasBeenImplemented = (card: Card) => !card.development.playtestVersion && card.development.note?.type === NoteType.Implemented;
-    const isBeingUpdated = (card: Card) => !card.development.version.equals(card.development.playtestVersion);
-
-    return this.latestCards.filter(card => (hasBeenImplemented(card) || isBeingUpdated(card)) && card.development.githubIssue?.status === "closed");
+    return this.latestCards.filter(card => card.hasBeenImplemented() || card.hasBeenChanged());
+  }
+  
+  getChangedCards() {    
+    return this.latestCards.filter(card => card.hasBeenChanged());
   }
 
   archiveCompletedUpdates() {
@@ -226,57 +227,6 @@ class DataSheet {
       throw new Error("Rich Text Values or Values are incorrect number of columns (was " + rtvColumns + " / " + valColumns + ", should be " + this.numColumns);
     }
   }
-
-  // getRichTextData(): (GoogleAppsScript.Spreadsheet.RichTextValue | null)[][] {
-  //   const lastRow = this.sheet.getLastRow();
-  //   const numRows = this.numRows || (lastRow + 1) - this.firstRow;
-  //   if (numRows <= 0) {
-  //     return [];
-  //   }
-  //   return this.sheet.getRange(this.firstRow, this.firstColumn, numRows, this.numColumns).getRichTextValues();
-  // }
-
-  // setRichTextData(data: GoogleAppsScript.Spreadsheet.RichTextValue[][]) {
-  //   const saving = data.map(a => a.map(b => b.getText()));
-
-  //   if (data.length > 0 && data[0].length != this.numColumns) {
-  //     throw new Error("Cannot setRichTextData as data length (" + data[0].length + ") does not match '" + this.sheet.getName() + "' column length (" + this.numColumns + ").");
-  //   }
-  //   // If there is a set number of rows, then rows cannot be added or removed
-  //   if (this.numRows) {
-  //     if (data.length !== this.numRows) {
-  //       throw new Error("Cannot setRichTextData as data length (" + data.length + ") does not match '" + this.sheet.getName() + "' number of rows (" + this.numRows + ").");
-  //     }
-  //     this.sheet.getRange(this.firstRow, this.firstColumn, this.numRows, this.numColumns).setRichTextValues(data);
-  //   } else {
-  //     // Calculate how many rows to be added or removed via rowOffset
-  //     const lastRow = this.sheet.getLastRow();
-  //     const numRows = this.numRows || (lastRow + 1) - this.firstRow;
-  //     // Note: rowOffset will keep numTemplateRows in mind, and never offset to delete a template row
-  //     const rowOffset = Math.max(this.numTemplateRows, data.length) - Math.max(this.numTemplateRows, numRows);
-
-  //     if (rowOffset > 0) {
-  //       // Insert the required number of rows, and save that range in insertedRange
-  //       const insertedRange = this.sheet.insertRowsAfter(Math.max(lastRow, this.firstRow), rowOffset).getRange(lastRow + 1, this.firstColumn, rowOffset, this.numColumns);
-
-  //       if (this.hasTemplateRow) {
-  //         // Copy the template row into the newly inserted range
-  //         const templateRange = this.sheet.getRange(this.firstRow, this.firstColumn, this.numTemplateRows, this.numColumns);
-  //         templateRange.copyTo(insertedRange, SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
-  //       }
-  //     } else if (rowOffset < 0) {
-  //       // Delete number of required rows from firstRow (as data will be overridden anyway)
-  //       this.sheet.deleteRows(this.firstRow, Math.abs(rowOffset));
-  //     }
-
-  //     // Either clear template rows, or set the range
-  //     if (this.hasTemplateRow && data.length === 0) {
-  //       this.sheet.getRange(this.firstRow, this.firstColumn, this.numTemplateRows, this.numColumns).clearContent();
-  //     } else if (data.length > 0) {
-  //       this.sheet.getRange(this.firstRow, this.firstColumn, data.length, this.numColumns).setRichTextValues(data);
-  //     }
-  //   }
-  // }
 }
 
 class DataTable {

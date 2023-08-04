@@ -97,6 +97,8 @@ class Review extends DataObject {
     }
 
     clone() {
+        // TODO Make this more efficient, but ensure all values are new, not same memory reference
+        this.syncData();
         return Review.fromData(this.data);
     }
 }

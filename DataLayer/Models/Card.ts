@@ -105,12 +105,9 @@ class Card extends DataObject {
         }
     }
 
-    syncIssue(project: Project, existing?: Endpoints["GET /search/issues"]["response"]["data"]["items"]): "Added" | "Updated" | "Closed" | undefined {
-        const requiresImplementation = this.development.version.is(1, 0) && !this.development.note && !this.development.playtestVersion;
-
-        const noteType = this.development.note?.type;
+    syncIssue(project: Project, existing?: Endpoints["GET /search/issues"]["response"]["data"]["items"]): "Added" | "Updated" | "Closed" | undefined {      
         // Ignore if there is no note type & card is not an initial implementation
-        if (!(noteType || requiresImplementation)) {
+        if (!(this.requiresImplement() || this.requiresChange())) {
             return;
         }
         // Sync image before pushing new or updating old issue
@@ -124,8 +121,8 @@ class Card extends DataObject {
         if (currentIssue) {
             this.development.githubIssue = { status: currentIssue.state, url: currentIssue.html_url };
 
-            // Check & Update issue if body is different
-            if (potentialIssue.body !== currentIssue.body) {
+            // Check & Update issue if body is different (for open issues)
+            if (currentIssue.state !== "closed" && potentialIssue.body !== currentIssue.body) {
                 potentialIssue.number = currentIssue.number;
                 let { state, html_url } = GithubAPI.updateIssue(potentialIssue);
                 this.development.githubIssue = { status: state, url: html_url };
@@ -138,7 +135,7 @@ class Card extends DataObject {
             action = "Added";
         }
 
-        if (requiresImplementation && this.development.githubIssue.status === "closed") {
+        if (this.hasBeenImplemented() && !this.development.note) {
             this.development.note = {
                 type: NoteType.Implemented
             }
@@ -269,7 +266,25 @@ class Card extends DataObject {
     }
 
     clone() {
+        // TODO Make this more efficient, but ensure all values are new, not same memory reference
+        this.syncData();
         return Card.fromData(this.data);
+    }
+
+    requiresImplement() {
+        return this.development.githubIssue?.status !== "closed" && !this.development.playtestVersion && this.development.version.is(1, 0);
+    }
+
+    hasBeenImplemented() {
+        return this.development.githubIssue?.status === "closed" && !this.development.playtestVersion && this.development.version.is(1, 0);
+    }
+
+    requiresChange() {
+        return this.development.githubIssue?.status !== "closed" && this.development.playtestVersion && !this.development.version.equals(this.development.playtestVersion);
+    }
+
+    hasBeenChanged() {
+        return this.development.githubIssue?.status === "closed" && this.development.playtestVersion && !this.development.version.equals(this.development.playtestVersion);
     }
 }
 

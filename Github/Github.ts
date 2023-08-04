@@ -35,16 +35,19 @@ class Github {
         return changed;
     }
 
-    static syncPullRequest(completedCards: Card[]) {
+    static syncPullRequest(completedCards: Card[], finalise = false) {
         if (completedCards.length === 0) {
             return null;
         }
 
         const pullRequests = GithubAPI.getPullRequests();
-        const potentialPullRequest = PullRequest.forPlaytestingUpdate();
+        const potentialPullRequest = PullRequest.forPlaytestingUpdate(finalise);
         const currentPullRequest = pullRequests.find(pullRequest => pullRequest.title === potentialPullRequest.title);
 
         if (currentPullRequest) {
+            if(currentPullRequest.state === "closed") {
+                return null;
+            }
             if (potentialPullRequest.body !== currentPullRequest.body) {
                 potentialPullRequest.number = currentPullRequest.number;
                 return GithubAPI.updatePullRequest(potentialPullRequest).html_url;
@@ -242,10 +245,10 @@ class GithubAPI {
     }
 }
 
-function syncPullRequests() {
+function syncPullRequests(finalise = false) {
     const data = Data.instance;
 
-    const latestPullRequest = Github.syncPullRequest(data.getCompletedCards());
+    const latestPullRequest = Github.syncPullRequest(data.getCompletedCards(), finalise);
     if (latestPullRequest) {
         PropertiesService.getDocumentProperties().setProperty("latest_pr", latestPullRequest);
         console.log("Pull Request added or updated: " + latestPullRequest);
@@ -260,11 +263,19 @@ function syncIssues() {
 
     const message = changed.length + " / " + data.latestCards.length + " cards required issue sync";
     if (changed.length > 0) {
-        console.log(message + ":\n-" + changed.join("\n- "));
+        console.log(message + ":\n- " + changed.join("\n- "));
         data.commit();
     } else {
         console.log(message);
     }
+}
+
+function finalizePullRequest() {
+    syncPullRequests(true);
+}
+
+function finalizeIssues() {
+    syncIssues();
 }
 
 export { Github, GithubAPI }

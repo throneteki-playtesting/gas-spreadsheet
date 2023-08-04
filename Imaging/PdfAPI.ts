@@ -42,11 +42,11 @@ class PDFAPI {
   static syncUpdatedPhysicalPDFSheet(sandbox = false) {
     const data = Data.instance;
     // Only fetch completed cards which are updated from a previous version
-    const updated = data.getCompletedCards().filter(card => card.development.playtestVersion);
+    const updated = data.getChangedCards();
     let updatedPdfUrl = PropertiesService.getDocumentProperties().getProperty("pdf_updated");
     const newFileName = PDFAPI.getFileName(data.project.short, data.project.version, BatchType.Updated);
 
-    if (updated.length > 0 && !(updatedPdfUrl?.includes(newFileName))) {
+    if (updated.length > 0 && !updatedPdfUrl?.includes(newFileName)) {
       const generatedPdfUrl = PDFAPI.generateSheet(data.project, updated, newFileName, sandbox);
       updatedPdfUrl = generatedPdfUrl;
       PropertiesService.getDocumentProperties().setProperty("pdf_updated", updatedPdfUrl);
@@ -59,7 +59,8 @@ class PDFAPI {
     let latestPdfUrl = PropertiesService.getDocumentProperties().getProperty("pdf_all");
     const newFileName = PDFAPI.getFileName(data.project.short, data.project.version, BatchType.All);
 
-    if (!(latestPdfUrl?.includes(newFileName))) {
+    // If either any cards are updated, or there is no initial PDF, and if there is a PDF, it's an outdated name
+    if (((data.getChangedCards().length > 0 || !latestPdfUrl) && !latestPdfUrl?.includes(newFileName))) {
       const generatedPdfUrl = PDFAPI.generateSheet(data.project, data.latestCards, newFileName, sandbox);
       latestPdfUrl = generatedPdfUrl;
       PropertiesService.getDocumentProperties().setProperty("pdf_all", latestPdfUrl);

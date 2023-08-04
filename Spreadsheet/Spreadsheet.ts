@@ -21,10 +21,18 @@ function onSpreadsheetOpen() {
   ui.createMenu("Admin Tools")
     .addSubMenu(
       ui.createMenu("Development")
-        .addItem("Generate JSON Data", "openJSONDevDialog")
-        .addItem("Finalize Changes", "finalizeChanges")
+        .addSubMenu(
+          ui.createMenu("Finalize Dev Update")
+            .addItem("1. Sync Github Issues", "finalizeIssues")
+            .addItem("2. Sync Pull Requests", "finalizePullRequest")
+            .addItem("3. Generate JSON Data", "openJSONDevDialog")
+            .addItem("4. Generate Update Notes (Unimplemented)", "openUpdateNotesDialog")
+            .addItem("5. Archive Completed Cards", "archiveCompletedCards")
+            .addItem("6. Increment Project Version", "incrementProjectVersion")
+        )
         .addSubMenu(
           ui.createMenu("Individual Tasks")
+            .addItem("Generate JSON Data", "openJSONDevDialog")
             .addItem("Sync Reviews", "syncReviews")
             .addItem("Sync Github Issues", "syncIssues")
             .addItem("Sync Pull Requests", "syncPullRequests")

@@ -64,6 +64,14 @@ function syncReviews() {
 
 }
 
+function createTrigger() {
+    const currentTrigger = ScriptApp.getProjectTriggers().find(a => a.getHandlerFunction() === "onFormSubmitted");
+    if(currentTrigger) {
+        ScriptApp.deleteTrigger(currentTrigger);
+    }
+    ScriptApp.newTrigger("onFormSubmitted").forForm(Forms.get()).onFormSubmit().create();
+}
+
 function manualSubmit() {
     const form = Forms.get();
     onFormSubmitted({ response: form.getResponses()[0] });

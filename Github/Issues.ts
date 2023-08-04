@@ -100,9 +100,9 @@ class PullRequest {
     this.repo = "throneteki";
   }
 
-  static forPlaytestingUpdate() {
+  static forPlaytestingUpdate(finalise = false) {
     const data = Data.instance;
-    const template = this.buildTemplate();
+    const template = this.buildTemplate(finalise);
 
     const base = "playtesting";
     const head = "development-" + data.project.short;
@@ -112,14 +112,14 @@ class PullRequest {
     return new PullRequest(base, head, title, body, labels);
   }
 
-  private static buildTemplate() {
+  private static buildTemplate(finalise = false) {
     const data = Data.instance;
     const template = HtmlService.createTemplateFromFile("Github/Templates/PlaytestUpdatePullRequest");
 
     template.project = data.project;
     template.date = new Date().toDateString();
-    template.pdfAllUrl = PDFAPI.syncLatestPhysicalPDFSheet();
-    template.pdfUpdatedUrl = PDFAPI.syncUpdatedPhysicalPDFSheet();
+    template.pdfAllUrl = finalise ? PDFAPI.syncLatestPhysicalPDFSheet() : "TBA";
+    template.pdfUpdatedUrl = finalise ? PDFAPI.syncUpdatedPhysicalPDFSheet() : "TBA";
 
     const noteGroups = {};
     for (const card of data.getCompletedCards()) {
