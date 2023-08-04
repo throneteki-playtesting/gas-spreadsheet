@@ -1,4 +1,4 @@
-import { Review } from "../DataLayer/Models/Review";
+import { ReleaseReady, Review } from "../DataLayer/Models/Review";
 import { Forms } from "../Forms/Form";
 
 class DiscordHandler {
@@ -54,7 +54,7 @@ class DiscordHandler {
         embeds: [
           {
             author: {
-              name: "Review by " + review.reviewer + " (Click to view)",
+              name: "Review by " + review.reviewer,
               icon_url: this.Emojis.AuthorIcon
             },
             color: this.Emojis.EmbedColor,
@@ -75,13 +75,18 @@ class DiscordHandler {
                 inline: true
               },
               {
-                name: "➥ How weak (1) or strong (9)?",
+                name: "➥ Weak (1) or strong (9)?",
                 value: '1 2 3 4 5 6 7 8 9'.replace(review.rating.toString(), this.Emojis.RatingEmoji[review.rating.toString()]),
                 inline: true
               },
               {
-                name: "➥ How many games played?",
+                name: "➥ How many played?",
                 value: review.count + " Games",
+                inline: true
+              },
+              {
+                name: "➥ Could it be released?",
+                value: ReleaseReady[review.release],
                 inline: true
               },
               {

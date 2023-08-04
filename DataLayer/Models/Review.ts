@@ -7,7 +7,7 @@ import { SemanticVersion } from "./Project";
 
 class Review extends DataObject {
     constructor(data: DataRow, public id: string, public card: Card, public date: Date, public reviewer: string, public deck: string, public count: number,
-        public rating: number, public release?: boolean, public reason?: string, public additional?: string, public spreadheetUrl?: string) {
+        public rating: number, public release: ReleaseReady, public reason?: string, public additional?: string, public spreadheetUrl?: string) {
         super(data);
     }
 
@@ -25,8 +25,7 @@ class Review extends DataObject {
         const deck = data.getRichTextValue(ReviewColumn.Deck).getLinkUrl() || "";
         const count = data.getNumber(ReviewColumn.Count);
         const rating = data.getNumber(ReviewColumn.Rating);
-        const releaseString = data.getString(ReviewColumn.Release);
-        const release = releaseString !== "Unsure" ? (releaseString === "Yes") : undefined;
+        const release = ReleaseReady[data.getString(ReviewColumn.Release)];
         const reason = data.hasValue(ReviewColumn.Reason) ? data.getString(ReviewColumn.Reason) : undefined;
         const additional = data.hasValue(ReviewColumn.Additional) ? data.getString(ReviewColumn.Additional) : undefined;
 
@@ -46,8 +45,7 @@ class Review extends DataObject {
         const deck = response.getItemResponses()[FormQuestion.DeckLink].getResponse() as string;
         const count = parseInt(response.getItemResponses()[FormQuestion.GamesPlayed].getResponse() as string);
         const rating = parseInt(response.getItemResponses()[FormQuestion.Rating].getResponse() as string);
-        const releaseString = response.getItemResponses()[FormQuestion.ReleaseReady].getResponse() as string;
-        const release = releaseString === "Yes" ? true : (releaseString === "No" ? false : undefined);
+        const release = ReleaseReady[response.getItemResponses()[FormQuestion.ReleaseReady].getResponse() as string];
         const reasonString = response.getItemResponses()[FormQuestion.Reason].getResponse() as string;
         const reason = reasonString ? reasonString : undefined;
         const additionalString = response.getItemResponses()[FormQuestion.Additional].getResponse() as string;
@@ -72,7 +70,7 @@ class Review extends DataObject {
             newData.setRichTextValue(ReviewColumn.Deck, SpreadsheetApp.newRichTextValue().setText("ThronesDB").setLinkUrl(this.deck).build());
             newData.setString(ReviewColumn.Count, this.count);
             newData.setString(ReviewColumn.Rating, this.rating);
-            newData.setString(ReviewColumn.Release, this.release !== undefined ? (this.release ? "Yes" : "No") : "Unsure");
+            newData.setString(ReviewColumn.Release, ReleaseReady[this.release]);
             if (this.reason) {
                 newData.setString(ReviewColumn.Reason, this.reason);
             }
@@ -102,4 +100,11 @@ class Review extends DataObject {
         return Review.fromData(this.data);
     }
 }
-export { Review }
+
+enum ReleaseReady {
+    Yes,
+    No,
+    Unsure
+}
+
+export { Review, ReleaseReady }
