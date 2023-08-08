@@ -105,16 +105,16 @@ class Card extends DataObject {
         }
     }
 
-    syncIssue(project: Project, existing?: Endpoints["GET /search/issues"]["response"]["data"]["items"]): "Added" | "Updated" | "Closed" | undefined {      
-        // Ignore if there is no note type & card is not an initial implementation
-        if (!(this.requiresImplement() || this.requiresChange())) {
+    syncIssue(project: Project, currentIssues: Endpoints["GET /search/issues"]["response"]["data"]["items"]): "Added" | "Updated" | "Closed" | undefined {      
+        if (!this.requiresImplementation()) {
             return;
         }
+        
         // Sync image before pushing new or updating old issue
         this.syncImage(project);
 
         const potentialIssue = Issue.for(this);
-        const currentIssue = existing?.find(existing => existing.title === potentialIssue.title) ?? GithubAPI.getIssues(this).find(a => a);
+        const currentIssue = currentIssues.find(current => current.title === potentialIssue.title);
 
         let action: "Added" | "Updated" | "Closed" | undefined;
 
@@ -135,7 +135,7 @@ class Card extends DataObject {
             action = "Added";
         }
 
-        if (this.hasBeenImplemented() && !this.development.note) {
+        if (this.isImplemented() && !this.development.note) {
             this.development.note = {
                 type: NoteType.Implemented
             }
@@ -271,21 +271,50 @@ class Card extends DataObject {
         return Card.fromData(this.data);
     }
 
-    requiresImplement() {
-        return this.development.githubIssue?.status !== "closed" && !this.development.playtestVersion && this.development.version.is(1, 0);
+    /**
+     *  @returns True if this card is being or needs to be implemented online
+     */
+    requiresImplementation() {
+        return this.development.githubIssue ? this.development.githubIssue.status !== "closed" : !this.development.version.equals(this.development.playtestVersion);
     }
 
-    hasBeenImplemented() {
-        return this.development.githubIssue?.status === "closed" && !this.development.playtestVersion && this.development.version.is(1, 0);
+    /**
+     *  @returns True if this card has been implemented online
+     */
+    isImplemented() {
+        return this.development.githubIssue ? this.development.githubIssue.status === "closed" : this.development.version.equals(this.development.playtestVersion);
     }
 
-    requiresChange() {
-        return this.development.githubIssue?.status !== "closed" && this.development.playtestVersion && !this.development.version.equals(this.development.playtestVersion);
+    isNewlyImplemented() {
+        return this.development.githubIssue?.status === "closed";
     }
 
-    hasBeenChanged() {
-        return this.development.githubIssue?.status === "closed" && this.development.playtestVersion && !this.development.version.equals(this.development.playtestVersion);
+    getPlaytestingArchiveCopy() {
+        return this.development.version.equals(this.development.playtestVersion) ? Data.instance.findArchivedCard(this.development.number, this.development.version) : undefined;
     }
+
+    /**
+     *  @returns True if this card has been changed (eg. not in its initial or currently playtested state)
+     */
+    isChanged() {
+        return !this.development.version.is(1, 0) && !this.development.version.equals(this.development.playtestVersion);
+    }
+
+    // requiresImplement() {
+    //     return this.development.githubIssue?.status !== "closed" && !this.development.playtestVersion && this.development.version.is(1, 0);
+    // }
+
+    // hasBeenImplemented() {
+    //     return this.development.githubIssue?.status === "closed" && !this.development.playtestVersion && this.development.version.is(1, 0);
+    // }
+
+    // requiresChange() {
+    //     return this.development.githubIssue?.status !== "closed" && this.development.playtestVersion && !this.development.version.equals(this.development.playtestVersion);
+    // }
+
+    // hasBeenChanged() {
+    //     return this.development.githubIssue?.status === "closed" && this.development.playtestVersion && !this.development.version.equals(this.development.playtestVersion);
+    // }
 }
 
 interface Development {

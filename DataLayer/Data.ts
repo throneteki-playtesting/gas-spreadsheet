@@ -82,13 +82,20 @@ class Data {
   }
 
   commit() {
-    this.latestCardsSheet.write(new DataTable(this.latestCards.map(card => card.dataRow)));
-    this.archivedCardsSheet.write(new DataTable(this.archivedCards.map(card => card.dataRow)));
-    this.archivedReviewsSheet.write(new DataTable(this.archivedReviews.map(review => review.dataRow)));
+    if(this.latestCards_) this.latestCardsSheet.write(new DataTable(this.latestCards.map(card => card.dataRow)));
+    if(this.archivedCards_) this.archivedCardsSheet.write(new DataTable(this.archivedCards.map(card => card.dataRow)));
+    if(this.archivedReviews_) this.archivedReviewsSheet.write(new DataTable(this.archivedReviews.map(review => review.dataRow)));
   }
 
   findCard(number: number, version: SemanticVersion): Card | undefined {
     return this.latestCards.concat(this.archivedCards).find(card => card.development.number === number && card.development.version.equals(version));
+  }
+
+  findLatestCard(number: number, version: SemanticVersion): Card | undefined {
+    return this.latestCards.find(card => card.development.number === number && card.development.version.equals(version));
+  }
+  findArchivedCard(number: number, version: SemanticVersion): Card | undefined {
+    return this.archivedCards.find(card => card.development.number === number && card.development.version.equals(version));
   }
 
   getDevelopmentPack() {
@@ -100,31 +107,37 @@ class Data {
     return new Pack(cards, project);
   }
 
-  getCompletedCards() {
-    return this.latestCards.filter(card => card.hasBeenImplemented() || card.hasBeenChanged());
-  }
-  
-  getChangedCards() {    
-    return this.latestCards.filter(card => card.hasBeenChanged());
+  getChangedCards() {
+    return this.latestCards.filter(card => card.isChanged());
   }
 
-  archiveCompletedUpdates() {
-    const archiving = this.getCompletedCards();
+  getPlaytestingUpdateCards() {
+    return this.latestCards.filter(card => card.isChanged() || card.isNewlyImplemented());
+  }
 
-    const successful: string[] = [];
+  archivePlaytestingUpdateCards() {
+    const archiving = this.getPlaytestingUpdateCards();
+
+    const implemented: string[] = [];
+    const archived: string[] = [];
     for (const card of archiving) {
-      successful.push(card.toString());
-      this.archivedCards.push(card.clone());
-
-      delete card.development.note;
-      card.development.playtestVersion = card.development.version;
-      delete card.development.githubIssue;
-      // Note: Image is synced/updated when issue is created, not when card is archived
+      if(card.development.note && !card.development.version.equals(card.development.playtestVersion)) {
+        this.archivedCards.push(card.clone());
+        delete card.development.note;
+        card.development.playtestVersion = card.development.version;
+        archived.push(card.toString());
+      }
+      
+      if(card.isNewlyImplemented()) {
+        delete card.development.githubIssue;
+        implemented.push(card.toString());
+      }
     }
 
     this.commit();
 
-    console.log("Successfully archived " + successful.length + " card(s): " + successful.join(", "));
+    console.log("Marked " + implemented.length + " card(s) as implemented: " + implemented.join(", "));
+    console.log("Archived " + archived.length + " card(s): " + archived.join(", "));
   }
 }
 
@@ -202,7 +215,7 @@ class DataSheet {
           this.sheet.getRange(this.firstRow, this.firstColumn, data.values.length, this.numColumns).setRichTextValues(this.merge(data));
         }
       }
-      console.log("Complete!");
+      console.log("Successfully written " + data.values.length + " data rows.");
       return true;
     } catch (e) {
       console.log("Failed to write to sheet: " + e);

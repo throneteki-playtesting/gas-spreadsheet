@@ -1,8 +1,9 @@
 enum NoteType {
-    Implemented,
     Replaced,
     Reworked,
-    Updated
+    Updated,
+    Implemented,
+    NotImplemented
 }
 
 enum ProjectType {

@@ -3,6 +3,7 @@ import { Data } from "../DataLayer/Data";
 import { Card } from "../DataLayer/Models/Card";
 import { Github } from "./Github";
 import { PDFAPI } from "../Imaging/PdfAPI";
+import { SemanticVersion } from "../DataLayer/Models/Project";
 
 class Issue {
   owner: string;
@@ -121,23 +122,49 @@ class PullRequest {
     template.pdfAllUrl = finalise ? PDFAPI.syncLatestPhysicalPDFSheet() : "TBA";
     template.pdfUpdatedUrl = finalise ? PDFAPI.syncUpdatedPhysicalPDFSheet() : "TBA";
 
-    const noteGroups = {};
-    for (const card of data.getCompletedCards()) {
-      if (card.development.note) {
-        noteGroups[card.development.note.type] = noteGroups[card.development.note.type] || [];
-
-        const note = {
-          newCard: card.clone(),
-          oldCard: card.development.playtestVersion ? data.findCard(card.development.number, card.development.playtestVersion)?.clone() : null,
-          text: card.development.note.text
+    const implemented: CardUpdateNote[] = [];
+    const changeNoteGroups = {};
+    for (const card of data.getPlaytestingUpdateCards()) {
+      let newCard = card.clone();
+      let oldCard = card.development.playtestVersion ? data.findCard(card.development.number, card.development.playtestVersion)?.clone() : undefined;
+      if (card.development.note && card.development.note.type !== NoteType.Implemented) {
+        const changeNote: CardUpdateNote = {
+          newCard,
+          oldCard,
+          text: card.development.note.text,
+          relatedType: card.isNewlyImplemented() ? NoteType.Implemented : NoteType.NotImplemented
         };
-        noteGroups[card.development.note.type].push(note);
+        changeNoteGroups[card.development.note.type] = changeNoteGroups[card.development.note.type] || [];
+        changeNoteGroups[card.development.note.type].push(changeNote);
+      }
+      if (card.isNewlyImplemented()) {
+        const archivedCopy = card.getPlaytestingArchiveCopy();
+        // If there is a version of this card already being playtested, then get the archived copy of that card as it has the proper note data
+        if (archivedCopy) {
+          newCard = archivedCopy.clone();
+          oldCard = card.development.playtestVersion ? data.findArchivedCard(card.development.number, card.development.playtestVersion)?.clone() : undefined;
+        }
+        const implementNote: CardUpdateNote = {
+          newCard,
+          oldCard,
+          text: newCard.development.note?.type === NoteType.Implemented ? newCard.development.note?.text : !!archivedCopy ? "<em>Please note that the changes for this card were in a previous update</em>" : "",
+          relatedType: newCard.development.note?.type
+        };
+        implemented.push(implementNote);
       }
     }
-    template.noteGroups = noteGroups;
+    template.changeNoteGroups = changeNoteGroups;
+    template.implemented = implemented.sort((a, b) => (a.relatedType || NoteType.Implemented) - (b.relatedType || NoteType.Implemented));
 
     return template;
   }
+}
+
+interface CardUpdateNote {
+  newCard: Card,
+  oldCard: Card | undefined,
+  text: string | undefined,
+  relatedType: NoteType | undefined
 }
 
 export { Issue, PullRequest }

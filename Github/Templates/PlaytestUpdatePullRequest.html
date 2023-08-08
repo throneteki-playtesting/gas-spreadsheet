@@ -1,33 +1,39 @@
 <h1>:dart: Playtesting Update v<?!= project.version ?> (<?!= project.short ?>)</h1>
 This contains information for the latest playtesting update for the <b><?!= project.name ?></b> project. If you are hoping to contribute to this project, feel free to join the Design & Playtesting discord ([Invite here](https://discord.gg/HguMytPQV8)) to find out more!
 <h3>:flower_playing_cards: Physical Playtesting</h3>
-[➥ All Cards](<?!= pdfAllUrl ?>)<? if(pdfUpdatedUrl) { ?> | [➥ Updated Cards Only](<?!= pdfUpdatedUrl ?>)<? } ?>
+[➥ All Cards](<?!= pdfAllUrl ?>)<? if(pdfUpdatedUrl) { ?> | [➥ Changed Cards Only](<?!= pdfUpdatedUrl ?>)<? } ?>
 These PDF documents should help you print & play files at home; simply print them locally, and slip them over existing cards!
 <nl>
 <h3>:computer: Digital Playtesting</h3>
 [➥ Playtesting Website](http://playtesting.theironthrone.net)
 These changes should also be reflected on the online Playtesting instance of The Iron Throne. Please report any bugs you find by either [Creating a Github Issue](https://docs.github.com/en/issues/tracking-your-work-with-issues/creating-an-issue#creating-an-issue-from-a-repository) <em>(preferred)</em>, or posting in the [Bugs Channel](https://discord.com/channels/698308957822779462/1002176317007089697) on the Design & Playtesting discord.
 <nl>
-<h2>:card_file_box: Update Notes</h2>
-All card updates are grouped to reflect the type of update. To view any updated card texts, please download one of the Physical Playtesting PDF's above.<nl>
-<? for(const noteGroup in noteGroups) {
-const type = NoteType[noteGroup]; ?>
+<h2>:card_file_box: Card Change Notes</h2>
+All card changes are grouped to reflect the type of change being applied. To view any altered card texts, please download one of the Physical Playtesting PDF's above. Please note that each card with <?!= Emoji.Notes[NoteType[NoteType.Implemented]] ?> has been implemented online within this update, whilst cards with <?!= Emoji.Notes[NoteType[NoteType.NotImplemented]] ?> will be implemented online within a future update. These do not apply to physical playtesting; all changes are visible on the PDF sheets above!<nl>
+<? for(const changeNoteGroup in changeNoteGroups) {
+const type = NoteType[changeNoteGroup]; ?>
 <h3><?!= Emoji.Notes[type] ?> <?!= type ?></h3>
-<? for(const note of noteGroups[noteGroup]) {
-const noteTextHtml = note.text ? `:<br><em>${note.text}</em>` : "";
+<? for(const note of changeNoteGroups[changeNoteGroup]) {
+const noteTextHtml = note.text ? `<br>${note.text}` : "";
+const relatedTypeEmoji = note.relatedType ? " " + Emoji.Notes[NoteType[note.relatedType]] : "";
 switch(NoteType[type]) {
-case NoteType.Implemented: ?>
-- <?!= note.newCard.name ?><?!= noteTextHtml ?>
-<? break;
 case NoteType.Replaced: ?>
-- <?!= note.oldCard.name ?> v<?!= note.oldCard.development.version ?> replaced by <?!= note.newCard.name ?> v<?!= note.newCard.development.version ?><?!= noteTextHtml ?>
+- <b><?!= note.oldCard.name ?> v<?!= note.oldCard.development.version ?> replaced by <?!= note.newCard.name ?> v<?!= note.newCard.development.version ?></b><?!= relatedTypeEmoji ?><?!= noteTextHtml ?>
 <? break;
 default: ?>
-- <?!= note.newCard.name ?> v<?!= note.newCard.development.version ?><?!= noteTextHtml ?>
+- <b><?!= note.newCard.name ?> v<?!= note.newCard.development.version ?></b><?!= relatedTypeEmoji ?><?!= noteTextHtml ?>
 <? }
 }
 } ?>
 <nl>
+<? if(implemented.length > 0) { ?>
+<h3><?!= Emoji.Notes[NoteType[NoteType.Implemented]] ?> Implemented Online (Digital Playtesting)</h3>
+<? for(const note of implemented) {
+const noteTextHtml = note.text ? `<br>${note.text}` : "";
+const relatedTypeEmoji = note.relatedType ? Emoji.Notes[NoteType[note.relatedType]] + " " : ""; ?>
+- <?!= relatedTypeEmoji ?><?!= note.newCard.name ?> v<?!= note.newCard.development.version ?><?!= noteTextHtml ?>
+<? }
+} ?>
 ---
 <nl>
 <em>Last Updated: <?= date ?></em>

@@ -27,7 +27,7 @@ function onSpreadsheetOpen() {
             .addItem("2. Sync Pull Requests", "finalizePullRequest")
             .addItem("3. Generate JSON Data", "openJSONDevDialog")
             .addItem("4. Generate Update Notes (Unimplemented)", "openUpdateNotesDialog")
-            .addItem("5. Archive Completed Cards", "archiveCompletedCards")
+            .addItem("5. Archive Cards", "archivePlaytestingUpdateCards")
             .addItem("6. Increment Project Version", "incrementProjectVersion")
         )
         .addSubMenu(
@@ -36,7 +36,7 @@ function onSpreadsheetOpen() {
             .addItem("Sync Reviews", "syncReviews")
             .addItem("Sync Github Issues", "syncIssues")
             .addItem("Sync Pull Requests", "syncPullRequests")
-            .addItem("Archive Completed Cards", "archiveCompletedCards")
+            .addItem("Archive Cards", "archivePlaytestingUpdateCards")
             .addItem("Update Form Cards", "updateFormCards")
             .addItem("Increment Project Version", "incrementProjectVersion")
             .addSubMenu(
@@ -63,9 +63,9 @@ function finalizeChanges() {
   
 }
 
-function archiveCompletedCards() {
+function archivePlaytestingUpdateCards() {
   const data = Data.instance;
-  data.archiveCompletedUpdates();
+  data.archivePlaytestingUpdateCards();
 }
 
 function openJSONDevDialog() {
@@ -114,7 +114,7 @@ export {
   UIHelper,
   onSpreadsheetOpen,
   finalizeChanges,
-  archiveCompletedCards,
+  archivePlaytestingUpdateCards,
   openJSONDevDialog,
   openPDFSheetsDialog,
   openUpdateNotesDialog,

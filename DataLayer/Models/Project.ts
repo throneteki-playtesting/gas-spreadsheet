@@ -47,8 +47,8 @@ class SemanticVersion {
   is(major: number, minor?: number, patch?: number) {
     return this.major === major && this.minor === minor && this.patch == patch;
   }
-  equals(other?: SemanticVersion | null) {
-    return other && this.major === other.major && this.minor === other.minor && this.patch === other.patch;
+  equals(other?: SemanticVersion | null): boolean {
+    return !!other && this.major === other.major && this.minor === other.minor && this.patch === other.patch;
   }
 
   increment(major: number, minor?: number, patch?: number) {

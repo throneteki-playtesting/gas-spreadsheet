@@ -18,12 +18,12 @@ class Github {
         return GithubAPI.addIssue(issue);
     }
     static syncIssues(project: Project, cards: Card[]) {
-        const existing = GithubAPI.getIssues();
+        const currentIssues = GithubAPI.getIssues();
 
         let changed: string[] = [];
         for (const card of cards) {
             try {
-                const action = card.syncIssue(project, existing)
+                const action = card.syncIssue(project, currentIssues)
                 if (action) {
                     changed.push(card.toString() + " [" + action + "]");
                 }
@@ -35,8 +35,9 @@ class Github {
         return changed;
     }
 
-    static syncPullRequest(completedCards: Card[], finalise = false) {
-        if (completedCards.length === 0) {
+    static syncPullRequest(finalise = false) {
+        const cards = Data.instance.getPlaytestingUpdateCards();
+        if (cards.length === 0) {
             return null;
         }
 
@@ -248,7 +249,7 @@ class GithubAPI {
 function syncPullRequests(finalise = false) {
     const data = Data.instance;
 
-    const latestPullRequest = Github.syncPullRequest(data.getCompletedCards(), finalise);
+    const latestPullRequest = Github.syncPullRequest(finalise);
     if (latestPullRequest) {
         PropertiesService.getDocumentProperties().setProperty("latest_pr", latestPullRequest);
         console.log("Pull Request added or updated: " + latestPullRequest);
@@ -259,9 +260,10 @@ function syncPullRequests(finalise = false) {
 
 function syncIssues() {
     const data = Data.instance;
-    const changed = Github.syncIssues(data.project, data.latestCards);
+    const checking = data.latestCards.concat(data.archivedCards.filter(card => card.development.githubIssue?.status !== 'closed'));
+    const changed = Github.syncIssues(data.project, checking);
 
-    const message = changed.length + " / " + data.latestCards.length + " cards required issue sync";
+    const message = changed.length + " / " + checking.length + " cards required issue sync";
     if (changed.length > 0) {
         console.log(message + ":\n- " + changed.join("\n- "));
         data.commit();

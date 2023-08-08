@@ -36,18 +36,18 @@ class PDFAPI {
   }
 
   static getFileName(short: string, version: SemanticVersion, type: BatchType) {
-    return (short + "_Playtesting_Sheet_v" + version.toString() + "_" + BatchType[type].toLowerCase()).replace("\.", "_");
+    return (short + "_Playtesting_Sheet_v" + version.toString() + "_" + BatchType[type].toLowerCase()).replace(/\./g, "_");
   }
 
   static syncUpdatedPhysicalPDFSheet(sandbox = false) {
     const data = Data.instance;
     // Only fetch completed cards which are updated from a previous version
-    const updated = data.getChangedCards();
+    const changedCards = data.getChangedCards();
     let updatedPdfUrl = PropertiesService.getDocumentProperties().getProperty("pdf_updated");
     const newFileName = PDFAPI.getFileName(data.project.short, data.project.version, BatchType.Updated);
 
-    if (updated.length > 0 && !updatedPdfUrl?.includes(newFileName)) {
-      const generatedPdfUrl = PDFAPI.generateSheet(data.project, updated, newFileName, sandbox);
+    if (changedCards.length > 0 && !updatedPdfUrl?.includes(newFileName)) {
+      const generatedPdfUrl = PDFAPI.generateSheet(data.project, changedCards, newFileName, sandbox);
       updatedPdfUrl = generatedPdfUrl;
       PropertiesService.getDocumentProperties().setProperty("pdf_updated", updatedPdfUrl);
     }

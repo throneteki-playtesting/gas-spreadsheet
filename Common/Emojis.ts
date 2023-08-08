@@ -1,6 +1,7 @@
 const Emoji = {
     Notes: {
         Implemented: ":white_check_mark:",
+        NotImplemented: ":no_entry:",
         Replaced: ":twisted_rightwards_arrows:",
         Reworked: ":arrows_clockwise:",
         Updated: ":arrow_double_up:",
