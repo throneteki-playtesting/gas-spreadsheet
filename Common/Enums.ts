@@ -57,6 +57,7 @@ enum RenderType {
     Single,
     Batch
 }
+
 enum BatchType {
     All,
     Updated

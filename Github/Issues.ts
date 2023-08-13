@@ -34,17 +34,16 @@ class Issue {
         return new Issue(title, body, labels);
       }
       default: {
-        if (card.development.version.is(1, 0) && !card.development.playtestVersion) {
+        if (card.development.version.is(1, 0) && !card.isImplemented) {
           const template = Issue.buildTemplate(card, NoteType.Implemented);
           const title = card.code + " - Implement " + card.name + " v" + card.development.version.toString()
           const body = Github.githubify(template.evaluate().getContent());
           const labels = ["automated", "implement-card"];
           return new Issue(title, body, labels);
         }
+        throw new Error("Failed to create Issue for card #" + card.development.number + ": Card is missing note type!");
       }
     }
-
-    throw new Error("Failed to create Issue for card #" + card.development.number);
   }
 
   private static buildTemplate(card: Card, noteType: NoteType) {
@@ -62,11 +61,7 @@ class Issue {
     template.date = new Date().toDateString();
 
     if (card.development.playtestVersion) {
-      const oldCard = data.findCard(card.development.number, card.development.playtestVersion);
-      if (!oldCard) {
-        throw new Error("Failed to build '" + NoteType[noteType] + "' issue template: Old card with No. '" + card.development.number + "' and Version '" + card.development.playtestVersion?.toString() + "' cannot be found");
-      }
-      template.oldCard = oldCard.clone();
+      template.oldCard = data.getCard(card.development.number, card.development.playtestVersion).clone();
       if (template.oldCard.development.note) {
         template.oldCard.development.note.type = Object.keys(NoteType)[Object.values(NoteType).indexOf(template.oldCard.development.note.type)];
       }
@@ -111,28 +106,28 @@ class PullRequest {
     const changeNoteGroups = {};
     for (const card of data.getPlaytestingUpdateCards()) {
       let newCard = card.clone();
-      let oldCard = card.development.playtestVersion ? data.findCard(card.development.number, card.development.playtestVersion)?.clone() : undefined;
+      let oldCard = card.development.playtestVersion ? data.getCard(card.development.number, card.development.playtestVersion).clone() : undefined;
       if (card.development.note.type && card.development.note.type !== NoteType.Implemented) {
         const changeNote: CardUpdateNote = {
           newCard,
           oldCard,
           text: card.development.note.text,
-          relatedType: card.isNewlyImplemented() ? NoteType.Implemented : NoteType.NotImplemented
+          relatedType: card.isNewlyImplemented ? NoteType.Implemented : NoteType.NotImplemented
         };
         changeNoteGroups[card.development.note.type] = changeNoteGroups[card.development.note.type] || [];
         changeNoteGroups[card.development.note.type].push(changeNote);
       }
-      if (card.isNewlyImplemented()) {
-        const archivedCopy = card.getPlaytestingArchiveCopy();
-        // If there is a version of this card already being playtested, then get the archived copy of that card as it has the proper note data
-        if (archivedCopy) {
-          newCard = archivedCopy.clone();
-          oldCard = card.development.playtestVersion ? data.findArchivedCard(card.development.number, card.development.playtestVersion)?.clone() : undefined;
+      if (card.isNewlyImplemented) {
+        const reference = card.getReferenceCard();
+        // Use the reference for proper note information
+        if (reference !== card) {
+          newCard = reference.clone();
+          oldCard = card.development.playtestVersion ? data.getArchivedCard(card.development.number, card.development.playtestVersion).clone() : undefined;
         }
         const implementNote: CardUpdateNote = {
           newCard,
           oldCard,
-          text: newCard.development.note.type === NoteType.Implemented ? newCard.development.note.text : !!archivedCopy ? "<em>Please note that the changes for this card were in a previous update</em>" : "",
+          text: newCard.development.note.type === NoteType.Implemented ? newCard.development.note.text : !!reference ? "<em>Please note that the changes for this card were in a previous update</em>" : "",
           relatedType: newCard.development.note.type
         };
         implemented.push(implementNote);

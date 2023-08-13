@@ -15,10 +15,8 @@ class Review extends DataObject {
         const number = data.getNumber(ReviewColumn.Number);
         const version = SemanticVersion.fromString(data.getString(ReviewColumn.Version));
 
-        const card = Data.instance.findCard(number, version);
-        if (!card) {
-            throw new Error("Attempted to build review from non-existent card (number: " + number + ", version: " + version.toString() + ").");
-        }
+        const card = Data.instance.getCard(number, version);
+        
         const id = data.getString(ReviewColumn.ResponseId);
         const date = new Date(data.getString(ReviewColumn.Date));
         const reviewer = data.getString(ReviewColumn.Reviewer);

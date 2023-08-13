@@ -5,6 +5,7 @@ import { Review } from "./Models/Review";
 import { Pack } from "./Models/Pack";
 import { Settings } from "./Settings";
 import { CardColumn, Columns, ReviewColumn } from "../Common/Columns";
+import { Forms } from "../Forms/Form";
 
 class Data {
   private static instance_: Data;
@@ -68,17 +69,7 @@ class Data {
   }
 
   get playtestingCards(): Card[] {
-    return this.latestCards.map(card => {
-      if (!card.development.playtestVersion) {
-        return card;
-      }
-      let archivedCard = this.archivedCards.find(archivedCard => archivedCard.code === card.code && archivedCard.development.version.equals(card.development.playtestVersion));
-      if (!archivedCard) {
-        throw new Error("Failed to find archived card for '" + card.name + "' with version '" + card.development.playtestVersion + "'.");
-      }
-
-      return archivedCard;
-    });
+    return this.latestCards.filter(card => card.development.playtestVersion).map(card => this.getArchivedCard(card.code, card.development.playtestVersion as SemanticVersion));
   }
 
   commit() {
@@ -87,15 +78,28 @@ class Data {
     if(this.archivedReviews_) this.archivedReviewsSheet.write(new DataTable(this.archivedReviews.map(review => review.dataRow)));
   }
 
-  findCard(number: number, version: SemanticVersion): Card | undefined {
-    return this.latestCards.concat(this.archivedCards).find(card => card.development.number === number && card.development.version.equals(version));
+  getCard(number: number, version: SemanticVersion) {
+    const card = this.latestCards.concat(this.archivedCards).find(card => card.development.number === number && card.development.version.equals(version));
+    if(!card) {
+      throw new Error("Failed to find any card with number '" + number + "' and version '" + version.toString() +"'");
+    }
+    return card;
   }
 
-  findLatestCard(number: number, version: SemanticVersion): Card | undefined {
-    return this.latestCards.find(card => card.development.number === number && card.development.version.equals(version));
+  getLatestCard(number: number, version: SemanticVersion) {
+    const card = this.latestCards.find(card => card.development.number === number && card.development.version.equals(version));
+    if(!card) {
+      throw new Error("Failed to find latest card with number '" + number + "' and version '" + version.toString() +"'");
+    }
+    return card;
   }
-  findArchivedCard(number: number, version: SemanticVersion): Card | undefined {
-    return this.archivedCards.find(card => card.development.number === number && card.development.version.equals(version));
+
+  getArchivedCard(number: number, version: SemanticVersion) {
+    const card = this.archivedCards.find(card => card.development.number === number && card.development.version.equals(version));
+    if(!card) {
+      throw new Error("Failed to find archived card with number '" + number + "' and version '" + version.toString() +"'");
+    }
+    return card;
   }
 
   getDevelopmentPack() {
@@ -108,20 +112,20 @@ class Data {
   }
 
   getChangedCards() {
-    return this.latestCards.filter(card => card.isChanged());
+    return this.latestCards.filter(card => card.isChanged);
   }
 
   getPlaytestingUpdateCards() {
-    return this.latestCards.filter(card => card.isChanged() || card.isNewlyImplemented());
+    return this.latestCards.filter(card => card.isChanged || card.isNewlyImplemented || card.isInitial);
   }
 
   archivePlaytestingUpdateCards() {
-    const archiving = this.getPlaytestingUpdateCards();
+    const checking = this.getPlaytestingUpdateCards();
 
     const implemented: string[] = [];
     const archived: string[] = [];
-    for (const card of archiving) {
-      if(card.canBeArchived()) {
+    for (const card of checking) {
+      if(!card.development.version.equals(card.development.playtestVersion)) {
         this.archivedCards.push(card.clone());
         delete card.development.note.type;
         delete card.development.note.text;
@@ -129,11 +133,12 @@ class Data {
         archived.push(card.toString());
       }
       
-      if(card.isNewlyImplemented()) {
+      if(card.isNewlyImplemented) {
         delete card.development.githubIssue;
         implemented.push(card.toString());
       }
     }
+    Forms.updateFormCards();
 
     this.commit();
 

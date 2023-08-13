@@ -106,14 +106,13 @@ class Card extends DataObject {
     }
 
     syncIssue(project: Project, currentIssues: Endpoints["GET /search/issues"]["response"]["data"]["items"]): "Added" | "Updated" | "Closed" | undefined {
-        if (!this.requiresImplementation()) {
+        if (!this.requiresImplementation) {
             return;
         }
 
         // Sync image before pushing new or updating old issue
         this.syncImage(project);
-
-        const potentialIssue = Issue.for(this);
+        const potentialIssue = Issue.for(this.getReferenceCard());
         const currentIssue = currentIssues.find(current => current.title === potentialIssue.title);
 
         let action: "Added" | "Updated" | "Closed" | undefined;
@@ -130,12 +129,12 @@ class Card extends DataObject {
             }
         } else {
             // Create new issue
-            let { state, html_url } = GithubAPI.addIssue(Issue.for(this));
+            let { state, html_url } = GithubAPI.addIssue(potentialIssue);
             this.development.githubIssue = { status: state, url: html_url };
             action = "Added";
         }
 
-        if (this.isImplemented() && !this.development.note.type) {
+        if (this.isImplemented && !this.development.note.type) {
             this.development.note.type = NoteType.Implemented;
 
             action = "Closed";
@@ -272,37 +271,45 @@ class Card extends DataObject {
     /**
      *  @returns True if this card is being or needs to be implemented online
      */
-    requiresImplementation() {
+    get requiresImplementation() {
         return this.development.githubIssue ? this.development.githubIssue.status !== "closed" : !this.development.version.equals(this.development.playtestVersion);
     }
 
     /**
      *  @returns True if this card has been implemented online
      */
-    isImplemented() {
+    get isImplemented() {
         return this.development.githubIssue ? this.development.githubIssue.status === "closed" : this.development.version.equals(this.development.playtestVersion);
     }
 
     /**
      * @returns True if this card has been implemented online after the previous playtesting update
      */
-    isNewlyImplemented() {
+    get isNewlyImplemented() {
         return this.development.githubIssue?.status === "closed";
     }
 
     /**
+     * @returns True if this card is the initial 1.0 version, and has not been published for playtesting
+     */
+    get isInitial() {
+        return this.development.version.is(1, 0) && !this.development.version.equals(this.development.playtestVersion);
+    }
+    /**
      *  @returns True if this card has been changed (eg. not in its initial or currently playtested state)
      */
-    isChanged() {
+    get isChanged() {
         return !this.development.version.is(1, 0) && !this.development.version.equals(this.development.playtestVersion);
     }
 
-    canBeArchived() {
-        return this.development.note.type && !this.development.version.equals(this.development.playtestVersion);
-    }
-
-    getPlaytestingArchiveCopy() {
-        return this.development.version.equals(this.development.playtestVersion) ? Data.instance.findArchivedCard(this.development.number, this.development.version) : undefined;
+    /**
+     * @returns Gets the copy of this card which is currently being referenced for issues/coding
+     */
+    getReferenceCard() {
+        if(!this.isImplemented && this.development.version.equals(this.development.playtestVersion)) {
+            return Data.instance.getArchivedCard(this.development.number, this.development.version);
+        }
+        return this;
     }
 }
 
