@@ -3,7 +3,6 @@ import { Data } from "../DataLayer/Data";
 import { Card } from "../DataLayer/Models/Card";
 import { Github } from "./Github";
 import { PDFAPI } from "../Imaging/PdfAPI";
-import { SemanticVersion } from "../DataLayer/Models/Project";
 
 class Issue {
   owner: string;
@@ -17,22 +16,8 @@ class Issue {
     this.repo = "throneteki";
   }
 
-  static requiresIssue(card: Card) {
-    switch (card.development.note?.type) {
-      case NoteType.Replaced:
-      case NoteType.Reworked:
-      case NoteType.Updated:
-        return true;
-      default:
-        if (card.development.version.is(1, 0) && !card.development.playtestVersion) {
-          return true
-        }
-        return false;
-    }
-  }
-
   static for(card: Card) {
-    switch (card.development.note?.type) {
+    switch (card.development.note.type) {
       case NoteType.Replaced: {
         const template = Issue.buildTemplate(card, NoteType.Replaced);
         const title = card.code + " - Replace with " + card.name + " v" + card.development.version.toString()
@@ -127,7 +112,7 @@ class PullRequest {
     for (const card of data.getPlaytestingUpdateCards()) {
       let newCard = card.clone();
       let oldCard = card.development.playtestVersion ? data.findCard(card.development.number, card.development.playtestVersion)?.clone() : undefined;
-      if (card.development.note && card.development.note.type !== NoteType.Implemented) {
+      if (card.development.note.type && card.development.note.type !== NoteType.Implemented) {
         const changeNote: CardUpdateNote = {
           newCard,
           oldCard,
@@ -147,8 +132,8 @@ class PullRequest {
         const implementNote: CardUpdateNote = {
           newCard,
           oldCard,
-          text: newCard.development.note?.type === NoteType.Implemented ? newCard.development.note?.text : !!archivedCopy ? "<em>Please note that the changes for this card were in a previous update</em>" : "",
-          relatedType: newCard.development.note?.type
+          text: newCard.development.note.type === NoteType.Implemented ? newCard.development.note.text : !!archivedCopy ? "<em>Please note that the changes for this card were in a previous update</em>" : "",
+          relatedType: newCard.development.note.type
         };
         implemented.push(implementNote);
       }

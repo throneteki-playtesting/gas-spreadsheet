@@ -31,10 +31,10 @@ class Card extends DataObject {
                 number: number,
                 version: SemanticVersion.fromString(data.getString(CardColumn.Version)),
                 playtestVersion: data.hasValue(CardColumn.PlaytestVersion) ? SemanticVersion.fromString(data.getString(CardColumn.PlaytestVersion)) : undefined,
-                note: data.hasValue(CardColumn.NoteType) ? {
-                    type: NoteType[data.getString(CardColumn.NoteType)],
-                    text: data.getHtmlString(CardColumn.NoteText)
-                } : undefined,
+                note: {
+                    type: data.hasValue(CardColumn.NoteType) ? NoteType[data.getString(CardColumn.NoteType)] : undefined,
+                    text: data.hasValue(CardColumn.NoteText) ? data.getHtmlString(CardColumn.NoteText) : undefined
+                },
                 image: data.hasValue(CardColumn.ImageUrl) ? {
                     url: data.getRichTextValue(CardColumn.ImageUrl).getLinkUrl() || "",
                     version: SemanticVersion.fromString(data.getString(CardColumn.ImageUrl))
@@ -105,11 +105,11 @@ class Card extends DataObject {
         }
     }
 
-    syncIssue(project: Project, currentIssues: Endpoints["GET /search/issues"]["response"]["data"]["items"]): "Added" | "Updated" | "Closed" | undefined {      
+    syncIssue(project: Project, currentIssues: Endpoints["GET /search/issues"]["response"]["data"]["items"]): "Added" | "Updated" | "Closed" | undefined {
         if (!this.requiresImplementation()) {
             return;
         }
-        
+
         // Sync image before pushing new or updating old issue
         this.syncImage(project);
 
@@ -135,10 +135,8 @@ class Card extends DataObject {
             action = "Added";
         }
 
-        if (this.isImplemented() && !this.development.note) {
-            this.development.note = {
-                type: NoteType.Implemented
-            }
+        if (this.isImplemented() && !this.development.note.type) {
+            this.development.note.type = NoteType.Implemented;
 
             action = "Closed";
         }
@@ -211,11 +209,11 @@ class Card extends DataObject {
             if (this.development.image) {
                 newData.setRichTextValue(CardColumn.ImageUrl, SpreadsheetApp.newRichTextValue().setText(this.development.image.version.toString()).setLinkUrl(this.development.image.url).build());
             }
-            if (this.development.note) {
+            if (this.development.note.type) {
                 newData.setString(CardColumn.NoteType, NoteType[this.development.note.type]);
-                if (this.development.note.text) {
-                    newData.setHtmlString(CardColumn.NoteText, this.development.note.text);
-                }
+            }
+            if (this.development.note.text) {
+                newData.setHtmlString(CardColumn.NoteText, this.development.note.text);
             }
             if (this.development.playtestVersion) {
                 newData.setString(CardColumn.PlaytestVersion, this.development.playtestVersion.toString());
@@ -285,12 +283,11 @@ class Card extends DataObject {
         return this.development.githubIssue ? this.development.githubIssue.status === "closed" : this.development.version.equals(this.development.playtestVersion);
     }
 
+    /**
+     * @returns True if this card has been implemented online after the previous playtesting update
+     */
     isNewlyImplemented() {
         return this.development.githubIssue?.status === "closed";
-    }
-
-    getPlaytestingArchiveCopy() {
-        return this.development.version.equals(this.development.playtestVersion) ? Data.instance.findArchivedCard(this.development.number, this.development.version) : undefined;
     }
 
     /**
@@ -300,21 +297,13 @@ class Card extends DataObject {
         return !this.development.version.is(1, 0) && !this.development.version.equals(this.development.playtestVersion);
     }
 
-    // requiresImplement() {
-    //     return this.development.githubIssue?.status !== "closed" && !this.development.playtestVersion && this.development.version.is(1, 0);
-    // }
+    canBeArchived() {
+        return this.development.note.type && !this.development.version.equals(this.development.playtestVersion);
+    }
 
-    // hasBeenImplemented() {
-    //     return this.development.githubIssue?.status === "closed" && !this.development.playtestVersion && this.development.version.is(1, 0);
-    // }
-
-    // requiresChange() {
-    //     return this.development.githubIssue?.status !== "closed" && this.development.playtestVersion && !this.development.version.equals(this.development.playtestVersion);
-    // }
-
-    // hasBeenChanged() {
-    //     return this.development.githubIssue?.status === "closed" && this.development.playtestVersion && !this.development.version.equals(this.development.playtestVersion);
-    // }
+    getPlaytestingArchiveCopy() {
+        return this.development.version.equals(this.development.playtestVersion) ? Data.instance.findArchivedCard(this.development.number, this.development.version) : undefined;
+    }
 }
 
 interface Development {
@@ -322,8 +311,8 @@ interface Development {
     number: number,
     version: SemanticVersion,
     playtestVersion?: SemanticVersion | null,
-    note?: {
-        type: NoteType,
+    note: {
+        type?: NoteType,
         text?: string // Maybe HTML type?
     },
     githubIssue?: {

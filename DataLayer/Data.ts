@@ -121,9 +121,10 @@ class Data {
     const implemented: string[] = [];
     const archived: string[] = [];
     for (const card of archiving) {
-      if(card.development.note && !card.development.version.equals(card.development.playtestVersion)) {
+      if(card.canBeArchived()) {
         this.archivedCards.push(card.clone());
-        delete card.development.note;
+        delete card.development.note.type;
+        delete card.development.note.text;
         card.development.playtestVersion = card.development.version;
         archived.push(card.toString());
       }
