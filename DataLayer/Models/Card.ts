@@ -7,6 +7,7 @@ import { Endpoints } from "@octokit/types";
 import { Data, DataRow } from "../Data";
 import { CardColumn, Columns } from "../../Common/Columns";
 import { DataObject } from "./DataObject";
+import { Log } from "../../Common/Logger";
 
 class Card extends DataObject {
     constructor(data: DataRow, public code: number, public development: Development, public faction: Faction, public name: string,
@@ -109,25 +110,31 @@ class Card extends DataObject {
         if (!this.requiresImplementation) {
             return;
         }
+        Log.verbose("Syncing Issue for " + this.toString() + "...");
 
         // Sync image before pushing new or updating old issue
         this.syncImage(project);
         const potentialIssue = Issue.for(this.getReferenceCard());
+
+        Log.verbose("Finding current issue...");
         const currentIssue = currentIssues.find(current => current.title === potentialIssue.title);
 
         let action: "Added" | "Updated" | "Closed" | undefined;
 
         if (currentIssue) {
+            Log.verbose("Current issue exists");
             this.development.githubIssue = { status: currentIssue.state, url: currentIssue.html_url };
 
             // Check & Update issue if body is different (for open issues)
             if (currentIssue.state !== "closed" && potentialIssue.body !== currentIssue.body) {
+                Log.verbose("Issue requires update. Updating & syncing issue data with card...");
                 potentialIssue.number = currentIssue.number;
                 let { state, html_url } = GithubAPI.updateIssue(potentialIssue);
                 this.development.githubIssue = { status: state, url: html_url };
                 action = "Updated";
             }
         } else {
+            Log.verbose("Current issue does not exist");
             // Create new issue
             let { state, html_url } = GithubAPI.addIssue(potentialIssue);
             this.development.githubIssue = { status: state, url: html_url };
@@ -135,6 +142,7 @@ class Card extends DataObject {
         }
 
         if (this.isImplemented && !this.development.note.type) {
+            Log.verbose("Marking card as implemented");
             this.development.note.type = NoteType.Implemented;
 
             action = "Closed";
@@ -251,8 +259,8 @@ class Card extends DataObject {
 
             return true;
         } catch (e) {
-            console.log("Failed to create RowData for card #" + this.development.number + ". JSON dump of card values:\n" + JSON.stringify(this));
-            console.log("Caused by the following error: " + e);
+            Log.error("Failed to create RowData for card #" + this.development.number + ". JSON dump of card values:\n" + JSON.stringify(this));
+            Log.error("Caused by the following error: " + e);
             // DataRow will not be updated (original values retained)
             return false;
         }

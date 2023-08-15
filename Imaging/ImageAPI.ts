@@ -1,3 +1,4 @@
+import { Log } from "../Common/Logger";
 import { Data } from "../DataLayer/Data";
 import { Settings } from "../DataLayer/Settings";
 import { UIHelper } from "../Spreadsheet/Spreadsheet";
@@ -5,6 +6,7 @@ import { HTMLRenderEngine } from "./HTMLRenderEngine";
 
 class ImageAPI {
   static generateCard(project: any, card: any) {
+    Log.verbose("Generating new image for " + card.toString() + "...");
     const url = "https://hcti.io/v1/image";
     const apiKey = Settings.getUserProperty('image_apiKey');
     const userId = Settings.getUserProperty('image_userId');
@@ -28,6 +30,7 @@ class ImageAPI {
     };
     const response = UrlFetchApp.fetch(url, params);
     const json = JSON.parse(response.getContentText());
+    Log.verbose("Successfully generated image: " + json.url);
     return json.url;
   }
 }

@@ -6,6 +6,7 @@ import { Pack } from "./Models/Pack";
 import { Settings } from "./Settings";
 import { CardColumn, Columns, ReviewColumn } from "../Common/Columns";
 import { Forms } from "../Forms/Form";
+import { Log } from "../Common/Logger";
 
 class Data {
   private static instance_: Data;
@@ -34,7 +35,7 @@ class Data {
   static get instance(): Data {
     if (!Data.instance_) {
       Data.instance_ = new Data();
-      console.log("Created new Data singleton instance.");
+      Log.verbose("Created new Data singleton instance.");
     }
 
     return Data.instance_;
@@ -142,8 +143,8 @@ class Data {
 
     this.commit();
 
-    console.log("Marked " + implemented.length + " card(s) as implemented: " + implemented.join(", "));
-    console.log("Archived " + archived.length + " card(s): " + archived.join(", "));
+    Log.information("Marked " + implemented.length + " card(s) as implemented: " + implemented.join(", "));
+    Log.information("Archived " + archived.length + " card(s): " + archived.join(", "));
   }
 }
 
@@ -168,7 +169,7 @@ class DataSheet {
 
   read(): DataTable {
     const numRows = this.numRows || (this.sheet.getLastRow() + 1) - this.firstRow;
-    console.log("Reading " + numRows + " rows from " + this.sheet.getName() + "...");
+    Log.verbose("Reading " + numRows + " rows from " + this.sheet.getName() + "...");
 
     if (numRows <= 0) {
       return new DataTable([]);
@@ -183,7 +184,7 @@ class DataSheet {
   }
 
   write(data: DataTable) {
-    console.log("Writing " + data.values.length + " data rows to '" + this.sheet.getName() + "'...");
+    Log.verbose("Writing " + data.values.length + " data rows to '" + this.sheet.getName() + "'...");
     this.validate(data);
 
     try {
@@ -221,10 +222,10 @@ class DataSheet {
           this.sheet.getRange(this.firstRow, this.firstColumn, data.values.length, this.numColumns).setRichTextValues(this.merge(data));
         }
       }
-      console.log("Successfully written " + data.values.length + " data rows.");
+      Log.verbose("Successfully written " + data.values.length + " data rows.");
       return true;
     } catch (e) {
-      console.log("Failed to write to sheet: " + e);
+      Log.error("Failed to write to sheet: " + e);
       return false;
     }
   }
@@ -415,7 +416,7 @@ function incrementProjectVersion() {
   const data = Data.instance;
   const oldVersion = data.project.version.toString();
   data.project.version = data.project.version.increment(0, 0, 1);
-  console.log("Incremented Project Version from '" + oldVersion + "' to '" + data.project.version.toString() + "'");
+  Log.information("Incremented Project Version from '" + oldVersion + "' to '" + data.project.version.toString() + "'");
 }
 
 export { Data, DataTable, DataRow }

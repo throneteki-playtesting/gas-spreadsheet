@@ -1,8 +1,10 @@
 {
     "scriptId": "1rdas11vc8Og2dtQ2gtypy_xPxZPRWRrWCyjBWog37sNdg3JKv9MMr_Cn",
     "filePushOrder": [
+        "Common/Columns.ts",
         "Common/Enums.ts",
         "Common/Emojis.ts",
+        "Common/Logger.ts",
         "DataLayer/Settings.ts",
         "DataLayer/Data.ts",
         "DataLayer/Models/DataObject.ts",

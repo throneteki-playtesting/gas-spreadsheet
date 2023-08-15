@@ -4,6 +4,7 @@ import { Data, DataRow } from "../Data";
 import { Columns, ReviewColumn } from "../../Common/Columns";
 import { DataObject } from "./DataObject";
 import { SemanticVersion } from "./Project";
+import { Log } from "../../Common/Logger";
 
 class Review extends DataObject {
     constructor(data: DataRow, public id: string, public card: Card, public date: Date, public reviewer: string, public deck: string, public count: number,
@@ -81,8 +82,8 @@ class Review extends DataObject {
 
             return true;
         } catch (e) {
-            console.log("Failed to create RowData for review '" + this.id + "'. JSON dump of review values:\n" + JSON.stringify(this));
-            console.log("Caused by the following error: " + e);
+            Log.error("Failed to create RowData for review '" + this.id + "'. JSON dump of review values:\n" + JSON.stringify(this));
+            Log.error("Caused by the following error: " + e);
             // DataRow will not be updated (original values retained)
             return false;
         }

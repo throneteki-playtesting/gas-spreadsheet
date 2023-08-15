@@ -1,4 +1,5 @@
 import { FormQuestion } from "../Common/Enums";
+import { Log } from "../Common/Logger";
 import { Data } from "../DataLayer/Data";
 import { Review } from "../DataLayer/Models/Review";
 import { Settings } from "../DataLayer/Settings";
@@ -49,7 +50,7 @@ function syncReviews() {
             DiscordHandler.sendReview(review);
             successfullySent.push(review);
         } catch (e) {
-            console.log("Failed to send " + review.toString() + " (Id: " + review.id + ") to discord: " + e);
+            Log.error("Failed to send " + review.toString() + " (Id: " + review.id + ") to discord: " + e);
         }
     }
 
@@ -57,9 +58,9 @@ function syncReviews() {
         data.archivedReviews = data.archivedReviews.concat(successfullySent).sort((a, b) => a.date.getTime() - b.date.getTime());
 
         data.commit();
-        console.log("Successfully synced " + successfullySent.length + " reviews:\n" + successfullySent.map(review => review.toString()).join("\n- "));
+        Log.information("Successfully synced " + successfullySent.length + " reviews:\n" + successfullySent.map(review => review.toString()).join("\n- "));
     } else {
-        console.log("No reviews have been synced");
+        Log.information("No reviews have been synced");
     }
 
 }
