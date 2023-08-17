@@ -135,6 +135,7 @@ class GithubAPI {
             total = json.total_count;
         } while (results.length < total);
 
+        Log.verbose("Fetched a total of " + total + " search items");
         return results;
     }
 

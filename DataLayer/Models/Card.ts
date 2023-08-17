@@ -147,6 +147,7 @@ class Card extends DataObject {
 
             action = "Closed";
         }
+        Log.verbose("Successfully synced issue: " + (action !== undefined ? "Issue " + action : "No action required"));
         return action;
     }
 
@@ -271,9 +272,12 @@ class Card extends DataObject {
     }
 
     clone() {
-        // TODO Make this more efficient, but ensure all values are new, not same memory reference
+        Log.verbose("Cloning '" + this.toString() +"'...")
+        // TODO Make this more efficient, but ensure all values are new, not same memory reference (costing us approx. 3 seconds per card)
         this.syncData();
-        return Card.fromData(this.data);
+        const clone = Card.fromData(this.data);
+        Log.verbose("Successfully cloned!");
+        return clone;
     }
 
     /**

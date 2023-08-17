@@ -3,6 +3,7 @@ import { Data } from "../DataLayer/Data";
 import { Card } from "../DataLayer/Models/Card";
 import { Github } from "./Github";
 import { PDFAPI } from "../Imaging/PdfAPI";
+import { Log } from "../Common/Logger";
 
 class Issue {
   owner: string;
@@ -29,7 +30,9 @@ class Issue {
       case NoteType.Updated: {
         const template = Issue.buildTemplate(card, NoteType.Updated);
         const title = card.code + " - Update to " + card.name + " v" + card.development.version.toString()
+        Log.verbose("Compiling issue body...");
         const body = Github.githubify(template.evaluate().getContent());
+        Log.verbose("Successfully compile issue body!");
         const labels = ["automated", "update-card"];
         return new Issue(title, body, labels);
       }
@@ -47,6 +50,7 @@ class Issue {
   }
 
   private static buildTemplate(card: Card, noteType: NoteType) {
+    Log.verbose("Building issue template...");
     const data = Data.instance;
     const template = HtmlService.createTemplateFromFile(`Github/Templates/${NoteType[noteType]}Issue`);
     template.newCard = card.clone();
@@ -60,13 +64,14 @@ class Issue {
     };
     template.date = new Date().toDateString();
 
-    if (card.development.playtestVersion) {
+    if (card.development.playtestVersion && !card.development.version.equals(card.development.playtestVersion)) {
       template.oldCard = data.getCard(card.development.number, card.development.playtestVersion).clone();
       if (template.oldCard.development.note) {
         template.oldCard.development.note.type = Object.keys(NoteType)[Object.values(NoteType).indexOf(template.oldCard.development.note.type)];
       }
     }
 
+    Log.verbose("Successfully built issue template!");
     return template;
   }
 }

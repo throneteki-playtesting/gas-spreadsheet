@@ -175,11 +175,17 @@ class DataSheet {
       return new DataTable([]);
     }
 
+    Log.verbose("Getting range (" + [this.firstRow, this.firstColumn, numRows, this.numColumns].join(", ") + ") ...");
     const range = this.sheet.getRange(this.firstRow, this.firstColumn, numRows, this.numColumns);
+    Log.verbose("Getting rich text values...");
     const richTextValues = range.getRichTextValues();
+    Log.verbose("Getting regular values...");
     const values = range.getValues();
 
+    Log.verbose("Mapping values to DataRows...");
     const rowData = values.map((value, index) => new DataRow(richTextValues[index], value));
+
+    Log.verbose("Successfully read sheet!");
     return new DataTable(rowData);
   }
 
@@ -193,28 +199,35 @@ class DataSheet {
         if (data.values.length !== this.numRows) {
           throw new Error("Failed to write to " + this.sheet.getName() + " as data length (" + data.values.length + ") does not match number of rows (" + this.numRows + ")");
         }
+        Log.verbose("Getting range (" + [this.firstRow, this.firstColumn, this.numRows, this.numColumns].join(", ") + ") ...");
         this.sheet.getRange(this.firstRow, this.firstColumn, this.numRows, this.numColumns).setRichTextValues(this.merge(data));
       } else {
+        Log.verbose("Calculating number of rows ...");
         // Calculate how many rows to be added or removed via rowOffset
         const lastRow = this.sheet.getLastRow();
         const numRows = this.numRows || (lastRow + 1) - this.firstRow;
+        Log.verbose("Number of rows: " + numRows);
         // Note: rowOffset will keep numTemplateRows in mind, and never offset to delete a template row
         const rowOffset = Math.max(this.numTemplateRows, data.values.length) - Math.max(this.numTemplateRows, numRows);
 
         if (rowOffset > 0) {
+          Log.verbose("Inserting " + rowOffset + " new rows...");
           // Insert the required number of rows, and save that range in insertedRange
           const insertedRange = this.sheet.insertRowsAfter(Math.max(lastRow, this.firstRow), rowOffset).getRange(lastRow + 1, this.firstColumn, rowOffset, this.numColumns);
 
           if (this.hasTemplateRow) {
+            Log.verbose("Copying template format to new range...");
             // Copy the template row format into the newly inserted range (note: this isn't working as expected for borders)
             const templateRange = this.sheet.getRange(this.firstRow, this.firstColumn, this.numTemplateRows, this.numColumns);
             templateRange.copyTo(insertedRange, SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
           }
         } else if (rowOffset < 0) {
+          Log.verbose("Deleting " + Math.abs(rowOffset) + " rows...");
           // Delete number of required rows from firstRow (as data will be overridden anyway)
           this.sheet.deleteRows(this.firstRow, Math.abs(rowOffset));
         }
 
+        Log.verbose("Setting " + data.values.length + " rows of sheet...");
         // Either clear template rows, or set the range
         if (this.hasTemplateRow && data.values.length === 0) {
           this.sheet.getRange(this.firstRow, this.firstColumn, this.numTemplateRows, this.numColumns).clearContent();
@@ -222,7 +235,7 @@ class DataSheet {
           this.sheet.getRange(this.firstRow, this.firstColumn, data.values.length, this.numColumns).setRichTextValues(this.merge(data));
         }
       }
-      Log.verbose("Successfully written " + data.values.length + " data rows.");
+      Log.verbose("Successfully written to sheet!");
       return true;
     } catch (e) {
       Log.error("Failed to write to sheet: " + e);
