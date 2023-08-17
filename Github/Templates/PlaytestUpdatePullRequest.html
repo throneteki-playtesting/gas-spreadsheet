@@ -9,29 +9,29 @@ These PDF documents should help you print & play files at home; simply print the
 These changes should also be reflected on the online Playtesting instance of The Iron Throne. Please report any bugs you find by either [Creating a Github Issue](https://docs.github.com/en/issues/tracking-your-work-with-issues/creating-an-issue#creating-an-issue-from-a-repository) <em>(preferred)</em>, or posting in the [Bugs Channel](https://discord.com/channels/698308957822779462/1002176317007089697) on the Design & Playtesting discord.
 <nl>
 <h2>:card_file_box: Card Change Notes</h2>
-All card changes are grouped to reflect the type of change being applied. To view any altered card texts, please download one of the Physical Playtesting PDF's above. Please note that each card with <?!= Emoji.Notes[NoteType[NoteType.Implemented]] ?> has been implemented online within this update, whilst cards with <?!= Emoji.Notes[NoteType[NoteType.NotImplemented]] ?> will be implemented online within a future update. These do not apply to physical playtesting; all changes are visible on the PDF sheets above!<nl>
+All card changes are grouped to reflect the type of change being applied. To view any altered card texts, please download one of the Physical Playtesting PDF's above.
+<b>Note:</b> Card changes which have been implemented online in this update are marked with <?!= Emoji[NoteType[NoteType.Implemented]] ?>, whilst changes which will be implemented in future updates are marked with <?!= Emoji[NoteType[NoteType.NotImplemented]] ?>.
+
 <? for(const changeNoteGroup in changeNoteGroups) {
 const type = NoteType[changeNoteGroup]; ?>
-<h3><?!= Emoji.Notes[type] ?> <?!= type ?></h3>
+<h3><?!= Emoji[type] ?> <?!= type ?></h3>
 <? for(const note of changeNoteGroups[changeNoteGroup]) {
 const noteTextHtml = note.text ? `<br>${note.text}` : "";
-const relatedTypeEmoji = note.relatedType ? " " + Emoji.Notes[NoteType[note.relatedType]] : "";
 switch(NoteType[type]) {
 case NoteType.Replaced: ?>
-- <b><?!= note.oldCard.name ?> v<?!= note.oldCard.development.version ?> replaced by <?!= note.newCard.name ?> v<?!= note.newCard.development.version ?></b><?!= relatedTypeEmoji ?><?!= noteTextHtml ?>
+- <b><?!= note.icons.join("") ?> <?!= note.oldCard.name ?> v<?!= note.oldCard.development.version ?> replaced by <?!= note.newCard.name ?> v<?!= note.newCard.development.version ?></b><?!= noteTextHtml ?>
 <? break;
 default: ?>
-- <b><?!= note.newCard.name ?> v<?!= note.newCard.development.version ?></b><?!= relatedTypeEmoji ?><?!= noteTextHtml ?>
+- <b><?!= note.icons.join("") ?> <?!= note.newCard.name ?> v<?!= note.newCard.development.version ?></b><?!= noteTextHtml ?>
 <? }
 }
 } ?>
 <nl>
 <? if(implemented.length > 0) { ?>
-<h3><?!= Emoji.Notes[NoteType[NoteType.Implemented]] ?> Implemented Online (Digital Playtesting)</h3>
+<h2>:desktop_computer: Implemented Online (Digital Playtesting)</h2>
 <? for(const note of implemented) {
-const noteTextHtml = note.text ? `<br>${note.text}` : "";
-const relatedTypeEmoji = note.relatedType ? Emoji.Notes[NoteType[note.relatedType]] + " " : ""; ?>
-- <?!= relatedTypeEmoji ?><?!= note.newCard.name ?> v<?!= note.newCard.development.version ?><?!= noteTextHtml ?>
+const noteTextHtml = note.text ? `<br>${note.text}` : ""; ?>
+- <?!= note.icons.join("") ?> <?!= note.newCard.name ?> v<?!= note.newCard.development.version ?><?!= noteTextHtml ?>
 <? }
 } ?>
 ---

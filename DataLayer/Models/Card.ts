@@ -300,8 +300,15 @@ class Card extends DataObject {
     /**
      * @returns True if this card is the initial 1.0 version, and has not been published for playtesting
      */
-    get isInitial() {
+    get isPreRelease() {
         return this.development.version.is(1, 0) && !this.development.version.equals(this.development.playtestVersion);
+    }
+
+    /**
+     * @returns True if this card is the initial 1.0 version
+     */
+    get isInitial() {
+        return this.development.version.is(1, 0);
     }
     /**
      *  @returns True if this card has been changed (eg. not in its initial or currently playtested state)

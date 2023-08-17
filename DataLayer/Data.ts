@@ -70,35 +70,35 @@ class Data {
   }
 
   get playtestingCards(): Card[] {
-    return this.latestCards.filter(card => card.development.playtestVersion).map(card => this.getArchivedCard(card.code, card.development.playtestVersion as SemanticVersion));
+    return this.latestCards.filter(card => card.development.playtestVersion).map(card => this.getArchivedCard(card.development.number, card.development.playtestVersion as SemanticVersion));
   }
 
   commit() {
-    if(this.latestCards_) this.latestCardsSheet.write(new DataTable(this.latestCards.map(card => card.dataRow)));
-    if(this.archivedCards_) this.archivedCardsSheet.write(new DataTable(this.archivedCards.map(card => card.dataRow)));
-    if(this.archivedReviews_) this.archivedReviewsSheet.write(new DataTable(this.archivedReviews.map(review => review.dataRow)));
+    if (this.latestCards_) this.latestCardsSheet.write(new DataTable(this.latestCards.map(card => card.dataRow)));
+    if (this.archivedCards_) this.archivedCardsSheet.write(new DataTable(this.archivedCards.map(card => card.dataRow)));
+    if (this.archivedReviews_) this.archivedReviewsSheet.write(new DataTable(this.archivedReviews.map(review => review.dataRow)));
   }
 
   getCard(number: number, version: SemanticVersion) {
     const card = this.latestCards.concat(this.archivedCards).find(card => card.development.number === number && card.development.version.equals(version));
-    if(!card) {
-      throw new Error("Failed to find any card with number '" + number + "' and version '" + version.toString() +"'");
+    if (!card) {
+      throw new Error("Failed to find any card with number '" + number + "' and version '" + version.toString() + "'");
     }
     return card;
   }
 
   getLatestCard(number: number, version: SemanticVersion) {
     const card = this.latestCards.find(card => card.development.number === number && card.development.version.equals(version));
-    if(!card) {
-      throw new Error("Failed to find latest card with number '" + number + "' and version '" + version.toString() +"'");
+    if (!card) {
+      throw new Error("Failed to find latest card with number '" + number + "' and version '" + version.toString() + "'");
     }
     return card;
   }
 
   getArchivedCard(number: number, version: SemanticVersion) {
     const card = this.archivedCards.find(card => card.development.number === number && card.development.version.equals(version));
-    if(!card) {
-      throw new Error("Failed to find archived card with number '" + number + "' and version '" + version.toString() +"'");
+    if (!card) {
+      throw new Error("Failed to find archived card with number '" + number + "' and version '" + version.toString() + "'");
     }
     return card;
   }
@@ -117,7 +117,7 @@ class Data {
   }
 
   getPlaytestingUpdateCards() {
-    return this.latestCards.filter(card => card.isChanged || card.isNewlyImplemented || card.isInitial);
+    return this.latestCards.filter(card => card.isChanged || card.isNewlyImplemented || card.isPreRelease);
   }
 
   archivePlaytestingUpdateCards() {
@@ -128,13 +128,13 @@ class Data {
     for (const card of checking) {
       if(!card.development.version.equals(card.development.playtestVersion)) {
         this.archivedCards.push(card.clone());
-        delete card.development.note.type;
-        delete card.development.note.text;
         card.development.playtestVersion = card.development.version;
         archived.push(card.toString());
       }
-      
-      if(card.isNewlyImplemented) {
+      delete card.development.note.type;
+      delete card.development.note.text;
+
+      if (card.isNewlyImplemented) {
         delete card.development.githubIssue;
         implemented.push(card.toString());
       }

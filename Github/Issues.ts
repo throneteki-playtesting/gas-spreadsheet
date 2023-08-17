@@ -109,10 +109,10 @@ class PullRequest {
       let oldCard = card.development.playtestVersion ? data.getCard(card.development.number, card.development.playtestVersion).clone() : undefined;
       if (card.development.note.type && card.development.note.type !== NoteType.Implemented) {
         const changeNote: CardUpdateNote = {
+          icons: [Emoji[NoteType[card.isNewlyImplemented ? NoteType.Implemented : NoteType.NotImplemented]]],
           newCard,
           oldCard,
-          text: card.development.note.text,
-          relatedType: card.isNewlyImplemented ? NoteType.Implemented : NoteType.NotImplemented
+          text: card.development.note.text
         };
         changeNoteGroups[card.development.note.type] = changeNoteGroups[card.development.note.type] || [];
         changeNoteGroups[card.development.note.type].push(changeNote);
@@ -120,31 +120,36 @@ class PullRequest {
       if (card.isNewlyImplemented) {
         const reference = card.getReferenceCard();
         // Use the reference for proper note information
+        let implementText = newCard.development.note.type === NoteType.Implemented ? newCard.development.note.text : undefined;
         if (reference !== card) {
           newCard = reference.clone();
           oldCard = card.development.playtestVersion ? data.getArchivedCard(card.development.number, card.development.playtestVersion).clone() : undefined;
+          implementText = implementText ?? "<em>Please note that the changes for this card were in a previous update</em>";
         }
         const implementNote: CardUpdateNote = {
+          icons: [Emoji[NoteType[NoteType.Implemented]]],
           newCard,
           oldCard,
-          text: newCard.development.note.type === NoteType.Implemented ? newCard.development.note.text : !!reference ? "<em>Please note that the changes for this card were in a previous update</em>" : "",
-          relatedType: newCard.development.note.type
+          text: implementText
         };
+        if (newCard.development.note.type && newCard.development.note.type !== NoteType.Implemented) {
+          implementNote.icons.push(Emoji[NoteType[newCard.development.note.type]]);
+        }
         implemented.push(implementNote);
       }
     }
     template.changeNoteGroups = changeNoteGroups;
-    template.implemented = implemented.sort((a, b) => (a.relatedType || NoteType.Implemented) - (b.relatedType || NoteType.Implemented));
+    template.implemented = implemented.sort((a, b) => (a.newCard.development.note.type || NoteType.Implemented) - (b.newCard.development.note.type || NoteType.Implemented));
 
     return template;
   }
 }
 
 interface CardUpdateNote {
+  icons: string[],
   newCard: Card,
   oldCard: Card | undefined,
-  text: string | undefined,
-  relatedType: NoteType | undefined
+  text: string | undefined
 }
 
 export { Issue, PullRequest }
