@@ -141,7 +141,7 @@ class Card extends DataObject {
             action = "Added";
         }
 
-        if (this.isImplemented && !this.development.note.type) {
+        if (this.isImplemented && this.development.note.type === undefined) {
             Log.verbose("Marking card as implemented");
             this.development.note.type = NoteType.Implemented;
 
@@ -217,7 +217,7 @@ class Card extends DataObject {
             if (this.development.image) {
                 newData.setRichTextValue(CardColumn.ImageUrl, SpreadsheetApp.newRichTextValue().setText(this.development.image.version.toString()).setLinkUrl(this.development.image.url).build());
             }
-            if (this.development.note.type) {
+            if (this.development.note.type !== undefined) {
                 newData.setString(CardColumn.NoteType, NoteType[this.development.note.type]);
             }
             if (this.development.note.text) {

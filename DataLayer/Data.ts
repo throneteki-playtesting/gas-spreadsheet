@@ -1,5 +1,5 @@
 import { Card } from "./Models/Card";
-import { NoteType, ProjectType } from "../Common/Enums";
+import { ProjectType } from "../Common/Enums";
 import { Project, SemanticVersion } from "./Models/Project";
 import { Review } from "./Models/Review";
 import { Pack } from "./Models/Pack";

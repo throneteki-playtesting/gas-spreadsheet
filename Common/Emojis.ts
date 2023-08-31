@@ -8,3 +8,4 @@ const Emoji = {
     Bugfixed: ":wrench:",
     Other: ":eight_spoked_asterisk:"
 }
+export { Emoji }

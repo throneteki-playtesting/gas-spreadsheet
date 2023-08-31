@@ -4,6 +4,7 @@ import { Card } from "../DataLayer/Models/Card";
 import { Github } from "./Github";
 import { PDFAPI } from "../Imaging/PdfAPI";
 import { Log } from "../Common/Logger";
+import { Emoji } from "../Common/Emojis";
 
 class Issue {
   owner: string;

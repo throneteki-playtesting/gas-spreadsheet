@@ -1,7 +1,7 @@
 enum NoteType {
-    Replaced,
-    Reworked,
     Updated,
+    Reworked,
+    Replaced,
     Implemented,
     NotImplemented
 }
