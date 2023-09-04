@@ -1,4 +1,3 @@
-import { Columns } from "../../Common/Columns";
 import { DataRow } from "../Data";
 
 abstract class DataObject {

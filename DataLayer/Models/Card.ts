@@ -123,10 +123,15 @@ class Card extends DataObject {
 
         if (currentIssue) {
             Log.verbose("Current issue exists");
-            this.development.githubIssue = { status: currentIssue.state, url: currentIssue.html_url };
-
+            if (currentIssue.state === "closed") {
+                Log.verbose("Issue is closed");
+                if (this.development.githubIssue?.status !== "closed") {
+                    this.development.githubIssue = { status: currentIssue.state, url: currentIssue.html_url };
+                    action = "Closed";
+                }
+            }
             // Check & Update issue if body is different (for open issues)
-            if (currentIssue.state !== "closed" && potentialIssue.body !== currentIssue.body) {
+            else if (potentialIssue.body !== currentIssue.body) {
                 Log.verbose("Issue requires update. Updating & syncing issue data with card...");
                 potentialIssue.number = currentIssue.number;
                 let { state, html_url } = GithubAPI.updateIssue(potentialIssue);
@@ -141,11 +146,9 @@ class Card extends DataObject {
             action = "Added";
         }
 
-        if (this.isImplemented && this.development.note.type === undefined) {
+        if (action === "Closed" && this.isImplemented && this.development.note.type === undefined) {
             Log.verbose("Marking card as implemented");
             this.development.note.type = NoteType.Implemented;
-
-            action = "Closed";
         }
         Log.verbose("Successfully synced issue: " + (action !== undefined ? "Issue " + action : "No action required"));
         return action;
@@ -272,11 +275,67 @@ class Card extends DataObject {
     }
 
     clone() {
-        Log.verbose("Cloning '" + this.toString() +"'...")
-        // TODO Make this more efficient, but ensure all values are new, not same memory reference (costing us approx. 3 seconds per card)
+        Log.verbose("Cloning '" + this.toString() + "'...");
+        const start = new Date();
+
+        const code = this.code;
+        const development = {
+            project: this.development.project, // All cards can share same project reference
+            number: this.development.number,
+            version: this.development.version.clone(),
+            playtestVersion: !this.development.playtestVersion ? this.development.playtestVersion : this.development.playtestVersion.clone(),
+            note: {
+                type: this.development.note.type,
+                text: this.development.note.text
+            },
+            githubIssue: !this.development.githubIssue ? this.development.githubIssue : {
+                status: this.development.githubIssue.status,
+                url: this.development.githubIssue.url
+            },
+            image: !this.development.image ? this.development.image : {
+                url: this.development.image.url,
+                version: this.development.image.version.clone()
+            }
+        };
+        const faction = this.faction;
+        const name = this.name;
+        const type = this.type;
+        const traits = [...this.traits];
+        const text = this.text;
+        const illustrator = this.illustrator;
+        const deckLimit = this.deckLimit;
+        const quantity = this.quantity;
+        const flavor = this.flavor;
+        const designer = this.designer;
+        const loyal = this.loyal;
+        const strength = this.strength;
+        const icons = !this.icons ? undefined : {
+            military: this.icons.military,
+            intrigue: this.icons.intrigue,
+            power: this.icons.power
+        };
+        const unique = this.unique;
+        const cost = this.cost;
+        const plotStats = !this.plotStats ? this.plotStats : {
+            income: this.plotStats.income,
+            initiative: this.plotStats.initiative,
+            claim: this.plotStats.claim,
+            reserve: this.plotStats.reserve
+        };
+        const clone = new Card(this.data, code, development, faction, name, type, traits, text, illustrator, deckLimit, quantity, flavor,
+            designer, loyal, strength, icons, unique, cost, plotStats);
+        const end = new Date();
+        Log.verbose("Successfully cloned in " + (end.getTime() - start.getTime()) + "ms!");
+        return clone;
+    }
+
+    legacyClone() {
+        Log.verbose("Cloning '" + this.toString() + "' (Legacy)...");
+        const start = new Date();
         this.syncData();
         const clone = Card.fromData(this.data);
-        Log.verbose("Successfully cloned!");
+        const end = new Date();
+        Log.verbose("Successfully cloned in " + (end.getTime() - start.getTime()) + "ms!");
         return clone;
     }
 
@@ -325,7 +384,7 @@ class Card extends DataObject {
      * @returns Gets the copy of this card which is currently being referenced for issues/coding
      */
     getReferenceCard() {
-        if(!this.isImplemented && this.development.version.equals(this.development.playtestVersion)) {
+        if (!this.isImplemented && this.development.version.equals(this.development.playtestVersion)) {
             return Data.instance.getArchivedCard(this.development.number, this.development.version);
         }
         return this;
@@ -364,3 +423,43 @@ interface PlotStats {
     reserve: number
 }
 export { Card };
+
+function test_clone_speed() {
+    console.log("Starting clone speed test...");
+    const data = Data.instance;
+    const testing1 = data.latestCards.find(a => a.type === CardType.Character) as Card;
+    testing1.legacyClone();
+
+    const testing2 = data.latestCards.find(a => a.type === CardType.Character) as Card;
+    testing2.clone();
+}
+
+function test_clone() {
+    console.log("Starting clone test...");
+    const data = Data.instance;
+    let testing = data.latestCards.find(a => a.type === CardType.Character) as Card;
+    let cloned = testing.clone();
+    cloned.name = testing.name + " testing";
+    cloned.development.version = cloned.development.version.increment(1);
+    cloned.traits.push("test");
+    if (cloned.icons && testing.icons) cloned.icons.military = !testing.icons.military;
+
+    const failed: string[] = [];
+    if (testing.name === cloned.name) {
+        failed.push("Name value incorrectly matches.");
+    }
+    if (testing.development.version.equals(cloned.development.version)) {
+        failed.push("Version incorrectly matches.");
+    }
+    if (testing.traits.length === cloned.traits.length) {
+        failed.push("Traits incorrectly match.");
+    }
+    if (testing.icons?.military === cloned.icons?.military) {
+        failed.push("Icons incorrectly match.");
+    }
+    if (failed.length > 0) {
+        console.log("Failed:\n- " + failed.join("\n- "));
+    } else {
+        console.log("Passed!");
+    }
+}

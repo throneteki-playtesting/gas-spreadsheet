@@ -38,27 +38,26 @@ class Github {
 
     static syncPullRequest(finalise = false) {
         const cards = Data.instance.getPlaytestingUpdateCards();
-        if (cards.length === 0) {
-            return null;
-        }
-
-        const pullRequests = GithubAPI.getPullRequests();
-        const potentialPullRequest = PullRequest.forPlaytestingUpdate(finalise);
-        const currentPullRequest = pullRequests.find(pullRequest => pullRequest.title === potentialPullRequest.title);
-
-        if (currentPullRequest) {
-            if(currentPullRequest.state === "closed") {
-                return null;
+        if (cards.length > 0) {
+            Log.verbose("Syncing pull request for " + cards.length + " cards...");
+            const pullRequests = GithubAPI.getPullRequests();
+            const potentialPullRequest = PullRequest.forPlaytestingUpdate(finalise);
+            const currentPullRequest = pullRequests.find(pullRequest => pullRequest.title === potentialPullRequest.title);
+    
+            if (currentPullRequest) {
+                if(currentPullRequest.state === "closed") {
+                    return null;
+                }
+                if (potentialPullRequest.body !== currentPullRequest.body) {
+                    potentialPullRequest.number = currentPullRequest.number;
+                    return GithubAPI.updatePullRequest(potentialPullRequest).html_url;
+                }
+            } else {
+                const pr = GithubAPI.addPullRequest(potentialPullRequest);
+                potentialPullRequest.number = pr.number;
+                GithubAPI.addLabels(potentialPullRequest, potentialPullRequest.labels);
+                return pr.html_url;
             }
-            if (potentialPullRequest.body !== currentPullRequest.body) {
-                potentialPullRequest.number = currentPullRequest.number;
-                return GithubAPI.updatePullRequest(potentialPullRequest).html_url;
-            }
-        } else {
-            const pr = GithubAPI.addPullRequest(potentialPullRequest);
-            potentialPullRequest.number = pr.number;
-            GithubAPI.addLabels(potentialPullRequest, potentialPullRequest.labels);
-            return pr.html_url;
         }
 
         return null;
