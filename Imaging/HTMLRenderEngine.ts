@@ -39,6 +39,10 @@ class HTMLRenderEngine {
     card.text = card.text.replace(/\n*((?:\s*[+-]\d+ (?:Income|Initiative|Claim|Reserve)\.?\s*)+)/gi, "<div class=\"plot-modifiers\">$1</div>");
     // ...and wrap each plot modifier in a span within that class
     card.text = card.text.replace(/\s*([+-]\d+) (Income|Initiative|Claim|Reserve)\.?\s*/gi, (match: string, modifier: string, plotStat: string) => "<span class=\"plot-stat " + plotStat.toLowerCase() + " auto-size\">" + modifier + "</span>");
+    // If any lists are detected, create the ul...
+    card.text = card.text.replace(/(<br>-\s*.*\.)/g, "<ul>$1</ul>");
+    // ... and wrap each line in li
+    card.text = card.text.replace(/<br>-\s*(.*?\.)(?=<br>|<\/ul>)/g, "<li>$1</li>");
 
     card.deckLimit = card.deckLimit !== DefaultDeckLimit[CardType[card.type]] ? "Deck Limit: " + card.deckLimit : "";
 

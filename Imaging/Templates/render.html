@@ -259,6 +259,17 @@
       margin-top: 0.5em;
     }
 
+    .ability-box .card-ability ul {
+      margin-block-start: 0.25em;
+      margin-block-end: 0.25em;
+      padding-inline-start: 2em;
+    }
+
+    .ability-box .card-ability ul li {
+      padding-top: 0.1em;
+      padding-bottom: 0.1em;
+    }
+
     .ability-box .card-ability i {
       font-weight: 700;
       font-style: italic;
@@ -760,11 +771,15 @@
       let reachedMinimumSize = false;
       while (!reachedMinimumSize && item.scrollHeight > item.clientHeight || item.scrollWidth > item.clientWidth) {
         for (let child of item.children) {
-          let fontSize = parseInt(window.getComputedStyle(child, null).getPropertyValue("font-size"), 10);
-          fontSize -= 0.1;
-          child.style.fontSize = fontSize + "px";
-          if (fontSize <= 0.1) {
-            reachedMinimumSize = true;
+          if (child.innerText.trim() === '') {
+            child.style.fontSize = "0px";
+          } else {
+            let fontSize = parseFloat(window.getComputedStyle(child, null).getPropertyValue("font-size"), 10);
+            fontSize -= 0.1;
+            child.style.fontSize = fontSize + "px";
+            if (fontSize <= 0.1) {
+              reachedMinimumSize = true;
+            }
           }
         }
       }
