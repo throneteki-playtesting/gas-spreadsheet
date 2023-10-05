@@ -126,8 +126,8 @@ class GithubAPI {
             Log.verbose("Fetching page " + page + " of issues...");
             const response = UrlFetchApp.fetch(url, params);
             const json = JSON.parse(response.getContentText());
-            if (json.errors?.length > 0) {
-                throw new Error("Failed to getIssues: " + json.errors.map(e => e.message).join(", "));
+            if (response.getResponseCode() >= 400 && response.getResponseCode() < 600) {
+                throw new Error("Failed to getIssues: " + json.message + (json.errors ? " (" + json.errors.map(e => e.message).join(", ") + ")" : ""));
             }
             Log.verbose("Fetched " + json.items.length + " items");
             results = results.concat(...json.items);
@@ -155,8 +155,8 @@ class GithubAPI {
         Log.verbose("Adding issue to github...");
         const response = UrlFetchApp.fetch(url, params);
         const json = JSON.parse(response.getContentText());
-        if (json.errors?.length > 0) {
-            throw new Error("Failed to addIssue: " + json.errors.map(e => e.message).join(", "));
+        if (response.getResponseCode() >= 400 && response.getResponseCode() < 600) {
+            throw new Error("Failed to addIssue: " + json.message + (json.errors ? " (" + json.errors.map(e => e.message).join(", ") + ")" : ""));
         }
         Log.verbose("Successfully added issue #" + json.number);
         return json;
@@ -179,8 +179,8 @@ class GithubAPI {
         Log.verbose("Adding pull request to github...");
         const response = UrlFetchApp.fetch(url, params);
         const json = JSON.parse(response.getContentText());
-        if (json.errors?.length > 0) {
-            throw new Error("Failed to addPullRequest: " + json.errors.map(e => e.message).join(", "));
+        if (response.getResponseCode() >= 400 && response.getResponseCode() < 600) {
+            throw new Error("Failed to addPullRequest: " + json.message + (json.errors ? " (" + json.errors.map(e => e.message).join(", ") + ")" : ""));
         }
         Log.verbose("Successfully added pull request #" + json.number);
         return json;
@@ -203,8 +203,8 @@ class GithubAPI {
         Log.verbose("Adding labels to issue object in github...");
         const response = UrlFetchApp.fetch(url, params);
         const json = JSON.parse(response.getContentText());
-        if (json.errors?.length > 0) {
-            throw new Error("Failed to addLabels: " + json.errors.map(e => e.message).join(", "));
+        if (response.getResponseCode() >= 400 && response.getResponseCode() < 600) {
+            throw new Error("Failed to addLabels: " + json.message + (json.errors ? " (" + json.errors.map(e => e.message).join(", ") + ")" : ""));
         }
         Log.verbose("Successfully added labels to issue object");
         return json;
@@ -230,8 +230,8 @@ class GithubAPI {
         Log.verbose("Updating issue in github...");
         const response = UrlFetchApp.fetch(url, params);
         const json = JSON.parse(response.getContentText());
-        if (json.errors?.length > 0) {
-            throw new Error("Failed to updateIssue: " + json.errors.map(e => e.message).join(", "));
+        if (response.getResponseCode() >= 400 && response.getResponseCode() < 600) {
+            throw new Error("Failed to updateIssue: " + json.message + (json.errors ? " (" + json.errors.map(e => e.message).join(", ") + ")" : ""));
         }
         Log.verbose("Successfully updated issue #" + json.number);
         return json;
@@ -257,8 +257,8 @@ class GithubAPI {
         Log.verbose("Updating pull request in github...");
         const response = UrlFetchApp.fetch(url, params);
         const json = JSON.parse(response.getContentText());
-        if (json.errors?.length > 0) {
-            throw new Error("Failed to updatePullRequest: " + json.errors.map(e => e.message).join(", "));
+        if (response.getResponseCode() >= 400 && response.getResponseCode() < 600) {
+            throw new Error("Failed to updatePullRequest: " + json.message + (json.errors ? " (" + json.errors.map(e => e.message).join(", ") + ")" : ""));
         }
         Log.verbose("Successfully updated pull request #" + json.number);
         return json;
