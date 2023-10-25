@@ -181,6 +181,7 @@ class DataSheet {
 
   read(): DataTable {
     const start = new Date();
+    // TODO: Save current filter, unapply, then reapply when finished reading
     const numRows = this.numRows || (this.sheet.getLastRow() + 1) - this.firstRow;
 
     if (numRows <= 0) {
@@ -200,6 +201,7 @@ class DataSheet {
 
   write(data: DataTable) {
     const start = new Date();
+    // TODO: Save current filter, unapply, then reapply when finished writing
     this.validate(data);
 
     try {

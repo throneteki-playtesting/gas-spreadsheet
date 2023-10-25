@@ -41,28 +41,39 @@ function syncReviews() {
     const responses = form.getResponses();
     const data = Data.instance;
     const archivedIds = data.archivedReviews.map(review => review.id);
-    const newReviews = responses.filter(response => !archivedIds.includes(response.getId())).map(response => Review.fromResponse(response));
+    let successfullySynced = responses.filter(response => !archivedIds.includes(response.getId())).map(response => Review.fromResponse(response));
 
-    const successfullySent: Review[] = [];
+    if (successfullySynced.length === 0) {
+        Log.information("No reviews to sync");
+        return;
+    }
 
-    for (const review of newReviews) {
+    // Save new reviews to sheet
+    data.archivedReviews = data.archivedReviews.concat(successfullySynced).sort((a, b) => a.date.getTime() - b.date.getTime());
+    data.commit();
+
+    const failedToSend: Review[] = [];
+    for (const review of successfullySynced) {
         try {
             DiscordHandler.sendReview(review);
-            successfullySent.push(review);
         } catch (e) {
+            failedToSend.push(review);
             Log.error("Failed to send " + review.toString() + " (Id: " + review.id + ") to discord: " + e);
         }
     }
 
-    if (successfullySent.length > 0) {
-        data.archivedReviews = data.archivedReviews.concat(successfullySent).sort((a, b) => a.date.getTime() - b.date.getTime());
-
+    if (failedToSend.length > 0) {
+        // Remove any reviews which failed to send to discord, so they can be re-processed next run
+        data.archivedReviews = data.archivedReviews.filter(review => !failedToSend.includes(review));
+        successfullySynced = successfullySynced.filter(review => !failedToSend.includes(review));
         data.commit();
-        Log.information("Successfully synced " + successfullySent.length + " reviews:\n" + successfullySent.map(review => review.toString()).join("\n- "));
-    } else {
-        Log.information("No reviews have been synced");
     }
-
+    if(successfullySynced.length > 0) {
+        Log.information("Successfully synced " + successfullySynced.length + " reviews:\n -" + successfullySynced.map(review => review.toString()).join("\n- "));
+    } else {
+        Log.information("Failed to sync any reviews");
+    }
+    
 }
 
 function createTrigger() {
