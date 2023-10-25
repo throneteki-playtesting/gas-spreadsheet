@@ -123,23 +123,20 @@ class GithubAPI {
                 muteHttpExceptions: true
             }
 
-            Log.verbose("Fetching page " + page + " of issues...");
             const response = UrlFetchApp.fetch(url, params);
             const json = JSON.parse(response.getContentText());
             if (response.getResponseCode() >= 400 && response.getResponseCode() < 600) {
                 throw new Error("Failed to getIssues: " + json.message + (json.errors ? " (" + json.errors.map(e => e.message).join(", ") + ")" : ""));
             }
-            Log.verbose("Fetched " + json.items.length + " items");
             results = results.concat(...json.items);
             total = json.total_count;
         } while (results.length < total);
 
-        Log.verbose("Fetched a total of " + total + " search items");
+        Log.verbose("Fetched " + total + " items from " + page + " page(s)");
         return results;
     }
 
     static addIssue(issue: Issue): Endpoints["POST /repos/{owner}/{repo}/issues"]["response"]["data"] {
-        Log.verbose("Attempting to add new Github Issue with title: " + issue.title);
         const url = "https://api.github.com/repos/" + issue.owner + "/" + issue.repo + "/issues";
 
         const params: GoogleAppsScript.URL_Fetch.URLFetchRequestOptions = {
@@ -152,18 +149,16 @@ class GithubAPI {
             muteHttpExceptions: true
         }
 
-        Log.verbose("Adding issue to github...");
         const response = UrlFetchApp.fetch(url, params);
         const json = JSON.parse(response.getContentText());
         if (response.getResponseCode() >= 400 && response.getResponseCode() < 600) {
             throw new Error("Failed to addIssue: " + json.message + (json.errors ? " (" + json.errors.map(e => e.message).join(", ") + ")" : ""));
         }
-        Log.verbose("Successfully added issue #" + json.number);
+        Log.verbose("Added Issue #" + json.number + " on Github (" + issue.title + ")");
         return json;
     }
 
     static addPullRequest(pullRequest: PullRequest): Endpoints["POST /repos/{owner}/{repo}/pulls"]["response"]["data"] {
-        Log.verbose("Attempting to add new Github Pull Request with title: " + pullRequest.title);
         const url = "https://api.github.com/repos/" + pullRequest.owner + "/" + pullRequest.repo + "/pulls";
 
         const params: GoogleAppsScript.URL_Fetch.URLFetchRequestOptions = {
@@ -176,18 +171,16 @@ class GithubAPI {
             muteHttpExceptions: true
         }
 
-        Log.verbose("Adding pull request to github...");
         const response = UrlFetchApp.fetch(url, params);
         const json = JSON.parse(response.getContentText());
         if (response.getResponseCode() >= 400 && response.getResponseCode() < 600) {
             throw new Error("Failed to addPullRequest: " + json.message + (json.errors ? " (" + json.errors.map(e => e.message).join(", ") + ")" : ""));
         }
-        Log.verbose("Successfully added pull request #" + json.number);
+        Log.verbose("Added Pull Request #" + json.number + " on Github (" + pullRequest.title + ")");
         return json;
     }
 
     static addLabels(object: Issue | PullRequest, labels: string[]) {
-        Log.verbose("Attempting to add labels to Github Issue Object with title: " + object.title);
         const url = "https://api.github.com/repos/" + object.owner + "/" + object.repo + "/issues/" + object.number + "/labels";
 
         const params: GoogleAppsScript.URL_Fetch.URLFetchRequestOptions = {
@@ -200,18 +193,16 @@ class GithubAPI {
             muteHttpExceptions: true
         }
 
-        Log.verbose("Adding labels to issue object in github...");
         const response = UrlFetchApp.fetch(url, params);
         const json = JSON.parse(response.getContentText());
         if (response.getResponseCode() >= 400 && response.getResponseCode() < 600) {
             throw new Error("Failed to addLabels: " + json.message + (json.errors ? " (" + json.errors.map(e => e.message).join(", ") + ")" : ""));
         }
-        Log.verbose("Successfully added labels to issue object");
+        Log.verbose("Added labels to issue #" + object.number + " on Github (" + labels.join(', ') + ")");
         return json;
     }
 
     static updateIssue(issue: Issue): Endpoints["PATCH /repos/{owner}/{repo}/issues/{issue_number}"]["response"]["data"] {
-        Log.verbose("Attempting to update Issue on Github with title: " + issue.title);
         if (issue.number === undefined) {
             throw Error("Cannot update Github issue without a number");
         }
@@ -227,18 +218,16 @@ class GithubAPI {
             muteHttpExceptions: true
         }
 
-        Log.verbose("Updating issue in github...");
         const response = UrlFetchApp.fetch(url, params);
         const json = JSON.parse(response.getContentText());
         if (response.getResponseCode() >= 400 && response.getResponseCode() < 600) {
             throw new Error("Failed to updateIssue: " + json.message + (json.errors ? " (" + json.errors.map(e => e.message).join(", ") + ")" : ""));
         }
-        Log.verbose("Successfully updated issue #" + json.number);
+        Log.verbose("Updated Issue #" + json.number + " on Github (" + issue.title + ")");
         return json;
     }
 
     static updatePullRequest(pullRequest: PullRequest): Endpoints["PATCH /repos/{owner}/{repo}/pulls/{pull_number}"]["response"]["data"] {
-        Log.verbose("Attempting to update Pull Request on Github with title: " + pullRequest.title);
         if (pullRequest.number === undefined) {
             throw Error("Cannot update Github pull request without a number");
         }
@@ -254,13 +243,12 @@ class GithubAPI {
             muteHttpExceptions: true
         }
 
-        Log.verbose("Updating pull request in github...");
         const response = UrlFetchApp.fetch(url, params);
         const json = JSON.parse(response.getContentText());
         if (response.getResponseCode() >= 400 && response.getResponseCode() < 600) {
             throw new Error("Failed to updatePullRequest: " + json.message + (json.errors ? " (" + json.errors.map(e => e.message).join(", ") + ")" : ""));
         }
-        Log.verbose("Successfully updated pull request #" + json.number);
+        Log.verbose("Updated Pull Request #" + json.number + " on Github (" + pullRequest.title + ")");
         return json;
     }
 }
@@ -276,12 +264,16 @@ function syncPullRequests(finalise = false) {
 }
 
 function syncIssues() {
+    Log.verbose("Starting Issues Sync...");
+    let start = new Date();
     const data = Data.instance;
-    Log.verbose("Collecting cards to check...");
     const checking = data.latestCards.concat(data.archivedCards.filter(card => card.development.githubIssue?.status !== 'closed'));
-    Log.verbose("Checking " + checking.length + " cards...");
+    let end = new Date();
+    Log.verbose("Collected " + checking.length + " cards in " + (end.getTime() - start.getTime()) + "ms");
+    start = new Date();
     const changed = Github.syncIssues(data.project, checking);
-
+    end = new Date();
+    Log.verbose("Sync completed with Github in " + (end.getTime() - start.getTime()) + "ms");
     const message = changed.length + " / " + checking.length + " cards required issue sync";
     if (changed.length > 0) {
         Log.information(message + ":\n- " + changed.join("\n- "));

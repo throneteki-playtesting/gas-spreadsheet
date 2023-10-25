@@ -110,47 +110,43 @@ class Card extends DataObject {
         if (!this.requiresImplementation) {
             return;
         }
-        Log.verbose("Syncing Issue for " + this.toString() + "...");
 
         // Sync image before pushing new or updating old issue
         this.syncImage(project);
         const potentialIssue = Issue.for(this.getReferenceCard());
 
-        Log.verbose("Finding current issue...");
         const currentIssue = currentIssues.find(current => current.title === potentialIssue.title);
 
         let action: "Added" | "Updated" | "Closed" | undefined;
 
         if (currentIssue) {
-            Log.verbose("Current issue exists");
             if (currentIssue.state === "closed") {
-                Log.verbose("Issue is closed");
                 if (this.development.githubIssue?.status !== "closed") {
                     this.development.githubIssue = { status: currentIssue.state, url: currentIssue.html_url };
                     action = "Closed";
+                    Log.verbose("Set issue status of " + this.toString() + " to 'Closed'");
                 }
             }
             // Check & Update issue if body is different (for open issues)
             else if (potentialIssue.body !== currentIssue.body) {
-                Log.verbose("Issue requires update. Updating & syncing issue data with card...");
                 potentialIssue.number = currentIssue.number;
-                let { state, html_url } = GithubAPI.updateIssue(potentialIssue);
+                let { number, state, html_url } = GithubAPI.updateIssue(potentialIssue);
                 this.development.githubIssue = { status: state, url: html_url };
                 action = "Updated";
+                Log.verbose("Updated existing issue (#" + number + ") for " + this.toString());
             }
         } else {
-            Log.verbose("Current issue does not exist");
             // Create new issue
-            let { state, html_url } = GithubAPI.addIssue(potentialIssue);
+            let { number, state, html_url } = GithubAPI.addIssue(potentialIssue);
             this.development.githubIssue = { status: state, url: html_url };
             action = "Added";
+            Log.verbose("Added new issue for " + this.toString() + ": #" + number);
         }
 
         if (action === "Closed" && this.isImplemented && this.development.note.type === undefined) {
-            Log.verbose("Marking card as implemented");
             this.development.note.type = NoteType.Implemented;
+            Log.verbose("Marked " + this.toString() + " as implemented");
         }
-        Log.verbose("Successfully synced issue: " + (action !== undefined ? "Issue " + action : "No action required"));
         return action;
     }
 
@@ -275,8 +271,8 @@ class Card extends DataObject {
     }
 
     clone() {
-        Log.verbose("Cloning '" + this.toString() + "'...");
-        const start = new Date();
+        // Log.verbose("Cloning '" + this.toString() + "'...");
+        // const start = new Date();
 
         const code = this.code;
         const development = {
@@ -324,20 +320,20 @@ class Card extends DataObject {
         };
         const clone = new Card(this.data, code, development, faction, name, type, traits, text, illustrator, deckLimit, quantity, flavor,
             designer, loyal, strength, icons, unique, cost, plotStats);
-        const end = new Date();
-        Log.verbose("Successfully cloned in " + (end.getTime() - start.getTime()) + "ms!");
+        // const end = new Date();
+        // Log.verbose("Successfully cloned in " + (end.getTime() - start.getTime()) + "ms!");
         return clone;
     }
 
-    legacyClone() {
-        Log.verbose("Cloning '" + this.toString() + "' (Legacy)...");
-        const start = new Date();
-        this.syncData();
-        const clone = Card.fromData(this.data);
-        const end = new Date();
-        Log.verbose("Successfully cloned in " + (end.getTime() - start.getTime()) + "ms!");
-        return clone;
-    }
+    // legacyClone() {
+    //     // Log.verbose("Cloning '" + this.toString() + "' (Legacy)...");
+    //     // const start = new Date();
+    //     this.syncData();
+    //     const clone = Card.fromData(this.data);
+    //     // const end = new Date();
+    //     // Log.verbose("Successfully cloned in " + (end.getTime() - start.getTime()) + "ms!");
+    //     return clone;
+    // }
 
     /**
      *  @returns True if this card is being or needs to be implemented online
@@ -345,28 +341,18 @@ class Card extends DataObject {
     get requiresImplementation() {
         return this.development.githubIssue ? this.development.githubIssue.status !== "closed" : !this.development.version.equals(this.development.playtestVersion);
     }
-
     /**
      *  @returns True if this card has been implemented online
      */
     get isImplemented() {
         return this.development.githubIssue ? this.development.githubIssue.status === "closed" : this.development.version.equals(this.development.playtestVersion);
     }
-
     /**
      * @returns True if this card has been implemented online after the previous playtesting update
      */
     get isNewlyImplemented() {
         return this.development.githubIssue?.status === "closed";
     }
-
-    /**
-     * @returns True if this card is the initial 1.0 version, and has not been published for playtesting
-     */
-    get isPreRelease() {
-        return this.development.version.is(1, 0) && !this.development.version.equals(this.development.playtestVersion);
-    }
-
     /**
      * @returns True if this card is the initial 1.0 version
      */
@@ -374,10 +360,16 @@ class Card extends DataObject {
         return this.development.version.is(1, 0);
     }
     /**
+     * @returns True if this card is the initial 1.0 version, and has not been published for playtesting
+     */
+    get isPreRelease() {
+        return this.isInitial && !this.development.version.equals(this.development.playtestVersion);
+    }
+    /**
      *  @returns True if this card has been changed (eg. not in its initial or currently playtested state)
      */
     get isChanged() {
-        return !this.development.version.is(1, 0) && !this.development.version.equals(this.development.playtestVersion);
+        return !this.isInitial && !this.development.version.equals(this.development.playtestVersion);
     }
 
     /**
@@ -424,42 +416,56 @@ interface PlotStats {
 }
 export { Card };
 
-function test_clone_speed() {
-    console.log("Starting clone speed test...");
-    const data = Data.instance;
-    const testing1 = data.latestCards.find(a => a.type === CardType.Character) as Card;
-    testing1.legacyClone();
+// function test_clone_speed() {
+//     console.log("Starting clone speed test...");
+//     const cards = Data.instance.latestCards;
+//     let start = new Date();
+//     cards.map(card => card.legacyClone());
+//     let end = new Date();
+//     Log.verbose("Test #1: Cloned " + cards.length + " cards using legacyClone(): " + (end.getTime() - start.getTime()) + "ms");
 
-    const testing2 = data.latestCards.find(a => a.type === CardType.Character) as Card;
-    testing2.clone();
-}
+//     start = new Date();
+//     cards.map(card => card.clone());
+//     end = new Date();
+//     Log.verbose("Test #1: Cloned " + cards.length + " cards using clone(): " + (end.getTime() - start.getTime()) + "ms");
 
-function test_clone() {
-    console.log("Starting clone test...");
-    const data = Data.instance;
-    let testing = data.latestCards.find(a => a.type === CardType.Character) as Card;
-    let cloned = testing.clone();
-    cloned.name = testing.name + " testing";
-    cloned.development.version = cloned.development.version.increment(1);
-    cloned.traits.push("test");
-    if (cloned.icons && testing.icons) cloned.icons.military = !testing.icons.military;
+//     start = new Date();
+//     cards.map(card => card.clone());
+//     end = new Date();
+//     Log.verbose("Test #2: Cloned " + cards.length + " cards using clone(): " + (end.getTime() - start.getTime()) + "ms");
 
-    const failed: string[] = [];
-    if (testing.name === cloned.name) {
-        failed.push("Name value incorrectly matches.");
-    }
-    if (testing.development.version.equals(cloned.development.version)) {
-        failed.push("Version incorrectly matches.");
-    }
-    if (testing.traits.length === cloned.traits.length) {
-        failed.push("Traits incorrectly match.");
-    }
-    if (testing.icons?.military === cloned.icons?.military) {
-        failed.push("Icons incorrectly match.");
-    }
-    if (failed.length > 0) {
-        console.log("Failed:\n- " + failed.join("\n- "));
-    } else {
-        console.log("Passed!");
-    }
-}
+//     start = new Date();
+//     cards.map(card => card.legacyClone());
+//     end = new Date();
+//     Log.verbose("Test #2: Cloned " + cards.length + " cards using legacyClone(): " + (end.getTime() - start.getTime()) + "ms");
+// }
+
+// function test_clone() {
+//     console.log("Starting clone test...");
+//     const data = Data.instance;
+//     let testing = data.latestCards.find(a => a.type === CardType.Character) as Card;
+//     let cloned = testing.clone();
+//     cloned.name = testing.name + " testing";
+//     cloned.development.version = cloned.development.version.increment(1);
+//     cloned.traits.push("test");
+//     if (cloned.icons && testing.icons) cloned.icons.military = !testing.icons.military;
+
+//     const failed: string[] = [];
+//     if (testing.name === cloned.name) {
+//         failed.push("Name value incorrectly matches.");
+//     }
+//     if (testing.development.version.equals(cloned.development.version)) {
+//         failed.push("Version incorrectly matches.");
+//     }
+//     if (testing.traits.length === cloned.traits.length) {
+//         failed.push("Traits incorrectly match.");
+//     }
+//     if (testing.icons?.military === cloned.icons?.military) {
+//         failed.push("Icons incorrectly match.");
+//     }
+//     if (failed.length > 0) {
+//         console.log("Failed:\n- " + failed.join("\n- "));
+//     } else {
+//         console.log("Passed!");
+//     }
+// }

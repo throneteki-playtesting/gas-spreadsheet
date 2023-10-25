@@ -31,9 +31,7 @@ class Issue {
       case NoteType.Updated: {
         const template = Issue.buildTemplate(card, NoteType.Updated);
         const title = card.code + " - Update to " + card.name + " v" + card.development.version.toString()
-        Log.verbose("Compiling issue body...");
         const body = Github.githubify(template.evaluate().getContent());
-        Log.verbose("Successfully compile issue body!");
         const labels = ["automated", "update-card"];
         return new Issue(title, body, labels);
       }
@@ -51,7 +49,6 @@ class Issue {
   }
 
   private static buildTemplate(card: Card, noteType: NoteType) {
-    Log.verbose("Building issue template...");
     const data = Data.instance;
     const template = HtmlService.createTemplateFromFile(`Github/Templates/${NoteType[noteType]}Issue`);
     template.newCard = card.clone();
@@ -72,7 +69,6 @@ class Issue {
       }
     }
 
-    Log.verbose("Successfully built issue template!");
     return template;
   }
 }
