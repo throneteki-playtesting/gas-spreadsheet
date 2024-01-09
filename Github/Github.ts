@@ -1,6 +1,6 @@
 import { Endpoints } from "@octokit/types";
 import { Card } from "../DataLayer/Models/Card";
-import { Settings } from "../DataLayer/Settings";
+import { GooglePropertiesType, Settings } from "../DataLayer/Settings";
 import { Issue, PullRequest } from "./Issues";
 import { Project } from "../DataLayer/Models/Project";
 import { Data } from "../DataLayer/Data";
@@ -89,7 +89,7 @@ class Github {
 class GithubAPI {
     static getIssues(card?: Card) {
         /** https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests */
-        let searchQuery = "repo:throneteki-playtesting/throneteki is:issue label:automated project:throneteki-playtesting/" + Settings.getDocumentProperty("github_projectId");
+        let searchQuery = "repo:throneteki-playtesting/throneteki is:issue label:automated project:throneteki-playtesting/" + Settings.getProperty(GooglePropertiesType.Document, "github_projectId");
         if (card) {
             // Get all issues with that card code & version in title
             // eg. "250001 in:title v1.0 in:title"
@@ -101,7 +101,7 @@ class GithubAPI {
 
     static getPullRequests() {
         /** https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests */
-        let searchQuery = "repo:throneteki-playtesting/throneteki is:pr label:automated project:throneteki-playtesting/" + Settings.getDocumentProperty("github_projectId");
+        let searchQuery = "repo:throneteki-playtesting/throneteki is:pr label:automated project:throneteki-playtesting/" + Settings.getProperty(GooglePropertiesType.Document, "github_projectId");
 
         return this.searchIssues(searchQuery);
     }
@@ -118,7 +118,7 @@ class GithubAPI {
                 method: "get",
                 headers: {
                     accept: 'application/vnd.github+json',
-                    authorization: "Bearer " + Settings.getUserProperty("github_apiKey")
+                    authorization: "Bearer " + Settings.getProperty(GooglePropertiesType.User, "github_apiKey")
                 },
                 muteHttpExceptions: true
             }
@@ -144,7 +144,7 @@ class GithubAPI {
             payload: JSON.stringify(issue),
             headers: {
                 accept: 'application/vnd.github+json',
-                authorization: "Bearer " + Settings.getUserProperty("github_apiKey")
+                authorization: "Bearer " + Settings.getProperty(GooglePropertiesType.User, "github_apiKey")
             },
             muteHttpExceptions: true
         }
@@ -166,7 +166,7 @@ class GithubAPI {
             payload: JSON.stringify(pullRequest),
             headers: {
                 accept: 'application/vnd.github+json',
-                authorization: "Bearer " + Settings.getUserProperty("github_apiKey")
+                authorization: "Bearer " + Settings.getProperty(GooglePropertiesType.User, "github_apiKey")
             },
             muteHttpExceptions: true
         }
@@ -188,7 +188,7 @@ class GithubAPI {
             payload: JSON.stringify({ labels }),
             headers: {
                 accept: 'application/vnd.github+json',
-                authorization: "Bearer " + Settings.getUserProperty("github_apiKey")
+                authorization: "Bearer " + Settings.getProperty(GooglePropertiesType.User, "github_apiKey")
             },
             muteHttpExceptions: true
         }
@@ -213,7 +213,7 @@ class GithubAPI {
             payload: JSON.stringify(issue),
             headers: {
                 accept: 'application/vnd.github+json',
-                authorization: "Bearer " + Settings.getUserProperty("github_apiKey")
+                authorization: "Bearer " + Settings.getProperty(GooglePropertiesType.User, "github_apiKey")
             },
             muteHttpExceptions: true
         }
@@ -238,7 +238,7 @@ class GithubAPI {
             payload: JSON.stringify(pullRequest),
             headers: {
                 accept: 'application/vnd.github+json',
-                authorization: "Bearer " + Settings.getUserProperty("github_apiKey")
+                authorization: "Bearer " + Settings.getProperty(GooglePropertiesType.User, "github_apiKey")
             },
             muteHttpExceptions: true
         }

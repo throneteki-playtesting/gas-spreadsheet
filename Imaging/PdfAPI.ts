@@ -9,7 +9,7 @@ class PDFAPI {
   static generateSheet(project: Project, cards: Card[], fileName: string, sandbox = false): string {
     const url = "https://api.pdfshift.io/v3/convert/pdf";
     const baseFolder = "s3://agot-playtesting/printing";
-    const apiKey = Settings.getUserProperty('pdf_apiKey');
+    const apiKey = Settings.getProperty(GooglePropertiesType.User, 'pdf_apiKey');
 
     const html = HTMLRenderEngine.batch(project, cards);
 

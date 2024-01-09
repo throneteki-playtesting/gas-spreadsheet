@@ -1,5 +1,5 @@
 import { ProjectType } from "../../Common/Enums";
-import { Settings } from "../Settings";
+import { GooglePropertiesType, Settings } from "../Settings";
 
 class Project {
   readonly name: string;
@@ -10,11 +10,11 @@ class Project {
 
   constructor(name?: string, short?: string, code?: number, totalCards?: number, type?: ProjectType) {
     // TODO: Convert into Document Property & create interface to edit those properties from spreadsheet menu
-    this.name = name || Settings.getScriptProperty("name");
-    this.short = short || Settings.getScriptProperty("short");
-    this.code = code || parseInt(Settings.getScriptProperty("code"));
-    this.totalCards = totalCards || parseInt(Settings.getScriptProperty("totalCards"));
-    this.type = type || ProjectType[Settings.getScriptProperty("type")];
+    this.name = name || Settings.getProperty(GooglePropertiesType.Script, "name");
+    this.short = short || Settings.getProperty(GooglePropertiesType.Script, "short");
+    this.code = code || parseInt(Settings.getProperty(GooglePropertiesType.Script, "code"));
+    this.totalCards = totalCards || parseInt(Settings.getProperty(GooglePropertiesType.Script, "totalCards"));
+    this.type = type || ProjectType[Settings.getProperty(GooglePropertiesType.Script, "type")];
   }
 
   get version(): SemanticVersion {

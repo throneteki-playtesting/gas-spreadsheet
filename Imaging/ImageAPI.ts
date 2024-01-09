@@ -8,8 +8,8 @@ class ImageAPI {
   static generateCard(project: any, card: any) {
     Log.verbose("Generating new image for " + card.toString() + "...");
     const url = "https://hcti.io/v1/image";
-    const apiKey = Settings.getUserProperty('image_apiKey');
-    const userId = Settings.getUserProperty('image_userId');
+    const apiKey = Settings.getProperty(GooglePropertiesType.User, 'image_apiKey');
+    const userId = Settings.getProperty(GooglePropertiesType.User, 'image_userId');
 
     const html = HTMLRenderEngine.single(project, card);
 

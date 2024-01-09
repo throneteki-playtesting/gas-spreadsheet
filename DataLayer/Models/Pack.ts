@@ -1,4 +1,5 @@
 import { ProjectType } from "../../Common/Enums";
+import { Log } from "../../Common/Logger";
 import { Card } from "./Card";
 import { Project } from "./Project";
 
@@ -31,6 +32,26 @@ class Pack {
         const month = this.releaseDate.getMonth().toString().padStart(2, "0");
         const day = this.releaseDate.getDay().toString().padStart(2, "0");
         return `${year}-${month}-${day}`;
+    }
+
+    validate() {
+        if (this.releaseDate) {
+            let errors:String[] = [];
+            for(let card of this.cards) {
+                if(!card.illustrator || card.illustrator == '?') {
+                    errors.push("Card Dev#" + card.development.number + " missing illustrator");
+                }
+            }
+
+            if(errors.length > 0) {
+                Log.error("Validation failed for '" + this.name + "' due to following errors:" + errors.map(error => "\n- " + error).join());
+                return false;
+            } else {
+                Log.information("Validation passed for '" + this.name + "'");
+            }
+        }
+        
+        return true;
     }
 
     toJSON() {

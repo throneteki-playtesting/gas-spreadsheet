@@ -33,6 +33,8 @@
         "Github/Github.ts",
         "Discord/DiscordHandler.ts",
         "Spreadsheet/Templates/Clipboard Popup.html",
+        "Spreadsheet/Templates/Multiform.html",
+        "Spreadsheet/UserInput.ts",
         "Spreadsheet/Spreadsheet.ts"
     ]
 }

@@ -19,14 +19,21 @@ class Card extends DataObject {
     static fromData(data: DataRow): Card {
         try {
             const project = Data.instance.project;
-
-            if (!data.getString(CardColumn.Version)) {
-                // TODO: Handle missing version as "TBA" card
-            }
-
             const number = data.getNumber(CardColumn.Number);
             // Cycles require ranges 0-499 for "live" cards, and 500-999 for "development" cards
             const code = parseInt(project.code + (project.type === ProjectType.Cycle ? (number + 500) : number).toString().padStart(3, "0"));
+
+            // Missing version should return a 'TBA' card
+            if (!data.getString(CardColumn.Version)) {
+                const tbaDevelopment = {
+                    project,
+                    number,
+                    version: new SemanticVersion(0, 0, 0),
+                    playtestVersion: new SemanticVersion(0, 0, 0),
+                    note: { type: undefined, text: undefined }
+                };
+                return new Card(data, code, tbaDevelopment, Faction.Neutral, 'TBA', CardType.Character, [], '', '', 3, 3, undefined, undefined, undefined, 0, { military: false, intrigue: false, power: false }, false, 0, undefined);
+            }
             const development = {
                 project,
                 number: number,

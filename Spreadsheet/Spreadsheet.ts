@@ -1,20 +1,7 @@
 import { Data } from "../DataLayer/Data";
-import { Settings } from "../DataLayer/Settings";
+import { GooglePropertiesType, Settings } from "../DataLayer/Settings";
 import { PDFAPI } from "../Imaging/PdfAPI";
-
-class UIHelper {
-  static get() {
-    return SpreadsheetApp.getUi();
-  }
-
-  static openDialogWindow(title: string, html: string, width = 600, height = 500) {
-    let output = HtmlService.createHtmlOutput(html);
-    output.setWidth(width);
-    output.setHeight(height);
-
-    this.get().showModalDialog(output, title);
-  }
-}
+import { UIHelper } from "./UserInput";
 
 function onSpreadsheetOpen() {
   const ui = UIHelper.get();
@@ -46,11 +33,12 @@ function onSpreadsheetOpen() {
                 .addItem("Print Sheet (PDF)", "openPDFSheetsDialog")
             )
             .addItem("Generate Update Notes", "openUpdateNotesDialog")
+            .addItem("Test", "testMulti")
         ).addSubMenu(
-          ui.createMenu("Clear Stored Data")
-            .addItem("Script Data", "clearScriptProperties")
-            .addItem("Document Data", "clearDocumentProperties")
-            .addItem("User Data", "clearUserProperties")
+          ui.createMenu("Edit Stored Data")
+            .addItem("Script Data", "editScriptProperties")
+            .addItem("Document Data", "editDocumentProperties")
+            .addItem("User Data", "editUserProperties")
         )
       // ).addSubMenu(
       // ui.createMenu("Generate New Pack")
@@ -60,7 +48,7 @@ function onSpreadsheetOpen() {
 }
 
 function finalizeChanges() {
-  
+  // TODO
 }
 
 function archivePlaytestingUpdateCards() {
@@ -78,6 +66,10 @@ function openJSONDevDialog() {
   htmlTemplate.text = json;
 
   UIHelper.openDialogWindow(pack.code + " exported as JSON", htmlTemplate.evaluate().getContent().replace(/\n\n/g, "\n"));
+}
+
+function openJSONReleaseDialog() {
+  // TODO
 }
 
 function openPDFSheetsDialog() {
@@ -100,25 +92,21 @@ function openUpdateNotesDialog() {
   // TODO
 }
 
-function clearScriptProperties() {
-  Settings.clearScriptProperties();
+function editScriptProperties() {
+  Settings.editProperties(GooglePropertiesType.Script);
 }
-function clearDocumentProperties() {
-  Settings.clearDocumentProperties();
+function editDocumentProperties() {
+  Settings.editProperties(GooglePropertiesType.Document);
 }
-function clearUserProperties() {
-  Settings.clearUserProperties();
+function editUserProperties() {
+  Settings.editProperties(GooglePropertiesType.User);
 }
 
 export {
-  UIHelper,
   onSpreadsheetOpen,
   finalizeChanges,
   archivePlaytestingUpdateCards,
   openJSONDevDialog,
   openPDFSheetsDialog,
-  openUpdateNotesDialog,
-  clearScriptProperties,
-  clearDocumentProperties,
-  clearUserProperties
+  openUpdateNotesDialog
 }

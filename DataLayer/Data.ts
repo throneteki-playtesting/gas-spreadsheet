@@ -3,7 +3,7 @@ import { ProjectType } from "../Common/Enums";
 import { Project, SemanticVersion } from "./Models/Project";
 import { Review } from "./Models/Review";
 import { Pack } from "./Models/Pack";
-import { Settings } from "./Settings";
+import { GooglePropertiesType, Settings } from "./Settings";
 import { CardColumn, Columns, ReviewColumn } from "../Common/Columns";
 import { Forms } from "../Forms/Form";
 import { Log } from "../Common/Logger";
@@ -22,7 +22,7 @@ class Data {
 
   constructor() {
     if (!SpreadsheetApp.getActiveSpreadsheet()) {
-      const spreadsheetId = Settings.getScriptProperty("spreadsheetId");
+      const spreadsheetId = Settings.getProperty(GooglePropertiesType.Script, "spreadsheetId");
       SpreadsheetApp.setActiveSpreadsheet(SpreadsheetApp.openById(spreadsheetId));
     }
     this.project = new Project();
@@ -121,7 +121,7 @@ class Data {
 
   getReleasePack(cards: Card[], code: number, short: string, name: string, type: ProjectType, releaseDate: Date) {
     const project = new Project(name, short, code, cards.length, type);
-    return new Pack(cards, project);
+    return new Pack(cards, project, releaseDate);
   }
 
   getChangedCards() {

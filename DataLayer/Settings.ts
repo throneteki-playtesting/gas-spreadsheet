@@ -1,45 +1,45 @@
+import { UIHelper } from "../Spreadsheet/UserInput";
+
+enum GooglePropertiesType {
+    Script,
+    Document,
+    User
+}
+
 class Settings {
-    static getScriptProperty(key: string, question?: string): string {
-        let value = PropertiesService.getScriptProperties().getProperty(key);
-        if (!value) {
-            const response = SpreadsheetApp.getUi().prompt(question || "Please provide value for " + key + ":");
+    private static getPropertiesService(type: GooglePropertiesType) {
+        switch(type) {
+            case GooglePropertiesType.Script:
+                return PropertiesService.getScriptProperties();
+            case GooglePropertiesType.Document:
+                return PropertiesService.getDocumentProperties();
+            case GooglePropertiesType.User:
+                return PropertiesService.getUserProperties();
+        }
+    }
+
+    static editProperties(type: GooglePropertiesType) {
+        const service = Settings.getPropertiesService(type);
+        let properties = service.getProperties();
+        properties = UIHelper.openMultiWindow(properties, "Edit " + GooglePropertiesType[type] + " Properties");
+        if(properties) {
+            service.setProperties(properties);
+        }
+    }
+
+    static getProperty(type: GooglePropertiesType, key: string) {
+        const service = Settings.getPropertiesService(type);
+        let value = service.getProperty(key);
+        if(!value) {
+            const response = SpreadsheetApp.getUi().prompt("Please provide value for " + key + ":");
             value = response.getResponseText();
-            PropertiesService.getScriptProperties().setProperty(key, value);
+            service.setProperty(key, value);
         }
         return value;
-    }
-
-    static getDocumentProperty(key: string, question?: string): string {
-        let value = PropertiesService.getDocumentProperties().getProperty(key);
-        if (!value) {
-            const response = SpreadsheetApp.getUi().prompt(question || "Please provide value for " + key + ":");
-            value = response.getResponseText();
-            PropertiesService.getDocumentProperties().setProperty(key, value);
-        }
-        return value;
-    }
-
-    static getUserProperty(key: string, question?: string): string {
-        let value = PropertiesService.getUserProperties().getProperty(key);
-        if (!value) {
-            const response = SpreadsheetApp.getUi().prompt(question || "Please provide value for " + key + ":");
-            value = response.getResponseText();
-            PropertiesService.getUserProperties().setProperty(key, value);
-        }
-        return value;
-    }
-
-    static clearScriptProperties() {
-        PropertiesService.getScriptProperties().deleteAllProperties();
-    }
-
-    static clearDocumentProperties() {
-        PropertiesService.getDocumentProperties().deleteAllProperties();
-    }
-
-    static clearUserProperties() {
-        PropertiesService.getUserProperties().deleteAllProperties();
     }
 }
 
-export { Settings }
+export {
+    GooglePropertiesType,
+    Settings
+}

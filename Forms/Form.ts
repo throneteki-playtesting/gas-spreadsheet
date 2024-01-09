@@ -2,7 +2,7 @@ import { FormQuestion } from "../Common/Enums";
 import { Log } from "../Common/Logger";
 import { Data } from "../DataLayer/Data";
 import { Review } from "../DataLayer/Models/Review";
-import { Settings } from "../DataLayer/Settings";
+import { GooglePropertiesType, Settings } from "../DataLayer/Settings";
 import { DiscordHandler } from "../Discord/DiscordHandler";
 
 class Forms {
@@ -11,7 +11,7 @@ class Forms {
     }
 
     static get() {
-        return FormApp.openById(Settings.getDocumentProperty("googleForms_formId"));
+        return FormApp.openById(Settings.getProperty(GooglePropertiesType.Document, "googleForms_formId"));
     }
 
     static getFormResponse(responseId: string) {

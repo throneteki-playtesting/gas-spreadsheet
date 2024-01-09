@@ -1,4 +1,4 @@
-import { Settings } from "../DataLayer/Settings";
+import { GooglePropertiesType, Settings } from "../DataLayer/Settings";
 
 class Log {
     static information(message: string) {
@@ -10,7 +10,7 @@ class Log {
     }
 
     static verbose(message: string) {
-        if (Settings.getScriptProperty("mode") === "debug") {
+        if (Settings.getProperty(GooglePropertiesType.Script, "mode") === "debug") {
             console.log("[Verbose]: " + message);
         }
     }
