@@ -28,27 +28,26 @@ class Pack {
         if (!this.releaseDate) {
             return null;
         }
-        const year = this.releaseDate.getFullYear();
-        const month = this.releaseDate.getMonth().toString().padStart(2, "0");
-        const day = this.releaseDate.getDay().toString().padStart(2, "0");
-        return `${year}-${month}-${day}`;
+        return new Date(this.releaseDate.getTime() - (this.releaseDate.getTimezoneOffset() * 60000 )).toISOString().split("T")[0];
     }
 
     validate() {
-        if (this.releaseDate) {
-            let errors:String[] = [];
-            for(let card of this.cards) {
-                if(!card.illustrator || card.illustrator == '?') {
-                    errors.push("Card Dev#" + card.development.number + " missing illustrator");
-                }
+        let errors:String[] = [];
+        for(let card of this.cards) {
+            if(!card.illustrator || card.illustrator == '?') {
+                errors.push("Card Dev#" + card.development.number + " missing illustrator");
             }
 
-            if(errors.length > 0) {
-                Log.error("Validation failed for '" + this.name + "' due to following errors:" + errors.map(error => "\n- " + error).join());
-                return false;
-            } else {
-                Log.information("Validation passed for '" + this.name + "'");
+            if(!card.development.final || !card.development.final.number) {
+                errors.push("Card Dev#" + card.development.number + " missing final number");
             }
+        }
+
+        if(errors.length > 0) {
+            Log.error("Validation failed for '" + this.name + "' due to following errors:" + errors.map(error => "\n- " + error).join());
+            return false;
+        } else {
+            Log.information("Validation passed for '" + this.name + "'");
         }
         
         return true;

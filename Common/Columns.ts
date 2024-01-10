@@ -23,7 +23,9 @@ enum CardColumn {
     NoteType,
     NoteText,
     PlaytestVersion,
-    GithubIssue
+    GithubIssue,
+    PackShort,
+    ReleaseNumber
 }
 
 enum ReviewColumn {

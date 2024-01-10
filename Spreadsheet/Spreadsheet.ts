@@ -1,3 +1,4 @@
+import { ProjectType } from "../Common/Enums";
 import { Data } from "../DataLayer/Data";
 import { GooglePropertiesType, Settings } from "../DataLayer/Settings";
 import { PDFAPI } from "../Imaging/PdfAPI";
@@ -40,10 +41,9 @@ function onSpreadsheetOpen() {
             .addItem("Document Data", "editDocumentProperties")
             .addItem("User Data", "editUserProperties")
         )
-      // ).addSubMenu(
-      // ui.createMenu("Generate New Pack")
-      //   // .addItem("1. Validate Data", "TODO")
-      //   // .addItem("2. Export to JSON", "TODO")
+       ).addSubMenu(
+       ui.createMenu("Release Tools")
+          .addItem("Validate & Export JSON", "openJSONReleaseDialog")
     ).addToUi();
 }
 
@@ -69,7 +69,30 @@ function openJSONDevDialog() {
 }
 
 function openJSONReleaseDialog() {
-  // TODO
+  const data = Data.instance;
+
+  const packData = UIHelper.openMultiWindow(["Name", "Short Name", "Release Date (YYYY-MM-DD)"], "Provide Release Data", undefined, undefined, "Generate");
+  const name = packData["Name"];
+  const short = packData["Short Name"];
+  const code = Data.instance.project.code;
+  const type = ProjectType.Pack;
+  const releaseDate = new Date(packData["Release Date (YYYY-MM-DD)"]);
+  
+  const cards = data.latestCards.filter(card => card.development.final?.packCode === short);
+
+  const pack = data.getReleasePack(cards, code, short, name, type, releaseDate);
+
+  if(!pack.validate()) {
+    throw new Error("Release could not be generated; see logs for errors.");
+  }
+
+  const json = JSON.stringify(pack.toJSON(), null, 4);
+
+  const htmlTemplate = HtmlService.createTemplateFromFile("Spreadsheet/Templates/Clipboard Popup");
+  htmlTemplate.instructions = `Copy + Paste the following into the <strong>${pack.code}.json</strong> file in the <strong>development-${data.project.short}</strong> branch of <strong>throneteki-json-data</strong>`;
+  htmlTemplate.text = json;
+
+  UIHelper.openDialogWindow(pack.code + " exported as JSON", htmlTemplate.evaluate().getContent().replace(/\n\n/g, "\n"));
 }
 
 function openPDFSheetsDialog() {

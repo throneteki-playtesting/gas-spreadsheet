@@ -50,6 +50,10 @@ class Card extends DataObject {
                 githubIssue: data.hasValue(CardColumn.GithubIssue) ? {
                     status: data.getString(CardColumn.GithubIssue),
                     url: data.getRichTextValue(CardColumn.GithubIssue).getLinkUrl() || ""
+                } : undefined,
+                final: data.hasValue(CardColumn.PackShort) ? {
+                    packCode: data.getString(CardColumn.PackShort),
+                    number: data.getString(CardColumn.ReleaseNumber)
                 } : undefined
             } as Development;
             const faction = data.getEnum<Faction>(Faction, CardColumn.Faction);
@@ -168,7 +172,7 @@ class Card extends DataObject {
 
     toJSON(workInProgress = false): JSON {
         const obj: any = {
-            code: this.code.toString(),
+            code: workInProgress || !this.development.final ? this.code : parseInt(this.development.project.code + this.development.final.number.toString().padStart(3, "0")),
             ...(workInProgress && { version: this.development.version.toString() }),
             type: CardType[this.type].toLowerCase(),
             name: this.name,
@@ -187,7 +191,7 @@ class Card extends DataObject {
             deckLimit: this.deckLimit,
             illustrator: this.illustrator,
             ...(this.designer && { designer: this.designer }),
-            imageUrl: this.development.image?.url || ""
+            imageUrl: workInProgress ? this.development.image?.url || "" : this.releaseUrl
         }
         return obj as JSON;
     }
@@ -235,6 +239,13 @@ class Card extends DataObject {
 
             if (this.development.githubIssue?.status && this.development.githubIssue?.url) {
                 newData.setRichTextValue(CardColumn.GithubIssue, SpreadsheetApp.newRichTextValue().setText(this.development.githubIssue.status).setLinkUrl(this.development.githubIssue.url).build());
+            }
+
+            if (this.development.final?.packCode) {
+                newData.setString(CardColumn.PackShort, this.development.final.packCode);
+            }
+            if (this.development.final?.number) {
+                newData.setString(CardColumn.ReleaseNumber, this.development.final.number);
             }
 
             switch (this.type) {
@@ -298,6 +309,10 @@ class Card extends DataObject {
             image: !this.development.image ? this.development.image : {
                 url: this.development.image.url,
                 version: this.development.image.version.clone()
+            },
+            final: !this.development.final ? this.development.final : {
+                packCode: this.development.final.packCode,
+                number: this.development.final.number
             }
         };
         const faction = this.faction;
@@ -379,6 +394,25 @@ class Card extends DataObject {
         return !this.isInitial && !this.development.version.equals(this.development.playtestVersion);
     }
 
+    /***
+     * @returns True if this card has all data ready to be released
+     */
+    get isReleasable() {
+        return this.development.final && this.development.final.packCode && this.development.final.number;
+    }
+
+    /***
+     * @returns The url for this card, ready for release
+     */
+    get releaseUrl() {
+        if(!this.isReleasable) {
+            return "";
+        }
+        const urlNumber = this.development.final?.number.toString().padStart(2, "0");
+        const name = this.name.replace(/\s/g, "%20").replace(/'/g, "_").replace(/,/g, "%2C");
+        return "https://throneteki.ams3.cdn.digitaloceanspaces.com/packs/" + this.development.final?.packCode + "/" + urlNumber + "_" + name + ".png"; 
+    }
+
     /**
      * @returns Gets the copy of this card which is currently being referenced for issues/coding
      */
@@ -406,6 +440,10 @@ interface Development {
     image?: {
         url: string,
         version: SemanticVersion
+    },
+    final?: {
+        packCode: string,
+        number: number
     }
 };
 
