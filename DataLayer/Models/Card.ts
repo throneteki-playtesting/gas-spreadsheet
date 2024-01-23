@@ -409,8 +409,8 @@ class Card extends DataObject {
             return "";
         }
         const urlNumber = this.development.final?.number.toString().padStart(2, "0");
-        const name = this.name.replace(/\s/g, "%20").replace(/'/g, "_").replace(/,/g, "%2C");
-        return "https://throneteki.ams3.cdn.digitaloceanspaces.com/packs/" + this.development.final?.packCode + "/" + urlNumber + "_" + name + ".png"; 
+        const name = encodeURI(this.name.replace(/[<>:"/\\|?*]/g, "").replace(/\s/g, "_"));
+        return "https://throneteki.ams3.cdn.digitaloceanspaces.com/packs/" + this.development.final?.packCode + "/" + urlNumber + "_" + name + ".png";
     }
 
     /**
