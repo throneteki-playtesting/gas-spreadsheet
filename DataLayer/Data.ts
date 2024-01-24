@@ -116,7 +116,7 @@ class Data {
   }
 
   getDevelopmentPack() {
-    return new Pack(this.latestCards, this.project);
+    return new Pack(this.latestCards.filter(card => !card.development.final?.packCode), this.project);
   }
 
   getReleasePack(cards: Card[], code: number, short: string, name: string, type: ProjectType, releaseDate: Date) {
