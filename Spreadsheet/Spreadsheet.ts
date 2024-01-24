@@ -82,14 +82,15 @@ function openJSONReleaseDialog() {
 
   const pack = data.getReleasePack(cards, code, short, name, type, releaseDate);
 
-  if(!pack.validate()) {
-    throw new Error("Release could not be generated; see logs for errors.");
-  }
+  const errors = pack.validate();
 
   const json = JSON.stringify(pack.toJSON(), null, 4);
 
   const htmlTemplate = HtmlService.createTemplateFromFile("Spreadsheet/Templates/Clipboard Popup");
-  htmlTemplate.instructions = `Copy + Paste the following into the <strong>${pack.code}.json</strong> file in the <strong>development-${data.project.short}</strong> branch of <strong>throneteki-json-data</strong>`;
+  htmlTemplate.instructions = `Copy + Paste the following into the <strong>${pack.code}.json</strong> file into the appropriate branch within <strong>throneteki-json-data</strong>`;
+  if(errors.length > 0) {
+    htmlTemplate.instructions += `\n\nNote: The following errors were found:\n- ${errors.join('\n- ')}`;
+  }
   htmlTemplate.text = json;
 
   UIHelper.openDialogWindow(pack.code + " exported as JSON", htmlTemplate.evaluate().getContent().replace(/\n\n/g, "\n"));

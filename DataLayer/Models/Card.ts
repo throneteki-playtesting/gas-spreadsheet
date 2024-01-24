@@ -408,7 +408,7 @@ class Card extends DataObject {
         if(!this.isReleasable) {
             return "";
         }
-        const urlNumber = this.development.final?.number.toString().padStart(2, "0");
+        const urlNumber = this.development.final?.number;
         const name = encodeURI(this.name.replace(/[<>:"/\\|?*]/g, "").replace(/\s/g, "_"));
         return "https://throneteki.ams3.cdn.digitaloceanspaces.com/packs/" + this.development.final?.packCode + "/" + urlNumber + "_" + name + ".png";
     }

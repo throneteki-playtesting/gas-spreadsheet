@@ -34,23 +34,26 @@ class Pack {
     validate() {
         let errors:String[] = [];
         for(let card of this.cards) {
+            const errorPrefix = "Card Dev#" + card.development.number + " (" + card.name + ")";
             if(!card.illustrator || card.illustrator == '?') {
-                errors.push("Card Dev#" + card.development.number + " missing illustrator");
+                errors.push(errorPrefix + " missing illustrator");
             }
 
             if(!card.development.final || !card.development.final.number) {
-                errors.push("Card Dev#" + card.development.number + " missing final number");
+                errors.push(errorPrefix + " missing final number");
             }
-        }
 
-        if(errors.length > 0) {
-            Log.error("Validation failed for '" + this.name + "' due to following errors:" + errors.map(error => "\n- " + error).join());
-            return false;
-        } else {
-            Log.information("Validation passed for '" + this.name + "'");
+            // TODO (use fetchAll instead somehow, and confirm working)
+            // if(card.development.image) {
+            //     var imageResponse = UrlFetchApp.fetch(card.development.image.url);
+            //     if(imageResponse.getResponseCode() !== 200) {
+            //         errors.push(errorPrefix + " cannot successfully reach URL (" + imageResponse.getResponseCode() +")");
+            //     }
+            // } else {
+            //     errors.push(errorPrefix + " missing image url");
+            // }
         }
-        
-        return true;
+        return errors;
     }
 
     toJSON() {
