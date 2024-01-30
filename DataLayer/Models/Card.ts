@@ -172,7 +172,7 @@ class Card extends DataObject {
 
     toJSON(workInProgress = false): JSON {
         const obj: any = {
-            code: workInProgress || !this.development.final ? this.code : parseInt(this.development.project.code + this.development.final.number.toString().padStart(3, "0")),
+            code: workInProgress || !this.development.final ? this.code.toString() : this.development.project.code + this.development.final.number.toString().padStart(3, "0"),
             ...(workInProgress && { version: this.development.version.toString() }),
             type: CardType[this.type].toLowerCase(),
             name: this.name,
