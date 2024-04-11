@@ -21,8 +21,7 @@ Ensure that the script id set in `clasp.json` is configured appropriately to you
     "scriptId": "1rdas11vc8Og2dtQ2gtypy_xPxZPRWRrWCyjBWog37sNdg3JKv9MMr_Cn" // <--- Change this
 }
 ```
-Your script can be found in your Google App Script's project settings, or in the URL:
-![image](https://github.com/throneteki-playtesting/playtesting-spreadsheet/assets/23492047/736ae44f-20f3-45d7-8ac3-8c2b508dc9a5)
+Your script can be found in your Google App Script's project settings, or in the URL when viewing that sheet. Keep in mind that you will require editor permissions to successfully push updates.
 
 ### Pushing changes
 Simply run `clasp push` to push changes to the target script. **Please be careful where you push this, as the playtesting spreadsheet code should not be overridden without permission**.
