@@ -361,7 +361,7 @@ class Card extends DataObject {
      *  @returns True if this card is being or needs to be implemented online
      */
     get requiresImplementation() {
-        return this.development.githubIssue ? this.development.githubIssue.status !== "closed" : !this.development.version.equals(this.development.playtestVersion);
+        return this.development.githubIssue ? this.development.githubIssue.status !== "closed" : this.isPreRelease || this.isChanged;
     }
     /**
      *  @returns True if this card has been implemented online
@@ -391,7 +391,7 @@ class Card extends DataObject {
      *  @returns True if this card has been changed (eg. not in its initial or currently playtested state)
      */
     get isChanged() {
-        return !this.isInitial && !this.development.version.equals(this.development.playtestVersion);
+        return !this.isInitial && !this.development.version.equals(this.development.playtestVersion) && this.development.note.type;
     }
 
     /***
