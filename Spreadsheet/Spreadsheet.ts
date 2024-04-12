@@ -1,4 +1,5 @@
 import { ProjectType } from "../Common/Enums";
+import { Log } from "../Common/Logger";
 import { Data } from "../DataLayer/Data";
 import { GooglePropertiesType, Settings } from "../DataLayer/Settings";
 import { PDFAPI } from "../Imaging/PdfAPI";
@@ -70,13 +71,22 @@ function openJSONDevDialog() {
 
 function openJSONReleaseDialog() {
   const data = Data.instance;
-
-  const packData = UIHelper.openMultiWindow(["Name", "Short Name", "Release Date (YYYY-MM-DD)"], "Provide Release Data", undefined, undefined, "Generate");
-  const name = packData["Name"];
-  const short = packData["Short Name"];
+  const options = {
+    "Pack Short": {
+      type: 'select',
+      options: data.latestCards.map(c => c.development.final?.packCode).filter((pc, index, self) => pc && self.indexOf(pc) === index)
+    },
+    "Full Pack Name": undefined,
+    "Release Date": {
+      type: 'date'
+    }
+  }
+  const packData = UIHelper.openMultiWindow(options, "Provide Release Data", undefined, undefined, "Generate");
+  const name = packData["Full Pack Name"];
+  const short = packData["Pack Short"];
   const code = Data.instance.project.code;
   const type = ProjectType.Pack;
-  const releaseDate = new Date(packData["Release Date (YYYY-MM-DD)"]);
+  const releaseDate = new Date(packData["Release Date"]);
   
   const cards = data.latestCards.filter(card => card.development.final?.packCode === short);
 

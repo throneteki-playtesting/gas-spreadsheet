@@ -46,14 +46,31 @@ class UIHelper {
     }
 
     private static renderInputFields(options: Object) {
-        var html = '';
+        let html = '';
         for (let prop in options) {
-            html += `
+            // Defaults to text
+            if(!options[prop] || typeof options[prop] === 'string') {
+                options[prop] = {
+                    type: 'text',
+                    value: options[prop]
+                }
+            }
+            let inputHtml = ''
+            if(options[prop].type === 'select') {
+                inputHtml += `<select name="${prop}" id="${prop}" style="width: 100%;">
+                    ${options[prop].options.map((s: string) => `<option value="${s}">${s}</option>`).join('\n')}
+                </select>`
+            } else if(options[prop].type === 'date') {
+                inputHtml += `<input type="date" name="${prop}" id="${prop}" style="width: 100%;">`;
+            } else {
+                inputHtml += `<input type="text" name="${prop}" id="${prop}" ${options[prop].value ? "value=" + options[prop].value : ""} style="width: 100%;">`
+            }
+
+            html +=`
             <div class="form-group" style="width: 100%; padding-bottom: 5px;">
                 <label for="${prop}">${prop}</label>
-                <input type="text" name="${prop}" id="${prop}" ${options[prop] ? "value=" + options[prop] : ""} style="width: 100%;">
-            </div>
-        `;
+                ${inputHtml}
+            </div>`;
         }
         return html;
     }
