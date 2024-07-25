@@ -1,0 +1,39 @@
+<h1>:dart: Playtesting Update v<%- project.version %> (<%- project.short %>)</h1>
+This contains information for the latest playtesting update for the <b><%- project.name %></b> project. If you are hoping to contribute to this project, feel free to join the Design & Playtesting discord ([Invite here](https://discord.gg/HguMytPQV8)) to find out more!
+<h3>:flower_playing_cards: Physical Playtesting</h3>
+[➥ All Cards](<%- pdfAllUrl %>)<% if(pdfUpdatedUrl) { %> | [➥ Changed Cards Only](<%- pdfUpdatedUrl %>)<% } %>
+These PDF documents should help you print & play files at home; simply print them locally, and slip them over existing cards!
+<nl>
+<h3>:computer: Digital Playtesting</h3>
+[➥ Playtesting Website](http://playtesting.theironthrone.net)
+These changes should also be reflected on the online Playtesting instance of The Iron Throne. Please report any bugs you find by either [Creating a Github Issue](https://docs.github.com/en/issues/tracking-your-work-with-issues/creating-an-issue#creating-an-issue-from-a-repository) <em>(preferred)</em>, or posting in the [Bugs Channel](https://discord.com/channels/698308957822779462/1002176317007089697) on the Design & Playtesting discord.
+<nl>
+<h2>:card_file_box: Card Change Notes</h2>
+All card changes are grouped to reflect the type of change being applied. To view any altered card texts, please download one of the Physical Playtesting PDF's above.
+<b>Note:</b> Card changes which have been implemented online in this update are marked with <%- Emoji[NoteType[NoteType.Implemented]] %>, whilst changes which will be implemented in future updates are marked with <%- Emoji[NoteType[NoteType.NotImplemented]] %>.
+
+<% for(const changeNoteGroup in changeNoteGroups) {
+const type = NoteType[changeNoteGroup]; %>
+<h3><%- Emoji[type] %> <%- type %></h3>
+<% for(const note of changeNoteGroups[changeNoteGroup]) {
+const noteTextHtml = note.text ? `<br>${note.text}` : "";
+switch(NoteType[type]) {
+case NoteType.Replaced: %>
+- <b><%- note.icons.join("") %> <%- note.oldCard.name %> v<%- note.oldCard.development.version %> replaced by <%- note.newCard.name %> v<%- note.newCard.development.version %></b><%- noteTextHtml %>
+<% break;
+default: %>
+- <b><%- note.icons.join("") %> <%- note.newCard.name %> v<%- note.newCard.development.version %></b><%- noteTextHtml %>
+<% }
+}
+} %>
+<nl>
+<% if(implemented.length > 0) { %>
+<h2>:desktop_computer: Implemented Online (Digital Playtesting)</h2>
+<% for(const note of implemented) {
+const noteTextHtml = note.text ? `<br>${note.text}` : ""; %>
+- <%- note.icons.join("") %> <%- note.newCard.name %> v<%- note.newCard.development.version %><%- noteTextHtml %>
+<% }
+} %>
+---
+<nl>
+<em>Last Updated: <%= date %></em>

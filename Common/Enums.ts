@@ -1,4 +1,4 @@
-enum NoteType {
+export enum NoteType {
     Replaced,
     Reworked,
     Updated,
@@ -6,13 +6,13 @@ enum NoteType {
     NotImplemented
 }
 
-enum ProjectType {
+export enum ProjectType {
     Pack,
     Cycle,
     Expansion
 }
 
-enum FormQuestion {
+export enum FormQuestion {
     DiscordName,
     ReviewingCard,
     DeckLink,
@@ -23,7 +23,7 @@ enum FormQuestion {
     Additional
 }
 
-enum Faction {
+export enum Faction {
     Baratheon = "House Baratheon",
     Greyjoy = "House Greyjoy",
     Lannister = "House Lannister",
@@ -35,7 +35,7 @@ enum Faction {
     Neutral = "Neutral"
 }
 
-enum CardType {
+export enum CardType {
     Character,
     Location,
     Attachment,
@@ -44,7 +44,7 @@ enum CardType {
     Agenda
 }
 
-enum DefaultDeckLimit {
+export enum DefaultDeckLimit {
     Character = 3,
     Attachment = 3,
     Location = 3,
@@ -53,23 +53,31 @@ enum DefaultDeckLimit {
     Agenda = 1
 }
 
-enum RenderType {
+export enum RenderType {
     Single,
     Batch
 }
 
-enum BatchType {
+export enum BatchType {
     All,
     Updated
 }
 
-export {
-    NoteType,
-    ProjectType,
-    FormQuestion,
-    Faction,
-    CardType,
-    DefaultDeckLimit,
-    RenderType,
-    BatchType
+export enum ResourceFormat {
+    JSON,
+    HTML,
+    TEXT
+}
+
+export function maxEnum(o: unknown) {
+    return Math.max(...Object.keys(o).filter(obj => !isNaN(parseInt(obj))).map(obj => parseInt(obj))) + 1;
+}
+
+export function getEnum<E>(o: unknown, val: string | number) {
+    const e = Object.values(o).find((value) => value === val);
+    return e as E;
+}
+
+export function getEnumName<E>(o: unknown, val: E) {
+    return Object.keys(o)[Object.values(o).indexOf(val)];
 }

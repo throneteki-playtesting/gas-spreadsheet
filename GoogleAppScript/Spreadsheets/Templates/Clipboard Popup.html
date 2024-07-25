@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+  </head>
+  <script>
+    function copyToClipboard() {
+      var copyText = document.getElementById("customText");
+      copyText.select();
+      copyText.setSelectionRange(0, 99999);
+      navigator.clipboard.writeText(copyText.value);
+    }
+  </script>
+  <body>
+    <div>
+      <%- instructions %>
+    </div>
+    <textarea id='customText' style='width:100%;' rows='20'><%= text %></textarea>
+    <button onclick="copyToClipboard()">Copy to Clipboard</button>
+  </body>
+</html>

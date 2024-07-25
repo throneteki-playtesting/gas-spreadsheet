@@ -1,0 +1,27 @@
+<h2><%= Emoji["CardUpdate"] %> Replacement requested from <em><%= oldCard.name %></em> to <%= newCard.name %> (<%= pack.short %>)</h2>
+<em>Date requested: <%= date %></em>
+<nl>
+<h3>What needs to be done?</h3>
+Old card file & methods need to be removed, and new card needs to be added to this repository, which will require a card file to be created and potentially code implementation.
+<em>Non-text box & keyword implementations are automatically processed with updates to [<%= jsonRepoData.name %>](<%- jsonRepoData.link %>).</em>
+
+Previous Card | Replacement Card
+:-------------------------:|:-------------------------:
+![image](<%= oldCard.development.image?.url %>) |![image](<%= newCard.development.image?.url %>)
+<nl>
+<h3>Change Notes</h3>
+<%= Emoji[newCard.development.note.type] %> <b><%= newCard.development.note.type %></b> - <%- newCard.development.note.text %><nl>
+<nl>
+---
+<nl>
+<h3>Implementation Steps</h3>
+1. Create a branch from `development-<%= pack.short %>` (you may use a single branch for multiple implementations/updates)
+2. Remove the previous card file, and any external methods/files that were created for it
+3. Create & implement new card file for this card (within 'server/game/cards/<%= pack.short %>')
+4. (Important) Set the card version (near bottom of file) to `ReplacementCardClass.version = '<%= newCard.development.version %>'`
+5. (Optional) Test the implementation locally
+6. When ready (single or in bulk), create Pull Request into `development-<%= pack.short %>` branch, linking this issue in the description as 'Closes: #[this issue number]'
+<nl>
+---
+<nl>
+<em>:robot: Issue was automatically created, and will close itself when new card implementation is pushed to the playtesting website.</em>
