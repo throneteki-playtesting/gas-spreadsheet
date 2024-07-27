@@ -15,13 +15,13 @@ export function doGet(e: GoogleAppsScript.Events.DoGet) {
 
         switch (action) {
             case "cards":
-                const { filter, no } = e.parameter;
+                const { filter, ids } = e.parameter;
 
-                const types = (filter || "").split(",").map((f) => f.trim() as AvailableSheetTypes);
+                const types = filter?.split(",").map((f) => f.trim() as AvailableSheetTypes);
 
-                const ids = no ? no.split(",") : [];
-                const r = ids.map((id) => id.trim().split("@")).map(([number, version]) => ({ number: parseInt(number), version }));
-                const cardList = SpreadsheetHandler.readCards({ types, read: r });
+                const idStrings = ids?.split(",");
+                const readIds = idStrings?.map((id) => id.trim().split("@")).map(([number, version]) => ({ number: parseInt(number), version }));
+                const cardList = SpreadsheetHandler.readCards({ types, read: readIds });
                 const data = {
                     project: SpreadsheetHandler.fetchProjectSettings(),
                     cards: cardList
@@ -71,7 +71,7 @@ export function doPost(e: GoogleAppsScript.Events.DoPost) {
                 switch (subAction) {
                     case "delete":
                         const deleting = json.map((j) => ({ number: parseInt(j[Column.Number]), version: j[Column.Version] }));
-                        const deleted = SpreadsheetHandler.deleteCards({ types, delete: deleting });
+                        const deleted = SpreadsheetHandler.destroyCards({ types, destroy: deleting });
                         return sendResponse({
                             request: e,
                             data: {

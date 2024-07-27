@@ -7,41 +7,42 @@ class ImageService {
     constructor(private apiKey: string, private userId: string) {
         // Empty
     }
-    public async update(card: Card) {
-        if (card.development.versions.current !== card.development.versions.image || !card.development.imageUrl) {
-            const url = "https://hcti.io/v1/image";
+    public async update(cards: Card[]) {
+        for (const card of cards) {
+            if (card.development.versions.current !== card.development.versions.image || !card.development.imageUrl) {
+                const url = "https://hcti.io/v1/image";
 
-            const html = service.rendering.single(card);
-            const css = fs.readFileSync(path.resolve(__dirname, "../../public/css/render.css")).toString();
-            const options = {
-                method: "POST",
-                body: JSON.stringify({
-                    html,
-                    css,
-                    device_scale: 1.25,
-                    ms_delay: 1000,
-                    selector: "body"
-                }),
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Basic ${Buffer.from(`${this.userId}:${this.apiKey}`).toString("base64")}`
+                const html = service.rendering.single(card);
+                const css = fs.readFileSync(path.resolve(__dirname, "../../public/css/render.css")).toString();
+                const options = {
+                    method: "POST",
+                    body: JSON.stringify({
+                        html,
+                        css,
+                        device_scale: 1.25,
+                        ms_delay: 1000,
+                        selector: "body"
+                    }),
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Basic ${Buffer.from(`${this.userId}:${this.apiKey}`).toString("base64")}`
+                    }
+                } as RequestInit;
+
+                const response = await fetch(url, options);
+
+                if (!response.ok) {
+                    const json = await response.json() as { error: string, statusCode: number, message: string };
+                    throw Error(`Failed to fetch card image from API: ${json.error} (${json.statusCode}): ${json.message}`);
                 }
-            } as RequestInit;
 
-            const response = await fetch(url, options);
+                const json = await response.json() as { url: string };
 
-            if (!response.ok) {
-                const json = await response.json() as { error: string, statusCode: number, message: string };
-                throw Error(`Failed to fetch card image from API: ${json.error} (${json.statusCode}): ${json.message}`);
+                card.development.imageUrl = json.url;
+                card.development.versions.image = card.development.versions.current;
             }
-
-            const json = await response.json() as { url: string };
-
-            card.development.imageUrl = json.url;
-            card.development.versions.image = card.development.versions.current;
-            return json.url;
         }
-        return card.development.imageUrl;
+        return cards;
     }
 }
 

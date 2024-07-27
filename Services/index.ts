@@ -7,6 +7,7 @@ import DiscordService from "./Discord/DiscordService";
 import { MongoClient } from "mongodb";
 import DataService from "./Data/DataService";
 import ImageService from "./Rendering/ImageService";
+import { getQueryArray, getQuerySingle } from "../Common/Utils";
 
 const env = process.env.NODE_ENV || "development";
 
@@ -56,14 +57,6 @@ app.get("/:project/card/:number", async (req, res) => {
     }
 });
 
-// app.post("/:project/card/:number", async (req, res) => {
-//     try {
-//     } catch (err) {
-//         console.error(err);
-//         res.status(500).json(err.message);
-//     }
-// });
-
 /**
  * Request should fetch a range of cards from a specific project, in a format (defaults to JSON)
  */
@@ -100,19 +93,3 @@ app.get("/:project/cards", async (req, res) => {
 app.listen(3000, () => {
     console.log("Server running on port 3000");
 });
-
-function getQuerySingle(value: string | string[]) {
-    if (Array.isArray(value)) {
-        return value[0].split(",")[0].trim();
-    } else {
-        return value.split(",")[0].trim();
-    }
-}
-
-function getQueryArray(value: string | string[]) {
-    if (Array.isArray(value)) {
-        return value.join(",").split(",").map((v) => v.trim());
-    } else {
-        return value.split(",").map((v) => v.trim());
-    }
-}

@@ -6,10 +6,9 @@ import { ExpandoObject } from "../../Common/Utils";
 import Project from "../../Models/Project";
 import semverCompareBuild from "semver/functions/compare-build";
 import { service } from "..";
-import { SemVer } from "semver";
+import { eq } from "semver";
 import { AvailableSheetTypes } from "../../GoogleAppScript/Spreadsheets/Spreadsheet";
 import { CardIdentifier } from "../../GoogleAppScript/Spreadsheets/CardInfo";
-import { Message } from "discord.js";
 
 class DataService {
     private spreadsheet: GASDataSource;
@@ -20,81 +19,112 @@ class DataService {
         this.database = new MongoDataSource(dbClient);
     }
 
-    public async createCards(options: { projectShort: string, cards: Card[], filter: AvailableSheetTypes[] }) {
-        await this.database.createCards(options);
-        await this.spreadsheet.createCards(options);
+    public async createCards({ projectShort, cards, filter }: { projectShort: string, cards: Card[], filter: AvailableSheetTypes[] }) {
+        await this.database.createCards({ projectShort, cards });
+        await this.spreadsheet.createCards({ projectShort, cards, filter });
     }
 
-    public async readCards(options: { ids: CardIdentifier[], projectShort: string, refresh?: boolean, latestOnly?: boolean }) {
+    public async readCards({ projectShort, ids, refresh, filter }: { projectShort: string, ids?: CardIdentifier[], refresh?: boolean, filter?: AvailableSheetTypes[] }) {
         // Force data to refresh from spreadsheet (slow)
-        if (options.refresh) {
-            const fetched = await this.spreadsheet.readCards(options);
-            await this.database.updateCards({ projectShort: options.projectShort, cards: fetched });
+        if (refresh) {
+            const fetched = await this.spreadsheet.readCards({ projectShort, ids, filter });
+            await this.database.updateCards({ projectShort, cards: fetched });
             return fetched;
         }
         // Otherwise, use database (fast)...
-        const cards = await this.database.readCards(options);
-        const missing = options.ids.filter((id) => !cards.some((card) => card.development.number === id.number && (!id.version || card.development.versions.current === new SemVer(id.version))));
+        const cards = await this.database.readCards({ projectShort, ids });
+        const missing = ids?.filter((id) => !cards.some((card) => card.development.number === id.number && (!id.version || eq(card.development.versions.current, id.version)))) || [];
         // ... but fetch any which are missing (unlikely)
         if (missing.length > 0) {
-            const fetched = await this.spreadsheet.readCards(options);
-            await this.database.updateCards({ projectShort: options.projectShort, cards: fetched });
+            const fetched = await this.spreadsheet.readCards({ projectShort, ids: missing, filter });
+            await this.database.createCards({ projectShort, cards: fetched });
             return cards.concat(fetched);
         }
         return cards;
     }
 
-    public async updateCards(options: { projectShort: string, cards: Card[] }) {
-        await this.database.updateCards(options);
-        await this.spreadsheet.updateCards(options);
+    public async updateCards({ cards }: { cards: Card[] }) {
+        const groups = Map.groupBy(cards, (card) => card.development.project.short);
+        for (const [projectShort, cardGroup ] of Array.from(groups.entries())) {
+            await this.database.updateCards({ projectShort, cards: cardGroup });
+            await this.spreadsheet.updateCards({ projectShort, cards: cardGroup });
+        }
     }
 
-    public async pushCardUpdate(projectShort: string, numbers: number[] = []) {
-        const ids = numbers.map((number) => ({ number }));
-        const allCards = (await this.readCards({ projectShort, ids }));
-        const groups = Map.groupBy(allCards, (card) => card.development.number);
+    public async deleteCards({ projectShort, ids }: { projectShort: string, ids?: CardIdentifier[]}) {
+        await this.database.deleteCards({ projectShort, ids });
+        //TODO await this.spreadsheet.deleteCards(options);
+    }
+
+    public async cache({ type, projectShort, ids }: { type: string, projectShort: string, ids?: CardIdentifier[] }) {
+        switch (type) {
+            case "card":
+                const fetched = await this.spreadsheet.readCards({ projectShort, ids });
+                return await this.database.updateCards({ projectShort, cards: fetched });
+            default:
+                throw Error(`"${type}" is not a valid type to cache`);
+        }
+    }
+
+    public async clearCache({ type, projectShort, ids }: { type: string, projectShort: string, ids?: CardIdentifier[] }) {
+        switch (type) {
+            case "card":
+                return await this.database.deleteCards({ projectShort, ids });
+            default:
+                throw Error(`"${type}" is not a valid type to clear`);
+        }
+    }
+
+    // TODO: Refine this closer to playtesting release time
+    public async publish(projectShort: string, numbers: number[] = []) {
         const toUpdate = new Set<Card>();
         const toArchive = new Set<Card>();
         const implemented = new Set<Card>();
-        const discordResponses: Message<true>[] = [];
 
-        for (const [, cards] of Array.from(groups.entries())) {
-            const previous = cards.sort((a, b) => -semverCompareBuild(a.development.versions.current, b.development.versions.current));
-            const latest = previous.shift();
-
+        const cards = await this.readCards({ projectShort, ids: numbers.map((number) => ({ number })), refresh: true });
+        const groups = this.groupCardHistory(cards);
+        for (const group of groups) {
             // Sync card image
-            if (latest.isOutdatedImage) {
-                await service.imaging.update(latest);
-                toUpdate.add(latest);
+            if (group.latest.isOutdatedImage) {
+                await service.imaging.update([group.latest]);
+                toUpdate.add(group.latest);
             }
 
-            // Check if needs to be archived
-            if (latest.isChanged || latest.isNewlyImplemented || latest.isPreRelease) {
-                if (latest.development.versions.current !== latest.development.versions.playtesting) {
-                    toArchive.add(latest.clone());
-                    latest.development.versions.playtesting = latest.development.versions.current;
+            // If card has a marked change
+            if (group.latest.isChanged) {
+                if (group.latest.development.versions.current !== group.latest.development.versions.playtesting) {
+                    toArchive.add(group.latest.clone());
+                    group.latest.development.versions.playtesting = group.latest.development.versions.current;
                 }
 
-                delete latest.development.note;
-
-                if (latest.isNewlyImplemented) {
-                    delete latest.development.github;
-                    implemented.add(latest);
-                }
-                toUpdate.add(latest);
+                delete group.latest.development.note;
+                toUpdate.add(group.latest);
             }
-            const referenceMessage = await service.discord.syncCardThread(latest, ...previous);
-            discordResponses.push(referenceMessage);
+
+            if (group.latest.isImplemented) {
+                delete group.latest.development.github;
+                implemented.add(group.latest);
+            }
         }
 
-        service.data.updateCards({ projectShort, cards: Array.from(toUpdate) });
+        service.data.updateCards({ cards: Array.from(toUpdate) });
         service.data.createCards({ projectShort, cards: Array.from(toArchive), filter: ["archive"] });
         // TODO: Something with "Implemented"?
         return {
             archived: Array.from(toArchive),
-            updated: Array.from(toUpdate),
-            discord: discordResponses
+            updated: Array.from(toUpdate)
         };
+    }
+
+    public groupCardHistory(cards: Card[]) {
+        const groups = Map.groupBy(cards, (card) => card.development.number);
+
+        return Array.from(groups.entries()).map(([number, c]) => {
+            const previous = c.sort((a, b) => -semverCompareBuild(a.development.versions.current, b.development.versions.current));
+            const latest = previous.shift();
+
+            return { number, latest, previous };
+        });
     }
 }
 
@@ -120,19 +150,20 @@ class GASDataSource {
         const { token } = await client.getAccessToken();
         return `Bearer ${token}`;
     }
-    public async createCards(options: { projectShort: string, cards: Card[], filter: AvailableSheetTypes[] }) {
-        const scriptUrl = this.options.scripts[options.projectShort];
+
+    public async createCards({ projectShort, cards, filter }: { projectShort: string, cards: Card[], filter?: AvailableSheetTypes[] }) {
+        const scriptUrl = this.options.scripts[projectShort];
         if (!scriptUrl) {
-            throw Error(`Must provide google.script url for '${options.projectShort}' in config`);
+            throw Error(`Must provide google.script url for '${projectShort}' in config`);
         }
         const query = [
-            ...(options.filter.length > 0 && [ `filter=${options.filter.join(",")}` ])
+            ...(filter && filter.length > 0 && [ `filter=${filter.join(",")}` ])
         ];
         const url = `${scriptUrl}/${this.scriptSuffix}/cards/create${query.length > 0 ? `?${query.join("&")}` : ""}`;
         const fetchOptions = {
             method: "POST",
             headers: { Authorization: (await this.getAuthorization()) },
-            body: JSON.stringify(options.cards.map((card) => Card.serialise(card)))
+            body: JSON.stringify(cards.map((card) => Card.serialise(card)))
         } as RequestInit;
 
         const response = await fetch(url, fetchOptions);
@@ -147,20 +178,20 @@ class GASDataSource {
             throw Error("Google App Script returned one or more errors", { cause: json.error });
         }
 
-        console.log(`${json.data["created"]} ${options.projectShort} card(s) created in Google App Script`);
+        console.log(`${json.data["created"]} ${projectShort} card(s) created in Google App Script`);
     }
 
-    public async readCards(options: { projectShort: string, ids: CardIdentifier[], latestOnly?: boolean }) {
-        const scriptUrl = this.options.scripts[options.projectShort];
+    public async readCards({ projectShort, ids, filter }: { projectShort: string, ids?: CardIdentifier[], filter?: AvailableSheetTypes[] }) {
+        const scriptUrl = this.options.scripts[projectShort];
         if (!scriptUrl) {
-            throw Error(`Must provide google.script url for '${options.projectShort}' in config`);
+            throw Error(`Must provide google.script url for '${projectShort}' in config`);
         }
 
         // Converting to format "15" or "15@1.0.0"
-        const ids = options.ids.map((id) => `${id.number}${id.version ? `@${id.version}` : ""}`).join(",");
+        const cardIds = ids?.map((id) => `${id.number}${id.version ? `@${id.version}` : ""}`).join(",");
         const query = [
-            ...(options.latestOnly && [ "format=latest" ]),
-            ...(ids.length > 0 && [ `ids=${ids}` ])
+            ...(filter ? [ `format=${filter.join(",")}` ] : []),
+            ...(cardIds ? [ `ids=${cardIds}` ] : [])
         ];
         const url = `${scriptUrl}/${this.scriptSuffix}/cards${query.length > 0 ? `?${query.join("&")}` : ""}`;
         const fetchOptions = {
@@ -181,24 +212,24 @@ class GASDataSource {
         }
         const rawProject = json.data["project"] as ExpandoObject;
         const project = Project.deserialise(rawProject);
-        const rawCards = json.data["cards"] as string[][];
+        const rawCards = json.data["cards"] as unknown[][];
         const cards = rawCards.map((data) => Card.deserialise(project, data));
 
-        console.log(`${cards.length} ${options.projectShort} card(s) read from Google App Script`);
+        console.log(`${cards.length} ${projectShort} card(s) read from Google App Script`);
         return cards;
     }
 
-    public async updateCards(options: { projectShort: string, cards: Card[] }) {
-        const scriptUrl = this.options.scripts[options.projectShort];
+    public async updateCards({ projectShort, cards }: { projectShort: string, cards: Card[] }) {
+        const scriptUrl = this.options.scripts[projectShort];
         if (!scriptUrl) {
-            throw Error(`Must provide google.script url for '${options.projectShort}' in config`);
+            throw Error(`Must provide google.script url for '${projectShort}' in config`);
         }
 
         const url = `${scriptUrl}/${this.scriptSuffix}/cards/update`;
         const fetchOptions = {
             method: "POST",
             headers: { Authorization: (await this.getAuthorization()) },
-            body: JSON.stringify(options.cards.map((card) => Card.serialise(card)))
+            body: JSON.stringify(cards.map((card) => Card.serialise(card)))
         } as RequestInit;
 
         const response = await fetch(url, fetchOptions);
@@ -213,11 +244,11 @@ class GASDataSource {
             throw Error("Google App Script returned one or more errors", { cause: json.error });
         }
 
-        console.log(`${json.data["updated"]} ${options.projectShort} card(s) updated in Google App Script`);
+        console.log(`${json.data["updated"]} ${projectShort} card(s) updated in Google App Script`);
     }
 
     public async deleteCards() {
-        // TODO
+        // TODO: Delete from monogo & spreadsheet
         throw Error("NOT IMPLEMENTED");
     }
 }
@@ -228,17 +259,17 @@ class MongoDataSource {
         client.db().command({ ping: 1 }).then(() => console.log("MongoDB successfully connected.")).catch(console.dir);
     }
 
-    public async createCards(options: { projectShort: string, cards: Card[] }) {
-        return await this.updateCards(options);
+    public async createCards({ projectShort, cards }: { projectShort: string, cards: Card[] }) {
+        return await this.updateCards({ projectShort, cards });
     }
 
-    public async readCards(options: { projectShort: string, ids: CardIdentifier[] }) {
+    public async readCards({ projectShort, ids }: { projectShort: string, ids?: CardIdentifier[] }) {
         const collection = this.client.db().collection<Card>("cards");
         const query = {
-            "development.project.short": options.projectShort
+            "development.project.short": projectShort
         };
-        if (options.ids.length > 0) {
-            query["$or"] = options.ids.map((id) => ({
+        if (ids && ids.length > 0) {
+            query["$or"] = ids.map((id) => ({
                 "development.number": id.number,
                 ...(id.version && { "development.versions.current": id.version })
             }));
@@ -247,13 +278,13 @@ class MongoDataSource {
         return result.map((card) => Card.deserialiseFromDb(card));
     }
 
-    public async updateCards(options: { projectShort: string, cards: Card[] }) {
+    public async updateCards({ projectShort, cards }: { projectShort: string, cards: Card[] }) {
         const collection = this.client.db().collection<Card>("cards");
-        await collection.bulkWrite(options.cards.map((card) => ({
+        await collection.bulkWrite(cards.map((card) => ({
             replaceOne: {
                 filter: {
                     "development.number": card.development.number,
-                    "development.project.short": options.projectShort,
+                    "development.project.short": projectShort,
                     "development.versions.current": card.development.versions.current
                 },
                 replacement: card,
@@ -262,8 +293,18 @@ class MongoDataSource {
         })));
     }
 
-    public async delete() {
-        // TODO
+    public async deleteCards({ projectShort, ids }: { projectShort: string, ids?: CardIdentifier[] }) {
+        const collection = this.client.db().collection<Card>("cards");
+        const query = {
+            "development.project.short": projectShort
+        };
+        if (ids && ids.length > 0) {
+            query["$or"] = ids.map((id) => ({
+                "development.number": id.number,
+                ...(id.version && { "development.versions.current": id.version })
+            }));
+        }
+        return await collection.deleteMany(query);
     }
 }
 

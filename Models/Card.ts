@@ -1,4 +1,4 @@
-import { SemVer } from "semver";
+import { eq, SemVer } from "semver";
 import Project from "./Project.js";
 import { CardType, DefaultDeckLimit, Faction, NoteType, getEnum, getEnumName, maxEnum } from "../Common/Enums.js";
 import { Column } from "../GoogleAppScript/Spreadsheets/CardInfo.js";
@@ -89,7 +89,7 @@ class Card {
         return obj;
     }
 
-    static deserialise(project: Project, data: string[]): Card {
+    static deserialise(project: Project, data: unknown[]): Card {
         const stripHTML = (str: string) => str.replace(/<[^>]*>/g, "");
         const htmlColumns = [Column.Textbox, Column.Flavor, Column.ImageUrl, Column.NoteText];
         const extractLinkText = (str: string) => {
@@ -114,14 +114,14 @@ class Card {
             }
         };
 
-        data = data.map((value, index) => htmlColumns.includes(index) ? value : stripHTML(value));
+        const sData = data.map((value, index) => htmlColumns.includes(index) ? value.toString() : stripHTML(value.toString()));
         try {
-            const number = parseInt(data[Column.Number]);
+            const number = parseInt(sData[Column.Number]);
             // Cycles require ranges 0-499 for "live" cards, and 500-999 for "development" cards
             const code = project.getDevCardCodeFor(number);
 
             // Missing version should return a 'TBA' card
-            if (!data[Column.Version]) {
+            if (!sData[Column.Version]) {
                 const tbaDevelopment = {
                     number,
                     project,
@@ -136,33 +136,33 @@ class Card {
                 number: number,
                 project,
                 versions: {
-                    current: new SemVer(data[Column.Version]),
-                    playtesting: data[Column.PlaytestVersion] ? new SemVer(data[Column.PlaytestVersion]) : undefined,
-                    image: data[Column.ImageUrl] ? new SemVer(extractLinkText(data[Column.ImageUrl]).text) : undefined
+                    current: new SemVer(sData[Column.Version]),
+                    playtesting: sData[Column.PlaytestVersion] ? new SemVer(sData[Column.PlaytestVersion]) : undefined,
+                    image: sData[Column.ImageUrl] ? new SemVer(extractLinkText(sData[Column.ImageUrl]).text) : undefined
                 },
-                note: data[Column.NoteType] || data[Column.NoteText] ? {
-                    type: data[Column.NoteType] ? NoteType[data[Column.NoteType]] : undefined,
-                    text: data[Column.NoteText] ? data[Column.NoteText] : undefined
+                note: sData[Column.NoteType] || sData[Column.NoteText] ? {
+                    type: sData[Column.NoteType] ? NoteType[sData[Column.NoteType]] : undefined,
+                    text: sData[Column.NoteText] ? sData[Column.NoteText] : undefined
                 } : undefined,
-                imageUrl: data[Column.ImageUrl] ? extractLinkText(data[Column.ImageUrl]).link || "" : undefined,
-                github: data[Column.GithubIssue] ? {
-                    status: data[Column.GithubIssue],
-                    issueUrl: extractLinkText(data[Column.GithubIssue]).link || ""
+                imageUrl: sData[Column.ImageUrl] ? extractLinkText(sData[Column.ImageUrl]).link || "" : undefined,
+                github: sData[Column.GithubIssue] ? {
+                    status: sData[Column.GithubIssue],
+                    issueUrl: extractLinkText(sData[Column.GithubIssue]).link || ""
                 } : undefined,
-                final: data[Column.PackShort] ? {
-                    packShort: data[Column.PackShort],
-                    number: parseInt(data[Column.ReleaseNumber])
+                final: sData[Column.PackShort] ? {
+                    packShort: sData[Column.PackShort],
+                    number: parseInt(sData[Column.ReleaseNumber])
                 } : undefined
             } as Development;
-            const faction = getEnum<Faction>(Faction, data[Column.Faction]);
-            const name = data[Column.Name];
-            const type = CardType[data[Column.Type]];
-            const traits = data[Column.Traits] ? data[Column.Traits].split(".").map(t => t.trim()).filter(t => t && t != "-") : [];
-            const text = data[Column.Textbox];
-            const flavor = data[Column.Flavor] ? data[Column.Flavor] : undefined;
-            const illustrator = data[Column.Illustrator] ? data[Column.Illustrator] : "?";
-            const designer = data[Column.Designer] ? data[Column.Designer] : undefined;
-            const loyal = faction !== Faction.Neutral ? data[Column.Loyal].toLowerCase() === "loyal" : undefined;
+            const faction = getEnum<Faction>(Faction, sData[Column.Faction]);
+            const name = sData[Column.Name];
+            const type = CardType[sData[Column.Type]];
+            const traits = sData[Column.Traits] ? sData[Column.Traits].split(".").map(t => t.trim()).filter(t => t && t != "-") : [];
+            const text = sData[Column.Textbox];
+            const flavor = sData[Column.Flavor] ? sData[Column.Flavor] : undefined;
+            const illustrator = sData[Column.Illustrator] ? sData[Column.Illustrator] : "?";
+            const designer = sData[Column.Designer] ? sData[Column.Designer] : undefined;
+            const loyal = faction !== Faction.Neutral ? sData[Column.Loyal].toLowerCase() === "loyal" : undefined;
 
             let strength: number | "X" | undefined;
             let icons: Icons | undefined;
@@ -171,8 +171,8 @@ class Card {
             let plotStats: PlotStats | undefined;
             switch (type) {
                 case CardType.Character:
-                    strength = parseTypedNumber(data[Column.Strength]);
-                    const iconsString = data[Column.Icons];
+                    strength = parseTypedNumber(sData[Column.Strength]);
+                    const iconsString = sData[Column.Icons];
                     icons = {
                         military: iconsString.includes("M"),
                         intrigue: iconsString.includes("I"),
@@ -180,29 +180,29 @@ class Card {
                     } as Icons;
                 case CardType.Attachment:
                 case CardType.Location:
-                    unique = data[Column.Unique] === "Unique";
+                    unique = sData[Column.Unique] === "Unique";
                 case CardType.Event:
-                    cost = parseTypedNumber(data[Column.Cost] ? data[Column.Cost] : "-");
+                    cost = parseTypedNumber(sData[Column.Cost] ? sData[Column.Cost] : "-");
                     break;
                 case CardType.Plot:
                     plotStats = {
-                        income: parseTypedNumber(data[Column.Income]),
-                        initiative: parseTypedNumber(data[Column.Initiative]),
-                        claim: parseTypedNumber(data[Column.Claim]),
-                        reserve: parseTypedNumber(data[Column.Reserve])
+                        income: parseTypedNumber(sData[Column.Income]),
+                        initiative: parseTypedNumber(sData[Column.Initiative]),
+                        claim: parseTypedNumber(sData[Column.Claim]),
+                        reserve: parseTypedNumber(sData[Column.Reserve])
                     } as PlotStats;
                 case CardType.Agenda:
                     // Nothing additional to add
                     break;
             }
 
-            const deckLimit = data[Column.Limit] ? parseInt(data[Column.Limit]) : DefaultDeckLimit[CardType[type]];
+            const deckLimit = sData[Column.Limit] ? parseInt(sData[Column.Limit]) : DefaultDeckLimit[CardType[type]];
             const quantity = 3;
 
             return new Card(code, development, faction, name, type, traits, text, illustrator, deckLimit, quantity, flavor, designer,
                 loyal, strength, icons, unique, cost, plotStats);
         } catch (err) {
-            throw Error(`Failed to deserialise ${data[Column.Number] ? `card #${data[Column.Number]}` : "card with unknown or invalid #"}`, { cause: err });
+            throw Error(`Failed to deserialise ${sData[Column.Number] ? `card #${sData[Column.Number]}` : "card with unknown or invalid #"}`, { cause: err });
         }
     }
 
@@ -372,41 +372,47 @@ class Card {
         return clone;
     }
 
-    /**
-     *  @returns True if this card is being or needs to be implemented online
-     */
-    get requiresImplementation() {
-        return this.development.github ? this.development.github.status !== "closed" : this.isPreRelease || this.isChanged;
-    }
+    // /**
+    //  *  @returns True if this card is being or needs to be implemented online
+    //  */
+    // get requiresImplementation() {
+    //     return this.development.github ? this.development.github.status !== "closed" : this.isInitial || this.isChanged;
+    // }
     /**
      *  @returns True if this card has been implemented online
      */
     get isImplemented() {
-        return this.development.github ? this.development.github.status === "closed" : this.development.versions.current === this.development.versions.playtesting;
+        return this.development.github ? this.development.github.status === "closed" : this.development.versions.playtesting && eq(this.development.versions.current, this.development.versions.playtesting);
+    }
+    // /**
+    //  * @returns True if this card has been implemented online after the previous playtesting update
+    //  */
+    // get isNewlyImplemented() {
+    //     return this.development.github?.status === "closed";
+    // }
+    /**
+     * @returns True if this card is currently the version being playtested
+     */
+    get isBeingPlaytested() {
+        return this.development.versions.playtesting && eq(this.development.versions.current, this.development.versions.playtesting);
     }
     /**
-     * @returns True if this card has been implemented online after the previous playtesting update
+     * @returns True if this card is the pre 0.0.0 version
      */
-    get isNewlyImplemented() {
-        return this.development.github?.status === "closed";
+    get isPreview() {
+        return eq(this.development.versions.current, "0.0.0");
     }
-    /**
-     * @returns True if this card is the initial 1.0 version
-     */
-    get isInitial() {
-        return this.development.versions.current <= new SemVer("1.0.0");
-    }
-    /**
-     * @returns True if this card is the initial 1.0 version, and has not been published for playtesting
-     */
-    get isPreRelease() {
-        return this.isInitial && this.development.versions.current !== this.development.versions.playtesting;
-    }
+    // /**
+    //  * @returns True if this card is the initial 1.0.0 version
+    //  */
+    // get isInitial() {
+    //     return eq(this.development.versions.current, "1.0.0");
+    // }
     /**
      *  @returns True if this card has been changed (eg. not in its initial or currently playtested state)
      */
     get isChanged() {
-        return !this.isInitial && this.development.versions.current !== this.development.versions.playtesting && this.development.note?.type; // TODO: Remove this last part, and validate
+        return this.development.note && this.development.note.type !== NoteType.Implemented;
     }
 
     /***

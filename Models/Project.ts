@@ -3,7 +3,7 @@ import { ProjectType } from "../Common/Enums.js";
 import { ExpandoObject } from "../Common/Utils.js";
 
 class Project {
-    constructor(readonly name: string, readonly short: string, readonly code: number, readonly type: ProjectType, readonly cards: { perFaction: number, neutral: number }) {
+    constructor(readonly name: string, readonly short: string, readonly code: number, readonly type: ProjectType, readonly cards: { perFaction: number, neutral: number }, public version: SemVer) {
         // Empty
     }
 
@@ -16,28 +16,14 @@ class Project {
             perFaction: parseInt(object["perFaction"] as string),
             neutral: parseInt(object["neutral"] as string)
         };
+        const version = new SemVer(object["version"] as string);
 
-        return new Project(name, short, code, type, cards);
+        return new Project(name, short, code, type, cards, version);
     }
 
     get totalCards() {
         return (this.cards.perFaction * 8) + this.cards.neutral;
     }
-
-    get version(): SemVer {
-        // TODO: Create version control for projects
-        return new SemVer("1.0.0");
-    // const str = Settings.getProperty(GooglePropertiesType.Document, "projectVersion");
-    // return new SemVer(str || this.code + ".0.0");
-    }
-
-    // set version(value: SemVer) {
-    //   if (!value) {
-    //     Settings.deleteProperty(GooglePropertiesType.Document, "projectVersion");
-    //   } else {
-    //     Settings.setProperty(GooglePropertiesType.Document, "projectVersion", value.toString());
-    //   }
-    // }
 
     toString() {
         return `${this.name} (${this.version})`;

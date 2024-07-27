@@ -182,7 +182,7 @@ class DataSheet<T> {
         this.maxRows = (sheet.getLastRow() + 1) - this.firstRow;
     }
 
-    public create(...creating: string[][]) {
+    public create(creating: string[][]) {
         if (creating.length > 0 && this.type === DataTableType.STATIC) {
             throw Error(`You cannot create rows on static data sheet "${this.sheet.getName()}"`);
         }
@@ -208,7 +208,7 @@ class DataSheet<T> {
         return richTextValues.length;
     }
 
-    public read(...reading: T[]) {
+    public read(reading?: T[]) {
         // TODO: Save current filter, unapply, then reapply when finished reading
         if (this.maxRows <= 0) {
             return [];
@@ -223,7 +223,7 @@ class DataSheet<T> {
         for (let i = 0 ; i < valueMatrix.length ; i++) {
             const values = valueMatrix[i];
             // Only get row if matches filter
-            if (reading.length === 0 || reading.some((id) => this.identifierFunc(id, values))) {
+            if (!reading || reading.some((id) => this.identifierFunc(id, values))) {
                 const rowValues: string[] = [];
 
                 const richTextValues = richTextValueMatrix[i];
@@ -245,7 +245,7 @@ class DataSheet<T> {
         return tableValues;
     }
 
-    public update(...updating: { id: T, values: string[] }[]) {
+    public update(updating: { id: T, values: string[] }[]) {
         // TODO: Save current filter, unapply, then reapply when finished reading
         if (this.maxRows <= 0) {
             return 0;
@@ -284,7 +284,7 @@ class DataSheet<T> {
         return totalUpdated;
     }
 
-    public delete(...deleting: T[]) {
+    public delete(deleting: T[]) {
         if (this.maxRows <= 0) {
             return 0;
         }

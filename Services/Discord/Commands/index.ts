@@ -1,7 +1,9 @@
-import * as info from "./info";
-import * as push from "./push";
+// import * as push from "./push";
+import * as sync from "./sync";
+import * as refresh from "./refresh";
 
 export const commands = {
-    info,
-    push
+    // push,
+    sync,
+    refresh
 };

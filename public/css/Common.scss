@@ -54,6 +54,9 @@
   }
   &unique:before {
     content: "\e60b";
+    padding-right: 0.25em;
+    position: relative;
+    top: -0.05em;
   }
   &character:before {
     content: "\e60f";

@@ -51,15 +51,15 @@ function onSpreadsheetOpen() {
 export type AvailableSheetTypes = "archive" | "latest";
 
 export class SpreadsheetHandler {
-    static createCards(options: { types: AvailableSheetTypes[], create: string[][] }) {
-        options.types = options.types || ["archive", "latest"];
+    static createCards({ types, create }: { types: AvailableSheetTypes[], create: string[][] }) {
+        types = types || ["archive", "latest"];
 
         let total = 0;
-        if (options.types.includes("latest")) {
-            total += DataSheetFactory.latest().create(...options.create);
+        if (types.includes("latest")) {
+            total += DataSheetFactory.latest().create(create);
         }
-        if (options.types.includes("archive")) {
-            total += DataSheetFactory.archive().create(...options.create);
+        if (types.includes("archive")) {
+            total += DataSheetFactory.archive().create(create);
         }
 
         return total;
@@ -71,15 +71,15 @@ export class SpreadsheetHandler {
      * @param numbers Card numbers to fetch
      * @returns Array of serialized card values
      */
-    static readCards(options: { types: AvailableSheetTypes[], read: CardIdentifier[] }) {
-        options.types = options.types || ["archive", "latest"];
+    static readCards({ types, read }: { types?: AvailableSheetTypes[], read?: CardIdentifier[] }) {
+        types = types || ["archive", "latest"];
 
         const cards: string[][] = [];
-        if (options.types.includes("latest")) {
-            cards.concat(DataSheetFactory.latest().read(...options.read));
+        if (types.includes("latest")) {
+            cards.push(...DataSheetFactory.latest().read(read));
         }
-        if (options.types.includes("archive")) {
-            cards.concat(DataSheetFactory.archive().read(...options.read));
+        if (types.includes("archive")) {
+            cards.push(...DataSheetFactory.archive().read(read));
         }
 
         return cards;
@@ -90,28 +90,28 @@ export class SpreadsheetHandler {
      * @param type Either "latest" or "archive". Defaults to "latest"
      * @param cards Card values to update. Uses the column defined in "Column.Number" to match spreadsheet data
      */
-    static updateCards(options: { types?: AvailableSheetTypes[], update: { id: CardIdentifier, values: string[] }[] }) {
-        options.types = options.types || ["archive", "latest"];
+    static updateCards({ types, update }: { types?: AvailableSheetTypes[], update: { id: CardIdentifier, values: string[] }[] }) {
+        types = types || ["archive", "latest"];
 
         let total = 0;
-        if (options.types.includes("latest")) {
-            total += DataSheetFactory.latest().update(...options.update);
+        if (types.includes("latest")) {
+            total += DataSheetFactory.latest().update(update);
         }
-        if (options.types.includes("archive")) {
-            total += DataSheetFactory.archive().update(...options.update);
+        if (types.includes("archive")) {
+            total += DataSheetFactory.archive().update(update);
         }
 
         return total;
     }
-    static deleteCards(options: { types?: AvailableSheetTypes[], delete: CardIdentifier[] }) {
-        options.types = options.types || ["archive", "latest"];
+    static destroyCards({ types, destroy }: { types?: AvailableSheetTypes[], destroy: CardIdentifier[] }) {
+        types = types || ["archive", "latest"];
 
         let total = 0;
-        if (options.types.includes("latest")) {
-            total += DataSheetFactory.latest().delete(...options.delete);
+        if (types.includes("latest")) {
+            total += DataSheetFactory.latest().delete(destroy);
         }
-        if (options.types.includes("archive")) {
-            total += DataSheetFactory.archive().delete(...options.delete);
+        if (types.includes("archive")) {
+            total += DataSheetFactory.archive().delete(destroy);
         }
 
         return total;

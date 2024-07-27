@@ -1,11 +1,12 @@
 import ejs from "ejs";
 import fs from "fs";
-import { AttachmentBuilder, BaseMessageOptions, Client, EmbedBuilder, ForumChannel, Message, Role } from "discord.js";
+import { AttachmentBuilder, BaseMessageOptions, Client, EmbedBuilder, ForumChannel, Guild, Message, Role } from "discord.js";
 import { deployCommands } from "./DeployCommands";
 import { commands } from "./Commands";
 import Card from "../../Models/Card";
 import { Discord } from "../../Common/Emojis";
-import { Faction, getEnumName, NoteType } from "../../Common/Enums";
+import { getEnumName, NoteType } from "../../Common/Enums";
+import { service } from "..";
 
 class DiscordService {
     private client: Client;
@@ -50,25 +51,47 @@ class DiscordService {
         this.client.login(token);
     }
 
-    public async syncCardThread(latest: Card, ...previous: Card[]) {
-        const forumName = "card-design-forum";
-        const forumChannel = this.client.channels.cache.find((channel) => channel instanceof ForumChannel && channel.name === forumName) as ForumChannel;
-        if (!forumChannel) {
-            throw Error(`Forum channel "${forumName}" does not exist`);
+    public async syncCardThreads(projectShort: string, numbers: number[] = [], guilds?: Guild[]) {
+        const sendTo = guilds || Array.from(this.client.guilds.cache.values());
+        const messages: Message<true>[] = [];
+        for (const guild of sendTo) {
+            const forumName = "card-forum";
+            const forumChannel = guild.channels.cache.find((channel) => channel instanceof ForumChannel && channel.name.endsWith(forumName)) as ForumChannel;
+            if (!forumChannel) {
+                throw Error(`Forum channel "${forumName}" does not exist`);
+            }
+
+            const designTeamRole = guild.roles.cache.find((role) => role.name === "Design Team");
+            if (!designTeamRole) {
+                throw Error("'Design Team' role does not exist");
+            }
+
+            const cards = await service.data.readCards({ projectShort, ids: numbers.map((number) => ({ number })) });
+            const discordReady = cards.filter((card) => card.isBeingPlaytested || card.isPreview);
+            const groups = service.data.groupCardHistory(discordReady);
+            for (const group of groups) {
+                const message = await this.syncCardThread(forumChannel, designTeamRole, group.latest, group.previous);
+                messages.push(message);
+            }
         }
 
-        const designTeamRole = forumChannel.guild.roles.cache.find((role) => role.name === "Design Team");
-        if (!designTeamRole) {
-            throw Error("'Design Team' role does not exist");
-        }
+        return messages;
+    }
 
+    private async syncCardThread(forumChannel: ForumChannel, role: Role, latest: Card, previous: Card[]) {
         const projectTag = forumChannel.availableTags.find((t) => t.name === latest.development.project.short);
         if (!projectTag) {
-            throw Error(`"${latest.development.project.short}" tag is missing on Forum channel "${forumName}"`);
+            throw Error(`"${latest.development.project.short}" tag is missing on Forum channel "${forumChannel.name}"`);
         }
-        const factionTag = forumChannel.availableTags.find((t) => t.name === getEnumName(Faction, latest.faction));
+        const factionTag = forumChannel.availableTags.find((t) => t.name === latest.faction);
         if (!factionTag) {
-            throw Error(`"${factionTag}" tag is missing on Forum channel "${forumName}"`);
+            throw Error(`"${latest.faction}" tag is missing on Forum channel "${forumChannel.name}"`);
+        }
+
+        const outdatedImages = [latest, ...previous].filter((card) => card.isOutdatedImage);
+        if (outdatedImages.length > 0) {
+            await service.imaging.update(outdatedImages);
+            service.data.updateCards({ cards: outdatedImages });
         }
 
         const prefix = `${latest.development.number}. `;
@@ -79,7 +102,7 @@ class DiscordService {
             thread = await forumChannel.threads.create({
                 name,
                 reason,
-                message: this.generatePrimaryMessage(designTeamRole, latest, previous),
+                message: this.generatePrimaryMessage(role, latest, previous),
                 appliedTags: [projectTag.id, factionTag.id]
             });
             return await thread.fetchStarterMessage();
@@ -89,9 +112,9 @@ class DiscordService {
             // Update initial message
             const starter = await thread.fetchStarterMessage();
             const requiresUpdateMessage = previous.length > 0 && !starter.attachments.some((attachment) => attachment.description === this.generateAttachment(latest).description);
-            await starter.edit(this.generatePrimaryMessage(designTeamRole, latest, previous));
+            await starter.edit(this.generatePrimaryMessage(role, latest, previous));
             if (requiresUpdateMessage) {
-                const update = await thread.send(this.generateUpdateMessage(designTeamRole, latest, previous[0], starter));
+                const update = await thread.send(this.generateUpdateMessage(role, latest, previous[0], starter));
                 return update;
             }
             return starter;
