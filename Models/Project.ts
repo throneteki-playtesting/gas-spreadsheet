@@ -1,22 +1,29 @@
 import { SemVer } from "semver";
 import { ProjectType } from "../Common/Enums.js";
-import { ExpandoObject } from "../Common/Utils.js";
+import config from "config";
 
 class Project {
+    readonly active: boolean;
+    readonly scriptUrl: string;
     constructor(readonly name: string, readonly short: string, readonly code: number, readonly type: ProjectType, readonly cards: { perFaction: number, neutral: number }, public version: SemVer) {
-        // Empty
+        const projectConfig = config.get("projects")[short];
+        if (!projectConfig) {
+            throw Error(`Missing "${short}" details in config`);
+        }
+        this.active = projectConfig.active;
+        this.scriptUrl = projectConfig.script;
     }
 
-    static deserialise(object: ExpandoObject) {
-        const name = object["name"] as string;
-        const short = object["short"] as string;
-        const code = parseInt(object["code"] as string);
-        const type = ProjectType[object["type"] as string];
+    static deserialise(data: unknown[]) {
+        const name = data["name"] as string;
+        const short = data["short"] as string;
+        const code = parseInt(data["code"] as string);
+        const type = ProjectType[data["type"] as string];
         const cards = {
-            perFaction: parseInt(object["perFaction"] as string),
-            neutral: parseInt(object["neutral"] as string)
+            perFaction: parseInt(data["perFaction"] as string),
+            neutral: parseInt(data["neutral"] as string)
         };
-        const version = new SemVer(object["version"] as string);
+        const version = new SemVer(data["version"] as string);
 
         return new Project(name, short, code, type, cards, version);
     }

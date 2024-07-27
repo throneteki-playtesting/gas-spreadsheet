@@ -1,7 +1,7 @@
 import { eq, SemVer } from "semver";
 import Project from "./Project.js";
 import { CardType, DefaultDeckLimit, Faction, NoteType, getEnum, getEnumName, maxEnum } from "../Common/Enums.js";
-import { Column } from "../GoogleAppScript/Spreadsheets/CardInfo.js";
+import { CardId, Column } from "../GoogleAppScript/Spreadsheets/CardInfo.js";
 import { WithId } from "mongodb";
 
 class Card {
@@ -123,6 +123,7 @@ class Card {
             // Missing version should return a 'TBA' card
             if (!sData[Column.Version]) {
                 const tbaDevelopment = {
+                    id: new CardId(number),
                     number,
                     project,
                     versions: {
@@ -133,6 +134,7 @@ class Card {
                 return new Card(code, tbaDevelopment, Faction.Neutral, "TBA", CardType.Character, [], "", "", 3, 3, undefined, undefined, undefined, 0, { military: false, intrigue: false, power: false }, false, 0, undefined);
             }
             const development = {
+                id: new CardId(number, sData[Column.Version]),
                 number: number,
                 project,
                 versions: {
@@ -263,6 +265,7 @@ class Card {
     static deserialiseFromDb(mongoCard: WithId<Card>) {
         const code = mongoCard.code;
         const development = {
+            id: new CardId(mongoCard.development.number, mongoCard.development.versions.current.version.toString()),
             number: mongoCard.development.number,
             project: mongoCard.development.project,
             versions: {
@@ -321,6 +324,7 @@ class Card {
     clone() {
         const code = this.code;
         const development = {
+            id: new CardId(this.development.number, this.development.versions.current.toString()),
             number: this.development.number,
             project: this.development.project,
             versions: {
@@ -446,6 +450,7 @@ type xnumber = number | "X";
 type dashnumber = number | "X" | "-";
 
 interface Development {
+    id: CardId,
     number: number,
     project: Project,
     versions: {

@@ -8,15 +8,15 @@ import semverCompareBuild from "semver/functions/compare-build";
 import { service } from "..";
 import { eq } from "semver";
 import { AvailableSheetTypes } from "../../GoogleAppScript/Spreadsheets/Spreadsheet";
-import { CardIdentifier } from "../../GoogleAppScript/Spreadsheets/CardInfo";
+import { CardId } from "../../GoogleAppScript/Spreadsheets/CardInfo";
 
 class DataService {
     private spreadsheet: GASDataSource;
     private database: MongoDataSource;
 
-    constructor(env: string, dbClient: MongoClient, gasOptions: GASOptions) {
-        this.spreadsheet = new GASDataSource(env, gasOptions);
-        this.database = new MongoDataSource(dbClient);
+    constructor(env: string, databaseUrl: string, googleClientEmail: string, googlePrivateKey: string, private projects: ExpandoObject) {
+        this.spreadsheet = new GASDataSource(env, googleClientEmail, googlePrivateKey, projects);
+        this.database = new MongoDataSource(databaseUrl);
     }
 
     public async createCards({ projectShort, cards, filter }: { projectShort: string, cards: Card[], filter: AvailableSheetTypes[] }) {
@@ -24,7 +24,7 @@ class DataService {
         await this.spreadsheet.createCards({ projectShort, cards, filter });
     }
 
-    public async readCards({ projectShort, ids, refresh, filter }: { projectShort: string, ids?: CardIdentifier[], refresh?: boolean, filter?: AvailableSheetTypes[] }) {
+    public async readCards({ projectShort, ids, refresh, filter }: { projectShort: string, ids?: CardId[], refresh?: boolean, filter?: AvailableSheetTypes[] }) {
         // Force data to refresh from spreadsheet (slow)
         if (refresh) {
             const fetched = await this.spreadsheet.readCards({ projectShort, ids, filter });
@@ -51,12 +51,12 @@ class DataService {
         }
     }
 
-    public async deleteCards({ projectShort, ids }: { projectShort: string, ids?: CardIdentifier[]}) {
+    public async deleteCards({ projectShort, ids }: { projectShort: string, ids?: CardId[]}) {
         await this.database.deleteCards({ projectShort, ids });
         //TODO await this.spreadsheet.deleteCards(options);
     }
 
-    public async cache({ type, projectShort, ids }: { type: string, projectShort: string, ids?: CardIdentifier[] }) {
+    public async cache({ type, projectShort, ids }: { type: string, projectShort: string, ids?: CardId[] }) {
         switch (type) {
             case "card":
                 const fetched = await this.spreadsheet.readCards({ projectShort, ids });
@@ -66,7 +66,7 @@ class DataService {
         }
     }
 
-    public async clearCache({ type, projectShort, ids }: { type: string, projectShort: string, ids?: CardIdentifier[] }) {
+    public async clearCache({ type, projectShort, ids }: { type: string, projectShort: string, ids?: CardId[] }) {
         switch (type) {
             case "card":
                 return await this.database.deleteCards({ projectShort, ids });
@@ -76,7 +76,7 @@ class DataService {
     }
 
     // TODO: Refine this closer to playtesting release time
-    public async publish(projectShort: string, numbers: number[] = []) {
+    public async publishCards(projectShort: string, numbers: number[] = []) {
         const toUpdate = new Set<Card>();
         const toArchive = new Set<Card>();
         const implemented = new Set<Card>();
@@ -129,16 +129,16 @@ class DataService {
 }
 
 class GASDataSource {
-    readonly scriptSuffix: string;
+    private readonly scriptSuffix: string;
 
-    constructor(env: string, private options: GASOptions) {
+    constructor(env: string, private clientEmail: string, private privateKey: string, private projects: ExpandoObject) {
         this.scriptSuffix = env === "development" ? "dev" : "exec";
     }
 
     private async getAuthorization() {
         const client = new JWT({
-            email: this.options.clientEmail,
-            key: this.options.privateKey,
+            email: this.clientEmail,
+            key: this.privateKey,
             scopes: [
                 "https://www.googleapis.com/auth/drive.file",
                 "https://www.googleapis.com/auth/script.processes",
@@ -152,9 +152,9 @@ class GASDataSource {
     }
 
     public async createCards({ projectShort, cards, filter }: { projectShort: string, cards: Card[], filter?: AvailableSheetTypes[] }) {
-        const scriptUrl = this.options.scripts[projectShort];
+        const scriptUrl = this.projects[projectShort]["script"] as string;
         if (!scriptUrl) {
-            throw Error(`Must provide google.script url for '${projectShort}' in config`);
+            throw Error(`Missing project script for '${projectShort}' in config`);
         }
         const query = [
             ...(filter && filter.length > 0 && [ `filter=${filter.join(",")}` ])
@@ -181,10 +181,10 @@ class GASDataSource {
         console.log(`${json.data["created"]} ${projectShort} card(s) created in Google App Script`);
     }
 
-    public async readCards({ projectShort, ids, filter }: { projectShort: string, ids?: CardIdentifier[], filter?: AvailableSheetTypes[] }) {
-        const scriptUrl = this.options.scripts[projectShort];
+    public async readCards({ projectShort, ids, filter }: { projectShort: string, ids?: CardId[], filter?: AvailableSheetTypes[] }) {
+        const scriptUrl = this.projects[projectShort]["script"] as string;
         if (!scriptUrl) {
-            throw Error(`Must provide google.script url for '${projectShort}' in config`);
+            throw Error(`Missing project script for '${projectShort}' in config`);
         }
 
         // Converting to format "15" or "15@1.0.0"
@@ -210,7 +210,7 @@ class GASDataSource {
         if (json.error) {
             throw Error("Google App Script returned one or more errors", { cause: json.error });
         }
-        const rawProject = json.data["project"] as ExpandoObject;
+        const rawProject = json.data["project"];
         const project = Project.deserialise(rawProject);
         const rawCards = json.data["cards"] as unknown[][];
         const cards = rawCards.map((data) => Card.deserialise(project, data));
@@ -220,9 +220,9 @@ class GASDataSource {
     }
 
     public async updateCards({ projectShort, cards }: { projectShort: string, cards: Card[] }) {
-        const scriptUrl = this.options.scripts[projectShort];
+        const scriptUrl = this.projects[projectShort]["script"] as string;
         if (!scriptUrl) {
-            throw Error(`Must provide google.script url for '${projectShort}' in config`);
+            throw Error(`Missing project script for '${projectShort}' in config`);
         }
 
         const url = `${scriptUrl}/${this.scriptSuffix}/cards/update`;
@@ -254,16 +254,18 @@ class GASDataSource {
 }
 
 class MongoDataSource {
-    constructor(private client: MongoClient) {
+    private client: MongoClient;
+    constructor(databaseUrl: string) {
+        this.client = new MongoClient(databaseUrl);
         // Confirms that MongoDB is running
-        client.db().command({ ping: 1 }).then(() => console.log("MongoDB successfully connected.")).catch(console.dir);
+        this.client.db().command({ ping: 1 }).then(() => console.log("MongoDB successfully connected.")).catch(console.dir);
     }
 
     public async createCards({ projectShort, cards }: { projectShort: string, cards: Card[] }) {
         return await this.updateCards({ projectShort, cards });
     }
 
-    public async readCards({ projectShort, ids }: { projectShort: string, ids?: CardIdentifier[] }) {
+    public async readCards({ projectShort, ids }: { projectShort: string, ids?: CardId[] }) {
         const collection = this.client.db().collection<Card>("cards");
         const query = {
             "development.project.short": projectShort
@@ -293,7 +295,7 @@ class MongoDataSource {
         })));
     }
 
-    public async deleteCards({ projectShort, ids }: { projectShort: string, ids?: CardIdentifier[] }) {
+    public async deleteCards({ projectShort, ids }: { projectShort: string, ids?: CardId[] }) {
         const collection = this.client.db().collection<Card>("cards");
         const query = {
             "development.project.short": projectShort
@@ -305,14 +307,6 @@ class MongoDataSource {
             }));
         }
         return await collection.deleteMany(query);
-    }
-}
-
-interface GASOptions {
-    clientEmail: string,
-    privateKey: string,
-    scripts: {
-        [key: string]: string
     }
 }
 

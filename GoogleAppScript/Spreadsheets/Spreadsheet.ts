@@ -1,5 +1,5 @@
 import { GooglePropertiesType, Settings } from "../Settings.js";
-import { CardIdentifier } from "./CardInfo.js";
+import { CardId } from "./CardInfo.js";
 import { DataSheetFactory } from "./Data.js";
 import { UIHelper } from "./UserInput.js";
 
@@ -71,7 +71,7 @@ export class SpreadsheetHandler {
      * @param numbers Card numbers to fetch
      * @returns Array of serialized card values
      */
-    static readCards({ types, read }: { types?: AvailableSheetTypes[], read?: CardIdentifier[] }) {
+    static readCards({ types, read }: { types?: AvailableSheetTypes[], read?: CardId[] }) {
         types = types || ["archive", "latest"];
 
         const cards: string[][] = [];
@@ -90,7 +90,7 @@ export class SpreadsheetHandler {
      * @param type Either "latest" or "archive". Defaults to "latest"
      * @param cards Card values to update. Uses the column defined in "Column.Number" to match spreadsheet data
      */
-    static updateCards({ types, update }: { types?: AvailableSheetTypes[], update: { id: CardIdentifier, values: string[] }[] }) {
+    static updateCards({ types, update }: { types?: AvailableSheetTypes[], update: { id: CardId, values: string[] }[] }) {
         types = types || ["archive", "latest"];
 
         let total = 0;
@@ -103,7 +103,7 @@ export class SpreadsheetHandler {
 
         return total;
     }
-    static destroyCards({ types, destroy }: { types?: AvailableSheetTypes[], destroy: CardIdentifier[] }) {
+    static destroyCards({ types, destroy }: { types?: AvailableSheetTypes[], destroy: CardId[] }) {
         types = types || ["archive", "latest"];
 
         let total = 0;

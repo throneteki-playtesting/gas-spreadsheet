@@ -1,6 +1,21 @@
-export interface CardIdentifier {
-    number: number,
-    version?: string
+export class CardId {
+    constructor(public number: number, public version?: string) {
+        // Empty
+    }
+
+    static deserialize(data: string) {
+        const split = data.split("@");
+        const number = parseInt(split[0].trim());
+        const version = split[1] ? split[1].trim() : undefined;
+        return new CardId(number, version);
+    }
+
+    public toString() {
+        if (this.version) {
+            return `${this.number}@${this.version}`;
+        }
+        return `${this.number}`;
+    }
 }
 
 export enum Column {
