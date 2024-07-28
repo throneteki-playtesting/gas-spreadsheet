@@ -22,12 +22,12 @@ class DiscordService {
 
         const deployOptions = { token: this.token, clientId: this.clientId };
         this.client.on("guildCreate", async (guild) => {
-            await deployCommands({ ...deployOptions, guildId: guild.id });
+            await deployCommands({ ...deployOptions, guild });
         });
 
         if (env === "development") {
             this.client.on("guildAvailable", async (guild) => {
-                await deployCommands({ ...deployOptions, guildId: guild.id });
+                await deployCommands({ ...deployOptions, guild });
             });
         }
 
