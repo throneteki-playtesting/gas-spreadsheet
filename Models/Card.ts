@@ -442,7 +442,7 @@ class Card {
      * @returns Whether the current image is outdated
      */
     get isOutdatedImage() {
-        return this.development.versions.current !== this.development.versions.image;
+        return !(this.development.versions.image && eq(this.development.versions.current, this.development.versions.image));
     }
 }
 
