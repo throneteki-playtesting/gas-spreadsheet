@@ -9,11 +9,12 @@
         "GoogleAppScript/Spreadsheets/Templates/Clipboard Popup.html",
         "GoogleAppScript/Spreadsheets/Templates/Multiform.html",
         "GoogleAppScript/Spreadsheets/DataColumn.ts",
-        "GoogleAppScript/Spreadsheets/CardData.ts",
-        "GoogleAppScript/Spreadsheets/ReviewData.ts",
+        "GoogleAppScript/Spreadsheets/CardInfo.ts",
+        "GoogleAppScript/Spreadsheets/ReviewInfo.ts",
         "GoogleAppScript/Spreadsheets/Data.ts",
         "GoogleAppScript/Spreadsheets/Spreadsheet.ts",
         "GoogleAppScript/Spreadsheets/UserInput.ts",
+        "GoogleAppScript/Forms/Form.ts",
         "GoogleAppScript/Controller.ts",
         "GoogleAppScript/Tests/Tester.ts"
     ]

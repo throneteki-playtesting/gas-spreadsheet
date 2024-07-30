@@ -1,0 +1,23 @@
+{
+    "discord": {
+        "token": "",
+        "clientId": ""
+    },
+    "google": {
+        "privateKey": "",
+        "clientEmail": ""
+    },
+    "database": {
+        "url": ""
+    },
+    "htmlcsstoimage": {
+        "apiKey": "",
+        "userId": ""
+    },
+    "projects": {
+        "?": {
+            "active": false,
+            "script": ""
+        }
+    }
+}
