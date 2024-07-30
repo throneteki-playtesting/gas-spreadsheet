@@ -13,7 +13,7 @@ class ImageService {
                 const url = "https://hcti.io/v1/image";
 
                 const html = service.rendering.single(card);
-                const css = fs.readFileSync(path.resolve(__dirname, "../../public/css/render.css")).toString();
+                const css = fs.readFileSync(path.resolve(__dirname, "../../public/css/Render.css")).toString();
                 const options = {
                     method: "POST",
                     body: JSON.stringify({
