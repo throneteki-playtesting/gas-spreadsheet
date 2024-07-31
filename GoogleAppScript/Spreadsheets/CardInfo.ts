@@ -1,4 +1,5 @@
 export class CardId {
+    public static format = /^\d+(?:@\d+.\d+.\d+)?$/;
     constructor(public number: number, public version?: string) {
         // Empty
     }

@@ -5,7 +5,7 @@ import { MongoClient } from "mongodb";
 import { ExpandoObject } from "../../Common/Utils";
 import Project from "../../Models/Project";
 import semverCompareBuild from "semver/functions/compare-build";
-import { service } from "..";
+import { logger, service } from "..";
 import { eq } from "semver";
 import { AvailableSheetTypes } from "../../GoogleAppScript/Spreadsheets/Spreadsheet";
 import { CardId } from "../../GoogleAppScript/Spreadsheets/CardInfo";
@@ -14,8 +14,8 @@ class DataService {
     private spreadsheet: GASDataSource;
     private database: MongoDataSource;
 
-    constructor(env: string, databaseUrl: string, googleClientEmail: string, googlePrivateKey: string, private projects: ExpandoObject) {
-        this.spreadsheet = new GASDataSource(env, googleClientEmail, googlePrivateKey, projects);
+    constructor(databaseUrl: string, googleClientEmail: string, googlePrivateKey: string, private projects: ExpandoObject) {
+        this.spreadsheet = new GASDataSource(googleClientEmail, googlePrivateKey, projects);
         this.database = new MongoDataSource(databaseUrl);
     }
 
@@ -131,8 +131,8 @@ class DataService {
 class GASDataSource {
     private readonly scriptSuffix: string;
 
-    constructor(env: string, private clientEmail: string, private privateKey: string, private projects: ExpandoObject) {
-        this.scriptSuffix = env === "development" ? "dev" : "exec";
+    constructor(private clientEmail: string, private privateKey: string, private projects: ExpandoObject) {
+        this.scriptSuffix = process.env.NODE_ENV !== "production" ? "dev" : "exec";
     }
 
     private async getAuthorization() {
@@ -178,7 +178,7 @@ class GASDataSource {
             throw Error("Google App Script returned one or more errors", { cause: json.error });
         }
 
-        console.log(`${json.data["created"]} ${projectShort} card(s) created in Google App Script`);
+        logger.info(`${json.data["created"]} ${projectShort} card(s) created in Google App Script`);
     }
 
     public async readCards({ projectShort, ids, filter }: { projectShort: string, ids?: CardId[], filter?: AvailableSheetTypes[] }) {
@@ -215,7 +215,7 @@ class GASDataSource {
         const rawCards = json.data["cards"] as unknown[][];
         const cards = rawCards.map((data) => Card.deserialise(project, data));
 
-        console.log(`${cards.length} ${projectShort} card(s) read from Google App Script`);
+        logger.info(`${cards.length} ${projectShort} card(s) read from Google App Script`);
         return cards;
     }
 
@@ -244,7 +244,7 @@ class GASDataSource {
             throw Error("Google App Script returned one or more errors", { cause: json.error });
         }
 
-        console.log(`${json.data["updated"]} ${projectShort} card(s) updated in Google App Script`);
+        logger.info(`${json.data["updated"]} ${projectShort} card(s) updated in Google App Script`);
     }
 
     public async deleteCards() {
@@ -258,7 +258,7 @@ class MongoDataSource {
     constructor(databaseUrl: string) {
         this.client = new MongoClient(databaseUrl);
         // Confirms that MongoDB is running
-        this.client.db().command({ ping: 1 }).then(() => console.log("MongoDB successfully connected.")).catch(console.dir);
+        this.client.db().command({ ping: 1 }).then(() => logger.info("MongoDB successfully connected.")).catch(console.dir);
     }
 
     public async createCards({ projectShort, cards }: { projectShort: string, cards: Card[] }) {
@@ -281,6 +281,9 @@ class MongoDataSource {
     }
 
     public async updateCards({ projectShort, cards }: { projectShort: string, cards: Card[] }) {
+        if (cards.length === 0) {
+            return;
+        }
         const collection = this.client.db().collection<Card>("cards");
         await collection.bulkWrite(cards.map((card) => ({
             replaceOne: {

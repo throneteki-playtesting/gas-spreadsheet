@@ -9,7 +9,7 @@ class RenderingService {
         return this.renderTemplate({ type: "Single", card: this.prepareCard(card) });
     }
 
-    public batch(cards: Card[], options?: BatchOptions) {
+    public batch(cards: Card[], options?: { copies: number, perPage: number }) {
         options = { ... { copies: 3, perPage: 9 }, ...options };
         return this.renderTemplate({ type: "Batch", cards: cards.map((card) => this.prepareCard(card)), ...options });
     }
@@ -42,11 +42,6 @@ class RenderingService {
         const file = fs.readFileSync(filepath).toString();
         return ejs.render(file, { filename: filepath, name: "Render", options: { pack: Project, ...data } });
     }
-}
-
-export interface BatchOptions {
-    copies: number,
-    perPage: number
 }
 
 export default RenderingService;

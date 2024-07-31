@@ -6,18 +6,18 @@ import { commands } from "./Commands";
 import Card from "../../Models/Card";
 import { Discord } from "../../Common/Emojis";
 import { getEnumName, NoteType } from "../../Common/Enums";
-import { service } from "..";
+import { logger, service } from "..";
 
 class DiscordService {
     private client: Client;
-    constructor(env: string, private token: string, private clientId: string) {
+    constructor(private token: string, private clientId: string) {
         this.client = new Client({
             intents: ["Guilds", "GuildMessages", "DirectMessages"],
             allowedMentions: { parse: ["users", "roles"], repliedUser: true }
         });
 
         this.client.once("ready", () => {
-            console.log(`${this.client.user?.tag} logged in & ready!`);
+            logger.info(`${this.client.user?.tag} logged in & ready!`);
         });
 
         const deployOptions = { token: this.token, clientId: this.clientId };
@@ -25,7 +25,7 @@ class DiscordService {
             await deployCommands({ ...deployOptions, guild });
         });
 
-        if (env === "development") {
+        if (process.env.NODE_ENV !== "production") {
             this.client.on("guildAvailable", async (guild) => {
                 await deployCommands({ ...deployOptions, guild });
             });
