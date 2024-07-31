@@ -52,7 +52,7 @@ router.get("/:project/:number", celebrate({
     [Segments.QUERY]: {
         format: Joi.string().insensitive().valid(...Object.keys(ResourceFormat)).default(getEnumName(ResourceFormat, ResourceFormat.JSON)),
         refresh: Joi.boolean().default(false),
-        version: Joi.string().regex(/\d+.\d+.\d+/)
+        version: Joi.string().regex(/^\d+.\d+.\d+$/)
     }
 }), asyncHandler(async (req, res) => {
     const projectShort = req.params.project;
