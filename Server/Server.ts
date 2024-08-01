@@ -1,7 +1,7 @@
 import express, { NextFunction, Request, Response } from "express";
 import partials from "express-partials";
 import compression from "compression";
-import { logger } from "..";
+import { logger } from ".";
 import cards from "./Controllers/CardController";
 import { errors } from "celebrate";
 

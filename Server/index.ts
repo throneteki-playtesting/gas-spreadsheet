@@ -3,8 +3,8 @@ import RenderingService from "./Rendering/RenderingService";
 import DiscordService from "./Discord/DiscordService";
 import DataService from "./Data/DataService";
 import ImageService from "./Rendering/ImageService";
-import LoggerService from "./LoggerService";
-import ServerService from "./Server/ServerService";
+import Logger from "./Logger";
+import Server from "./Server";
 
 // Establish services
 export const service = {
@@ -13,5 +13,5 @@ export const service = {
     imaging: new ImageService(config.get("htmlcsstoimage.apiKey"), config.get("htmlcsstoimage.userId")),
     discord: new DiscordService(config.get("discord.token"), config.get("discord.clientId"))
 };
-export const logger = LoggerService.initialise();
-export const server = ServerService.initialise(config.get("port"));
+export const logger = Logger.initialise();
+export const server = Server.initialise(config.get("port"));
