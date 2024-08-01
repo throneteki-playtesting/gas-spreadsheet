@@ -113,6 +113,8 @@ class DiscordService {
                         await thread.setAppliedTags([projectTag.id, factionTag.id]);
                         // Ensure archive duration is respected
                         await thread.setAutoArchiveDuration(forumChannel.defaultAutoArchiveDuration);
+                        // Ensure name is up to date
+                        await thread.setName(`${prefix}${latest.name}`);
                         // Update initial message
                         const starter = await thread.fetchStarterMessage();
                         const requiresUpdateMessage = previous.length > 0 && !starter.attachments.some((attachment) => attachment.description === this.generateAttachment(latest).description);
