@@ -1,9 +1,9 @@
 import express from "express";
 import { celebrate, Joi, Segments } from "celebrate";
 import asyncHandler from "express-async-handler";
-import { getEnumName, ResourceFormat } from "../../../Common/Enums";
-import { CardId } from "../../../GoogleAppScript/Spreadsheets/CardInfo";
-import { service } from "../..";
+import { getEnumName, ResourceFormat } from "../../../../Common/Enums";
+import { CardId } from "../../../../GoogleAppScript/Spreadsheets/CardInfo";
+import { service } from "../../..";
 
 const router = express.Router();
 

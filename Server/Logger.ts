@@ -1,6 +1,6 @@
 import winston from "winston";
 
-export default class LoggerService {
+export default class Logger {
     public static initialise() {
         const baseFormat = [winston.format.timestamp({ format: "YYYY-MM-DD hh:mm:ss" }), winston.format.printf((info) => `${info.timestamp} ${info.level}: ${info.message}`)];
         return winston.createLogger({
