@@ -10,4 +10,4 @@ COPY . .
 
 EXPOSE 3000
 
-CMD ["node", "--import", "tsx", "Services/index.ts"]
+CMD ["node", "--import", "tsx", "Server/index.ts"]

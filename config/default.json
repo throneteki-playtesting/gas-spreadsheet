@@ -1,5 +1,8 @@
 {
-    "port": 3000,
+    "ports": {
+        "server": 8080,
+        "client": 4000
+    },
     "discord": {
         "token": "",
         "clientId": ""
