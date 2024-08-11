@@ -3,8 +3,7 @@ import * as Ver from "semver";
 import Project from "./Project.js";
 import { CardType, DefaultDeckLimit, Faction, getEnum, getEnumName, maxEnum, NoteType } from "../../../Common/Enums.js";
 import Server from "@/Server/Server.js";
-import { CardId } from "@/Common/Identifiers.js";
-import { CardColumn } from "@/GoogleAppScript/Spreadsheets/CardSheet.js";
+import { CardId, CardColumn } from "@/Common/CardSheetInfo.js";
 
 class Card {
     constructor(public code: number, public development: Development, public faction: Faction, public name: string,

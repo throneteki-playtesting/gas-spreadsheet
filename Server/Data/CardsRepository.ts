@@ -8,7 +8,7 @@ import Project from "./Models/Project";
 import { logger, service } from "..";
 import { MongoClient, WithId } from "mongodb";
 import { ExpandoObject } from "@/Common/Utils";
-import { CardId } from "@/Common/Identifiers";
+import { CardId } from "@/Common/CardSheetInfo";
 
 interface IRepository<Id, Model> {
     database: MongoDataSource<Id, Model>

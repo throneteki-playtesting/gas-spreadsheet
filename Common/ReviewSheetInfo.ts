@@ -1,4 +1,12 @@
-import { ReviewId } from "@/Common/Identifiers";
+export class ReviewId {
+    constructor(public responseId: string) {
+        // Empty
+    }
+
+    public toString() {
+        return this.responseId;
+    }
+}
 
 export const reviewIdFunc = (row: unknown[], rowIndex: number, id: ReviewId) => id.responseId === row[Column.ResponseId];
 

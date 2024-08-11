@@ -1,6 +1,6 @@
 import { AutocompleteInteraction, ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
 import { service } from "../..";
-import { CardId } from "@/Common/Identifiers";
+import { CardId } from "@/Common/CardSheetInfo";
 
 export async function data() {
     return new SlashCommandBuilder()

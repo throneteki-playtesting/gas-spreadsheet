@@ -5,7 +5,7 @@ import { getEnumName, ResourceFormat } from "../../../../Common/Enums";
 import { logger, service } from "../../..";
 import Project from "@/Server/Data/Models/Project";
 import Card from "@/Server/Data/Models/Card";
-import { CardId } from "@/Common/Identifiers";
+import { CardId } from "@/Common/CardSheetInfo";
 
 const router = express.Router();
 

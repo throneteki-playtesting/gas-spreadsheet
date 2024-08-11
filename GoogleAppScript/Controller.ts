@@ -1,6 +1,6 @@
 import { ExpandoObject, ExpandoValue } from "../Common/Utils.js";
 import { Log } from "./CloudLogger.js";
-import { CardSheet } from "./Spreadsheets/CardSheet.js";
+import { CardSheet } from "../Common/CardSheetInfo.js";
 import { AvailableSheetTypes, SpreadsheetHandler } from "./Spreadsheets/Spreadsheet.js";
 
 export function doGet(e: GoogleAppsScript.Events.DoGet) {

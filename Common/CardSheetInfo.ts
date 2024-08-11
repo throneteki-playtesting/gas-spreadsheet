@@ -1,5 +1,24 @@
 /* eslint-disable @typescript-eslint/no-namespace */
-import { CardId } from "@/Common/Identifiers";
+export class CardId {
+    public static format = /^\d+(?:@\d+.\d+.\d+)?$/;
+    constructor(public number: number, public version?: string) {
+        // Empty
+    }
+
+    static deserialize(data: string) {
+        const split = data.split("@");
+        const number = parseInt(split[0].trim());
+        const version = split[1] ? split[1].trim() : undefined;
+        return new CardId(number, version);
+    }
+
+    public toString() {
+        if (this.version) {
+            return `${this.number}@${this.version}`;
+        }
+        return `${this.number}`;
+    }
+}
 
 export namespace CardSheet {
     export const cardIdFunc = (row: unknown[], rowIndex: number, id: CardId) => id.number === row[CardColumn.Number] && (!id.version || id.version === row[CardColumn.Version]);

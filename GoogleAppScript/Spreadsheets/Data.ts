@@ -1,7 +1,7 @@
 import { Log } from "../CloudLogger.js";
-import { reviewIdFunc } from "./ReviewSheet.js";
+import { reviewIdFunc } from "../../Common/ReviewSheetInfo.js";
 import { DataColumn } from "./DataColumn.js";
-import { CardSheet } from "./CardSheet.js";
+import { CardSheet } from "../../Common/CardSheetInfo.js";
 
 type FilterFunc<Id> = (values: unknown[], index: number, id?: Id) => boolean;
 

@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { CardId } from "@/Common/Identifiers.js";
+import { CardId } from "@/Common/CardSheetInfo.js";
 import { Log } from "../CloudLogger.js";
 import { GooglePropertiesType, Settings } from "../Settings.js";
 import { UIHelper } from "./UserInput.js";
 import { dataSheets } from "./Data.js";
-import { CardSheet } from "./CardSheet.js";
+import { CardSheet } from "../../Common/CardSheetInfo.js";
 
 // Events //
 function onSpreadsheetOpen() {
