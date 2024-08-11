@@ -1,26 +1,20 @@
 <html>
   <head>
-    <link rel="stylesheet" href="/css/Render.css">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-    <script type="text/javascript">
-      $(document).ready(function() {
-          $(".auto-size").each(function(i, item) {
-              let fontSize = 12;
-              const minimumSize = 0.1;
-              while (fontSize >= minimumSize && item.scrollHeight > item.clientHeight || item.scrollWidth > item.clientWidth) {
-                  for (const child of [item, ...item.children]) {
-                      // if (child.innerText.trim() === "") {
-                      //     child.style.fontSize = "0px";
-                      // } else {
-                          fontSize = parseFloat(window.getComputedStyle(child, null).getPropertyValue("font-size"), 10);
-                          fontSize -= 1;
-                          child.style.fontSize = fontSize + "px";
-                      // }
-                  }
-              }
-          });
-      });
+    <% if (css) { %>
+    <style>
+      <%- css %>
+    </style>
+    <% } else { %>
+      <link rel="stylesheet" href="/css/Render.css">
+    <% } %>
+    <% if (js) { %>
+    <script>
+      <%- js %>
     </script>
+    <% } else { %>
+      <script src="/js/Render.js"></script>
+    <% } %>
   </head>
   <body>
     <%- include(`Partials/${options.type}`, options) %>

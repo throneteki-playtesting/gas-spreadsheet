@@ -133,3 +133,7 @@ config/*.json
 !config/default.json
 *.css
 *.css.map
+
+# Image & PDF files
+public/img/*
+public/pdf/*

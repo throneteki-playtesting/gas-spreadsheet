@@ -38,7 +38,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 export async function autocomplete(interaction: AutocompleteInteraction) {
     const projectShort = interaction.options.getString("project");
     const focusedValue = interaction.options.getFocused().trim();
-    const choices = await service.data.readCards({ ids: [], projectShort });
+    const choices = await service.data.cards.read({ ids: [], projectShort });
     const filtered = choices.filter((choice) => `${choice.development.number} - ${choice.name}`.toLowerCase().includes(focusedValue.toLowerCase())).slice(0, 25);
     await interaction.respond(
         filtered.map(choice => ({ name: `${choice.development.number} - ${choice.name}`, value: `${choice.development.number}` }))

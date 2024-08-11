@@ -3,10 +3,12 @@ import fs from "fs";
 import { AttachmentBuilder, BaseMessageOptions, Client, EmbedBuilder, ForumChannel, Guild, Message, Role, ThreadChannel } from "discord.js";
 import { deployCommands } from "./DeployCommands";
 import { commands } from "./Commands";
-import Card from "../../Models/Card";
 import { Discord } from "../../Common/Emojis";
 import { getEnumName, NoteType } from "../../Common/Enums";
-import { logger, service } from "..";
+import { logger } from "..";
+import path from "path";
+import Card from "../Data/Models/Card";
+import { groupCardHistory } from "../Data/CardsRepository";
 
 class DiscordService {
     private client: Client;
@@ -67,17 +69,10 @@ class DiscordService {
                 throw Error("'Design Team' role does not exist");
             }
 
-            const discordReady = cards.filter((card) => card.isBeingPlaytested || card.isPreview);
-            let groups = service.data.groupCardHistory(discordReady);
+            const discordReady = cards.filter((card) => card.isInitial || card.isPlaytesting);
+            let groups = groupCardHistory(discordReady);
             const existingThreads = this.getCardThreads(forumChannel, groups.map((group) => group.latest));
             groups = groups.filter((group) => canCreate || existingThreads.has(group.latest));
-
-            // Update all relevant images which are outdated
-            const outdatedImages = groups.reduce((all: Card[], { latest, previous }) => all.concat([latest, ...previous].filter((card) => card.isOutdatedImage)), []);
-            if (outdatedImages.length > 0) {
-                await service.imaging.update(outdatedImages);
-                await service.data.updateCards({ cards: outdatedImages });
-            }
 
             for (const group of groups) {
                 const latest = group.latest;
@@ -158,8 +153,8 @@ class DiscordService {
             const embedBuilder = new EmbedBuilder()
                 .setColor(Discord.EmbedColor.Review) // TODO: Update this to faction color
                 .setTitle(pCard.toString())
-                .setURL(pCard.development.imageUrl)
-                .setThumbnail(pCard.development.imageUrl);
+                .setURL(pCard.imageUrl)
+                .setThumbnail(pCard.imageUrl);
             if (pCard.development.note) {
                 embedBuilder.addFields(
                     { name: getEnumName(NoteType, pCard.development.note.type), value: pCard.development.note.text }
@@ -189,8 +184,8 @@ class DiscordService {
     }
 
     private generateAttachment(card: Card) {
-        return new AttachmentBuilder(card.development.imageUrl)
-            .setName(`${card.development.project.short}_${card.development.number}_${card.development.versions.current.toString().replaceAll(".", "_")}.png`)
+        return new AttachmentBuilder(card.imageUrl)
+            .setName(path.basename(card.imageUrl))
             .setDescription(`${card.toString()}`);
     }
 

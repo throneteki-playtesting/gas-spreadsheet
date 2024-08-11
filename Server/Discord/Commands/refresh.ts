@@ -29,27 +29,33 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         const projectShort = interaction.options.getString("project");
         const type = interaction.options.getString("type");
 
-        await service.data.clearCache({ type, projectShort });
-        await service.data.cache({ type, projectShort });
+        switch (type) {
+            case "card":
+                await service.data.cards.database.destroy({ projectShort });
+                await service.data.cards.read({ projectShort });
+                break;
+            case "review":
+                throw Error("Review clear not implemented yet!");
+        }
 
         await interaction.followUp({
-            content: `Successfully refreshed ${type} cache!`,
+            content: `:white_check_mark: Successfully refreshed ${type} cache!`,
             ephemeral: true
         });
     } catch (err) {
         console.error(err);
         await interaction.followUp({
-            content: `Failed to clear cache: ${err.message}`,
+            content: `:exclamation: Failed to clear cache: ${err.message}`,
             ephemeral: true
-        });
+        }).catch(console.error);
     }
 }
 
 export async function autocomplete(interaction: AutocompleteInteraction) {
     const projectShort = interaction.options.getString("project");
     const focusedValue = interaction.options.getFocused().trim();
-    const cards = await service.data.readCards({ ids: [], projectShort });
-    const choices = cards.filter((card) => card.isBeingPlaytested || card.isPreview);
+    const cards = await service.data.cards.read({ ids: [], projectShort });
+    const choices = cards.filter((card) => card.isInitial || card.isPlaytesting);
     const filtered = choices.filter((choice) => `${choice.development.number} - ${choice.name}`.toLowerCase().includes(focusedValue.toLowerCase())).slice(0, 25);
     await interaction.respond(
         filtered.map(choice => ({ name: `${choice.development.number} - ${choice.name}`, value: `${choice.development.number}` }))

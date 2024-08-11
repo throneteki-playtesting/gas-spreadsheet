@@ -11,7 +11,7 @@ do {
         var card = page[slot];%>
         <div class="card-slot">
             <% if (page[slot] !== undefined) { %>
-                <%- include(`../CardTypes/${page[slot].type}`, { card: page[slot] }) %>
+                <%- include(`../CardTypes/${page[slot].type}`, { card: page[slot], pack: page[slot].development.project }) %>
             <% } %>
         </div>
     <% } %>

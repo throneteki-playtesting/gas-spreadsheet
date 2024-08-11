@@ -19,32 +19,12 @@ export class CardId {
     }
 }
 
-export enum Column {
-    Number,
-    Version,
-    Faction,
-    Name,
-    Type,
-    Loyal,
-    Unique,
-    Income = Unique,
-    Cost,
-    Initiative = Cost,
-    Strength,
-    Claim = Strength,
-    Icons,
-    Reserve = Icons,
-    Traits,
-    Textbox,
-    Flavor,
-    Limit,
-    Designer,
-    Illustrator,
-    ImageUrl,
-    NoteType,
-    NoteText,
-    PlaytestVersion,
-    GithubIssue,
-    PackShort,
-    ReleaseNumber
+export class ReviewId {
+    constructor(public responseId: string) {
+        // Empty
+    }
+
+    public toString() {
+        return this.responseId;
+    }
 }

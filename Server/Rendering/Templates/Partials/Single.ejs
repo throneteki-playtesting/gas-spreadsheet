@@ -1,3 +1,3 @@
 <div class="card-slot">
-    <%- include(`../CardTypes/${card.type}`, { card }) %>
+    <%- include(`../CardTypes/${card.type}`, { card, pack: card.development.project }) %>
 </div>

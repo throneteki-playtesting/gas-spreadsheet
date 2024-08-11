@@ -4,25 +4,36 @@ import compression from "compression";
 import cors from "cors";
 import { logger } from ".";
 import { errors } from "celebrate";
-import api from "./API";
+import api from "./Routes/API";
+import basicAuth from "express-basic-auth";
 
 export default class Server {
-    public static initialise(serverPort: number, clientPort: number) {
+    public static apiUrl: string;
+
+    public static initialise(apiHost: string, serverPort: number, clientPort: number) {
+        this.apiUrl = apiHost;
+
         // Add express
         const app = express();
 
         // Add middleware
         app.use(cors({
-            origin: `http://localhost:${clientPort}`
+            origin: `${apiHost}:${clientPort}`
         }));
         app.use(partials());
         app.use(compression());
         app.use(express.static("public"));
+        app.use(express.json());
+        app.use(basicAuth({
+            users: { patane97: "qwerty123" },
+            challenge: true,
+            unauthorizedResponse: "Unauthorized access. Please provide valid credentials."
+        }));
 
         app.use(errors());
         app.use(this.errorHandler);
 
-        // Register api route
+        // Register routes
         app.use("/api", api);
 
         app.use(errors());

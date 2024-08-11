@@ -1,6 +1,6 @@
 import { AutocompleteInteraction, ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
 import { service } from "../..";
-import { CardId } from "../../../GoogleAppScript/Spreadsheets/CardInfo";
+import { CardId } from "@/Common/Identifiers";
 
 export async function data() {
     return new SlashCommandBuilder()
@@ -36,7 +36,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         const canCreate = interaction.options.getBoolean("create");
 
         const ids = numberString ? [new CardId(parseInt(numberString))] : undefined;
-        const cards = await service.data.readCards({ projectShort, ids, refresh: true });
+        const cards = await service.data.cards.read({ projectShort, ids, hard: true });
         const { succeeded, failed } = await service.discord.syncCardThreads(cards, [guild], canCreate);
 
         let content = `:white_check_mark: ${succeeded.length === 1 ? `Successfully synced card: ${succeeded[0].url}` : `${succeeded.length} cards synced.`}`;
@@ -59,11 +59,8 @@ export async function autocomplete(interaction: AutocompleteInteraction) {
     if (!projectShort.trim()) {
         await interaction.respond([]);
     }
-    let cards = await service.data.readCards({ projectShort });
-    if (cards.length === 0) {
-        cards = await service.data.readCards({ projectShort, refresh: true });
-    }
-    const choices = cards.filter((card) => card.isBeingPlaytested || card.isPreview);
+    const cards = await service.data.cards.database.read({ projectShort });
+    const choices = cards.filter((card) => card.isInitial || card.isPlaytesting);
     const filtered = choices.filter((choice) => `${choice.development.number} - ${choice.name}`.toLowerCase().includes(focusedValue.toLowerCase())).slice(0, 25);
     await interaction.respond(
         filtered.map(choice => ({ name: `${choice.development.number} - ${choice.name}`, value: `${choice.development.number}` }))

@@ -1,7 +1,10 @@
 {
-    "ports": {
-        "server": 8080,
-        "client": 4000
+    "server": {
+        "host": "localhost",
+        "ports": {
+            "api": 8080,
+            "client": 4000
+        }
     },
     "discord": {
         "token": "",
@@ -13,10 +16,6 @@
     },
     "database": {
         "url": ""
-    },
-    "htmlcsstoimage": {
-        "apiKey": "",
-        "userId": ""
     },
     "projects": {
         "?": {

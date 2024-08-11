@@ -1,4 +1,4 @@
-import { ProjectType } from "../Common/Enums.js";
+import { ProjectType } from "@/Common/Enums.js";
 import Card from "./Card.js";
 
 class Pack {

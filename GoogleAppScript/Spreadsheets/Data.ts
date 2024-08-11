@@ -1,26 +1,24 @@
 import { Log } from "../CloudLogger.js";
-import { CardId, Column } from "./CardInfo.js";
+import { cardIdFunc } from "./CardSheet.js";
+import { reviewIdFunc } from "./ReviewSheet.js";
 import { DataColumn } from "./DataColumn.js";
 
-export class DataSheetFactory {
-    private static CardIdFunc = (id: CardId, row: unknown[]) => id.number === row[Column.Number] && (!id.version || id.version === row[Column.Version]);
-    public static latest = () => new DataSheet("Latest Cards", DataTableType.STATIC, this.CardIdFunc);
-    public static archive = () => new DataSheet("Archived Cards", DataTableType.DYNAMIC, this.CardIdFunc);
+type FilterFunc<Id> = (values: unknown[], index: number, id?: Id) => boolean;
+
+const dataSheets = {
+    latest: () => new DataSheet("Latest Cards", "static", cardIdFunc),
+    archive: () => new DataSheet("Archived Cards", "dynamic", cardIdFunc),
+    review: () => new DataSheet("Archived Reviews", "dynamic", reviewIdFunc)
 };
 
-enum DataTableType {
-    STATIC,
-    DYNAMIC
-}
-
-class DataSheet<T> {
-    private sheet: GoogleAppsScript.Spreadsheet.Sheet;
+class DataSheet<Id> {
+    public sheet: GoogleAppsScript.Spreadsheet.Sheet;
     private firstRow: number;
     private firstColumn: number;
     private maxColumns: number;
     private maxRows: number;
 
-    constructor(sheetName: string, private type: DataTableType = DataTableType.DYNAMIC, private identifierFunc: (identifier: T, row: unknown[]) => boolean) {
+    constructor(sheetName: string, private type: "static" | "dynamic" = "dynamic", private defaultIdFunc: FilterFunc<Id>) {
         const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
         if (!sheet) {
             throw Error(`Failed to find sheet '${sheetName}'`);
@@ -34,7 +32,7 @@ class DataSheet<T> {
     }
 
     public create(creating: string[][]) {
-        if (creating.length > 0 && this.type === DataTableType.STATIC) {
+        if (creating.length > 0 && this.type === "static") {
             throw Error(`You cannot create rows on static data sheet "${this.sheet.getName()}"`);
         }
 
@@ -59,7 +57,7 @@ class DataSheet<T> {
         return richTextValues.length;
     }
 
-    public read(reading?: T[]) {
+    public read(filterFunc: FilterFunc<Id> = (() => true)) {
         // TODO: Save current filter, unapply, then reapply when finished reading
         if (this.maxRows <= 0) {
             return [];
@@ -74,7 +72,7 @@ class DataSheet<T> {
         for (let i = 0 ; i < valueMatrix.length ; i++) {
             const values = valueMatrix[i];
             // Only get row if matches filter
-            if (!reading || reading.some((id) => this.identifierFunc(id, values))) {
+            if (filterFunc(values, i)) {
                 const rowValues: string[] = [];
 
                 const richTextValues = richTextValueMatrix[i];
@@ -96,7 +94,7 @@ class DataSheet<T> {
         return tableValues;
     }
 
-    public update(updating: { id: T, values: string[] }[]) {
+    public update(updating: { id: Id, values: string[] }[]) {
         // TODO: Save current filter, unapply, then reapply when finished reading
         if (this.maxRows <= 0) {
             return 0;
@@ -111,7 +109,7 @@ class DataSheet<T> {
             const values = valueMatrix[i];
 
             let startRow: number;
-            const found = updating.find(({ id }) => this.identifierFunc(id, values))?.values;
+            const found = updating.find(({ id }) => this.defaultIdFunc(values, i, id))?.values;
             if (found) {
                 startRow = startRow || (this.firstRow + i);
                 const group: string[][] = setMap[startRow] || [];
@@ -135,7 +133,7 @@ class DataSheet<T> {
         return totalUpdated;
     }
 
-    public delete(deleting: T[]) {
+    public delete(filterFunc: FilterFunc<Id> = (() => true)) {
         if (this.maxRows <= 0) {
             return 0;
         }
@@ -144,19 +142,19 @@ class DataSheet<T> {
         const range = this.sheet.getRange(this.firstRow, this.firstColumn, this.maxRows, this.maxColumns);
         const valueMatrix = range.getValues();
 
-        const setMap = new Map<number, T[]>();
+        const setMap = new Map<number, unknown[]>();
         let startGroupRow: number;
         for (let i = 0 ; i < valueMatrix.length ; i++) {
             const values = valueMatrix[i];
 
-            const found = deleting.find((id) => this.identifierFunc(id, values));
-            if (found) {
-                if (this.type === DataTableType.STATIC) {
+            const match = filterFunc(values, i);
+            if (match) {
+                if (this.type === "static") {
                     throw Error(`You cannot delete rows on static data sheet "${this.sheet.getName()}"`);
                 }
                 startGroupRow = startGroupRow || (this.firstRow + i);
-                const group: T[] = setMap.get(startGroupRow) || [];
-                group.push(found);
+                const group: unknown[] = setMap.get(startGroupRow) || [];
+                group.push(values);
                 setMap.set(startGroupRow, group);
             } else if (startGroupRow !== undefined) {
                 startGroupRow = undefined;
@@ -183,4 +181,12 @@ class DataSheet<T> {
         Log.information(`Deleted ${totalDeleted} rows (${totalGroups} groups) in ${this.sheet.getName()}`);
         return totalDeleted;
     }
+
+    public convertToDataRowNum(sheetRow: number) {
+        return sheetRow - this.firstRow + 1;
+    }
 }
+
+export {
+    dataSheets
+};

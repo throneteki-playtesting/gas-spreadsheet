@@ -1,13 +1,15 @@
-export function doGetTester() {
+import { onEdited } from "../Spreadsheets/Spreadsheet";
+
+function doGetTester() {
     const e = {
         pathInfo: "cards",
         parameter: {
-            no: "1"
+            ids: "1@0.0.0"
         }
     };
     this.doGet(e);
 }
-export function doPostTester() {
+function doPostTester() {
     let e: unknown = {};
     // Create
     e = {
@@ -41,3 +43,16 @@ export function doPostTester() {
     };
     this.doPost(e);
 }
+
+function onEditedTester() {
+    const e = {
+        range: SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Latest Cards").getRange(5, 13)
+    } as GoogleAppsScript.Events.SheetsOnEdit;
+    onEdited(e);
+}
+
+export {
+    doGetTester,
+    doPostTester,
+    onEditedTester
+};

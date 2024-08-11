@@ -1,6 +1,6 @@
 import { SemVer } from "semver";
-import { ProjectType } from "../Common/Enums.js";
 import config from "config";
+import { ProjectType } from "@/Common/Enums";
 
 class Project {
     readonly active: boolean;

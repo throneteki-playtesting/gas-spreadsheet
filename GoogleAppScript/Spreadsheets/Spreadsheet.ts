@@ -1,65 +1,135 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import { CardId } from "@/Common/Identifiers.js";
+import { Log } from "../CloudLogger.js";
 import { GooglePropertiesType, Settings } from "../Settings.js";
-import { CardId } from "./CardInfo.js";
-import { DataSheetFactory } from "./Data.js";
 import { UIHelper } from "./UserInput.js";
+import { dataSheets } from "./Data.js";
+import { cardIdFunc } from "./CardSheet.js";
 
+// Events //
 function onSpreadsheetOpen() {
+    // Add UI (if able)
     const ui = UIHelper.safelyGet();
     if (ui) {
-        ui.createMenu("Admin Tools")
-            .addSubMenu(
-                ui.createMenu("Development")
-                    .addSubMenu(
-                        ui.createMenu("Finalize Dev Update")
-                            .addItem("1. Sync Github Issues", "finalizeIssues")
-                            .addItem("2. Sync Pull Requests", "finalizePullRequest")
-                            .addItem("3. Generate JSON Data", "openJSONDevDialog")
-                            .addItem("4. Generate Update Notes (Unimplemented)", "openUpdateNotesDialog")
-                            .addItem("5. Archive Cards", "archivePlaytestingUpdateCards")
-                            .addItem("6. Increment Project Version", "incrementProjectVersion")
-                    )
-                    .addSubMenu(
-                        ui.createMenu("Individual Tasks")
-                            .addItem("Generate JSON Data", "openJSONDevDialog")
-                            .addItem("Sync Reviews", "syncReviews")
-                            .addItem("Sync Github Issues", "syncIssues")
-                            .addItem("Sync Pull Requests", "syncPullRequests")
-                            .addItem("Archive Cards", "archivePlaytestingUpdateCards")
-                            .addItem("Update Form Cards", "updateFormCards")
-                            .addItem("Increment Project Version", "incrementProjectVersion")
-                            .addSubMenu(
-                                ui.createMenu("Generate Card Images")
-                                    .addItem("All Digital Images (PNG)", "syncDigitalCardImages")
-                                    .addItem("Some Digital Images (PNG)", "syncSomeDigitalCardImages")
-                                    .addItem("Print Sheet (PDF)", "openPDFSheetsDialog")
-                            )
-                            .addItem("Generate Update Notes", "openUpdateNotesDialog")
-                            .addItem("Test", "testMulti")
-                    ).addSubMenu(
-                        ui.createMenu("Edit Stored Data")
-                            .addItem("Script Data", "editScriptProperties")
-                            .addItem("Document Data", "editDocumentProperties")
-                            .addItem("User Data", "editUserProperties")
-                    )
-            ).addSubMenu(
-                ui.createMenu("Release Tools")
-                    .addItem("Validate & Export JSON", "openJSONReleaseDialog")
-            ).addToUi();
+        // ui.createMenu("Admin Tools")
+        //     // .addSubMenu(
+        //     //     ui.createMenu("Development")
+        //     //         .addSubMenu(
+        //     //             ui.createMenu("Finalize Dev Update")
+        //     //                 .addItem("1. Sync Github Issues", "finalizeIssues")
+        //     //                 .addItem("2. Sync Pull Requests", "finalizePullRequest")
+        //     //                 .addItem("3. Generate JSON Data", "openJSONDevDialog")
+        //     //                 .addItem("4. Generate Update Notes (Unimplemented)", "openUpdateNotesDialog")
+        //     //                 .addItem("5. Archive Cards", "archivePlaytestingUpdateCards")
+        //     //                 .addItem("6. Increment Project Version", "incrementProjectVersion")
+        //     //         )
+        //     //         .addSubMenu(
+        //     //             ui.createMenu("Individual Tasks")
+        //     //                 .addItem("Generate JSON Data", "openJSONDevDialog")
+        //     //                 .addItem("Sync Reviews", "syncReviews")
+        //     //                 .addItem("Sync Github Issues", "syncIssues")
+        //     //                 .addItem("Sync Pull Requests", "syncPullRequests")
+        //     //                 .addItem("Archive Cards", "archivePlaytestingUpdateCards")
+        //     //                 .addItem("Update Form Cards", "updateFormCards")
+        //     //                 .addItem("Increment Project Version", "incrementProjectVersion")
+        //     //                 .addSubMenu(
+        //     //                     ui.createMenu("Generate Card Images")
+        //     //                         .addItem("All Digital Images (PNG)", "syncDigitalCardImages")
+        //     //                         .addItem("Some Digital Images (PNG)", "syncSomeDigitalCardImages")
+        //     //                         .addItem("Print Sheet (PDF)", "openPDFSheetsDialog")
+        //     //                 )
+        //     //                 .addItem("Generate Update Notes", "openUpdateNotesDialog")
+        //     //                 .addItem("Test", "testMulti")
+        //     //         ).addSubMenu(
+        //     //             ui.createMenu("Edit Stored Data")
+        //     //                 .addItem("Script Data", "editScriptProperties")
+        //     //                 .addItem("Document Data", "editDocumentProperties")
+        //     //                 .addItem("User Data", "editUserProperties")
+        //     //         )
+        //     // )
+        //     // .addSubMenu(
+        //     //     ui.createMenu("Release Tools")
+        //     //         .addItem("Validate & Export JSON", "openJSONReleaseDialog")
+        //     // )
+        //     // .addSubMenu(
+        //     //     ui.createMenu("Config")
+        //     //         .addItem("WebApp API Credentials", "updateWebAppCredentials")
+        //     // )
+        //     .addToUi();
+    }
+
+    // Add installable triggers if not already added
+    const allTriggers = ScriptApp.getProjectTriggers();
+    if (!allTriggers.some((t) => t.getHandlerFunction() === "onEdited")) {
+        ScriptApp.newTrigger("onEdited")
+            .forSpreadsheet(SpreadsheetApp.getActiveSpreadsheet())
+            .onEdit()
+            .create();
     }
 }
 
-export type AvailableSheetTypes = "archive" | "latest";
+function onEdited(e: GoogleAppsScript.Events.SheetsOnEdit) {
+    const apiUrl = PropertiesService.getScriptProperties().getProperty("apiUrl");
+    const range = e.range;
+    const sheet = range.getSheet();
+    // TODO: Move all "onEdited" logic into separate classes for each sheet (eg. Review "onEdit" is handled separately to Latest "onEdit")
+    const dataSheet = convertToDataSheet(sheet);
 
-export class SpreadsheetHandler {
-    static createCards({ types, create }: { types: AvailableSheetTypes[], create: string[][] }) {
+    // Another sheet is being edited
+    if (!dataSheet) {
+        return;
+    }
+    const firstRow = dataSheet.convertToDataRowNum(range.getRowIndex());
+    const lastRow = dataSheet.convertToDataRowNum(range.getRowIndex() + range.getNumRows() - 1);
+    const edited = dataSheet.read((values: unknown[], index: number) => (index + 1) >= firstRow && (index + 1) <= lastRow);
+
+    if (apiUrl && edited.length > 0) {
+        const type = "cards";
+        const url = `${apiUrl}/${type}`;
+        const options = {
+            method: "post",
+            headers: {
+                Authorization: `Basic ${Utilities.base64Encode("patane97:qwerty123")}`
+            },
+            contentType: "application/json",
+            payload: JSON.stringify({
+                project: SpreadsheetHandler.fetchProjectSettings(),
+                cards: edited
+            })
+        } as GoogleAppsScript.URL_Fetch.URLFetchRequestOptions;
+
+        const response = UrlFetchApp.fetch(url, options);
+
+        const json = JSON.parse(response.getContentText());
+
+        Log.information(`Successfully updated ${json.updated} ${type}s.`);
+    }
+    // TODO: Add a buffer of 10 seconds (eg. send edits in batch after no edits within 10s)
+}
+
+function convertToDataSheet(sheet: GoogleAppsScript.Spreadsheet.Sheet) {
+    switch (sheet.getName()) {
+        case "Latest Cards":
+            return dataSheets.latest();
+        case "Archived Cards":
+            return dataSheets.archive();
+        case "Archived Reviews":
+            return dataSheets.review();
+    }
+    return null;
+}
+
+export type AvailableSheetTypes = "archive" | "latest";
+class SpreadsheetHandler {
+    static createCards({ types, create }: { types?: AvailableSheetTypes[], create: string[][] }) {
         types = types || ["archive", "latest"];
 
         let total = 0;
         if (types.includes("latest")) {
-            total += DataSheetFactory.latest().create(create);
+            total += dataSheets.latest().create(create);
         }
         if (types.includes("archive")) {
-            total += DataSheetFactory.archive().create(create);
+            total += dataSheets.archive().create(create);
         }
 
         return total;
@@ -73,13 +143,13 @@ export class SpreadsheetHandler {
      */
     static readCards({ types, read }: { types?: AvailableSheetTypes[], read?: CardId[] }) {
         types = types || ["archive", "latest"];
-
         const cards: string[][] = [];
+        const filterFunc = read ? (values: unknown[], index: number) => read.some((id) => cardIdFunc(values, index, id)) : () => true;
         if (types.includes("latest")) {
-            cards.push(...DataSheetFactory.latest().read(read));
+            cards.push(...dataSheets.latest().read(filterFunc));
         }
         if (types.includes("archive")) {
-            cards.push(...DataSheetFactory.archive().read(read));
+            cards.push(...dataSheets.archive().read(filterFunc));
         }
 
         return cards;
@@ -95,23 +165,24 @@ export class SpreadsheetHandler {
 
         let total = 0;
         if (types.includes("latest")) {
-            total += DataSheetFactory.latest().update(update);
+            total += dataSheets.latest().update(update);
         }
         if (types.includes("archive")) {
-            total += DataSheetFactory.archive().update(update);
+            total += dataSheets.archive().update(update);
         }
 
         return total;
     }
     static destroyCards({ types, destroy }: { types?: AvailableSheetTypes[], destroy: CardId[] }) {
         types = types || ["archive", "latest"];
+        const filterFunc = (values: unknown[], index: number) => destroy.some((id) => cardIdFunc(values, index, id));
 
         let total = 0;
         if (types.includes("latest")) {
-            total += DataSheetFactory.latest().delete(destroy);
+            total += dataSheets.latest().delete(filterFunc);
         }
         if (types.includes("archive")) {
-            total += DataSheetFactory.archive().delete(destroy);
+            total += dataSheets.archive().delete(filterFunc);
         }
 
         return total;
@@ -211,10 +282,7 @@ export class SpreadsheetHandler {
 // }
 
 export {
+    SpreadsheetHandler,
+    onEdited,
     onSpreadsheetOpen
-//   finalizeChanges,
-//   archivePlaytestingUpdateCards,
-//   openJSONDevDialog,
-//   openPDFSheetsDialog,
-//   openUpdateNotesDialog
 };

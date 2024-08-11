@@ -1,4 +1,4 @@
-export class DataColumn {
+class DataColumn {
     public static serialise(value: GoogleAppsScript.Spreadsheet.RichTextValue): string {
         try {
             return this.parseToHTML(value);
@@ -129,3 +129,7 @@ export class DataColumn {
         return builder.build();
     }
 }
+
+export {
+    DataColumn
+};

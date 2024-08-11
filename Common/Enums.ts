@@ -66,7 +66,9 @@ export enum BatchType {
 export enum ResourceFormat {
     JSON,
     HTML,
-    TEXT
+    TEXT,
+    PNG,
+    PDF
 }
 
 export function maxEnum(o: unknown) {
