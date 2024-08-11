@@ -320,6 +320,7 @@ class Card {
         const name = this.name.replace(/[<>:"/\\|?*']/g, "").replace(/\s/g, "_");
         return encodeURI(`https://throneteki.ams3.cdn.digitaloceanspaces.com/packs/${project}/${number}_${name}.png`);
     }
+
     /**
      * @returns True if this card is the initial 0.0.0 version
      */
@@ -330,13 +331,13 @@ class Card {
      * @returns True if the card is in a draft state (eg. it is currently being edited, but not pushed to playtesting yet)
      */
     get isDraft() {
-        return this.isInitial || (Ver.eq(this.development.versions.current, this.development.versions.playtesting) && this.development.note);
+        return this.isInitial || (this.development.note && this.isPlaytesting);
     }
     /**
      * @returns True if this card is currently the version being playtested
      */
     get isPlaytesting() {
-        return !this.isDraft && Ver.eq(this.development.versions.current, this.development.versions.playtesting);
+        return this.development.versions.playtesting && Ver.eq(this.development.versions.current, this.development.versions.playtesting);
     }
     // /**
     //  *  @returns True if this card is being or needs to be implemented online
@@ -348,7 +349,7 @@ class Card {
      *  @returns True if this card has been implemented online
      */
     get isImplemented() {
-        return this.development.github ? this.development.github.status === "closed" : this.development.versions.playtesting && Ver.eq(this.development.versions.current, this.development.versions.playtesting);
+        return this.development.github ? this.development.github.status === "closed" : this.isPlaytesting;
     }
     // /**
     //  * @returns True if this card has been implemented online after the previous playtesting update
