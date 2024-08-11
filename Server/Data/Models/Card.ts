@@ -4,7 +4,7 @@ import Project from "./Project.js";
 import { CardType, DefaultDeckLimit, Faction, getEnum, getEnumName, maxEnum, NoteType } from "../../../Common/Enums.js";
 import Server from "@/Server/Server.js";
 import { CardId } from "@/Common/Identifiers.js";
-import * as CardSheet from "@/GoogleAppScript/Spreadsheets/CardSheet.js";
+import { CardColumn } from "@/GoogleAppScript/Spreadsheets/CardSheet.js";
 
 class Card {
     constructor(public code: number, public development: Development, public faction: Faction, public name: string,
@@ -87,7 +87,7 @@ class Card {
 
     static deserialise(project: Project, data: unknown[]) {
         const stripHTML = (str: string) => str.replace(/<[^>]*>/g, "");
-        const htmlColumns = [CardSheet.Column.Textbox, CardSheet.Column.Flavor, CardSheet.Column.NoteText];
+        const htmlColumns = [CardColumn.Textbox, CardColumn.Flavor, CardColumn.NoteText];
         const extractLinkText = (str: string) => {
             const regex = /<a\s+href="(.+)">([^<]*)<\/a>/gm;
             const groups = regex.exec(str);
@@ -112,12 +112,12 @@ class Card {
 
         const sData = data.map((value, index) => htmlColumns.includes(index) ? value.toString() : stripHTML(value.toString()));
         try {
-            const number = parseInt(sData[CardSheet.Column.Number]);
+            const number = parseInt(sData[CardColumn.Number]);
             // Cycles require ranges 0-499 for "live" cards, and 500-999 for "development" cards
             const code = project.getDevCardCodeFor(number);
 
             // Missing version should return a 'TBA' card
-            if (!sData[CardSheet.Column.Version]) {
+            if (!sData[CardColumn.Version]) {
                 const tbaDevelopment = {
                     id: new CardId(number),
                     number,
@@ -130,35 +130,35 @@ class Card {
                 return new Card(code, tbaDevelopment, Faction.Neutral, "TBA", CardType.Character, [], "", "", 3, 3, undefined, undefined, undefined, 0, { military: false, intrigue: false, power: false }, false, 0, undefined);
             }
             const development = {
-                id: new CardId(number, sData[CardSheet.Column.Version]),
+                id: new CardId(number, sData[CardColumn.Version]),
                 number: number,
                 project,
                 versions: {
-                    current: new SemVer(sData[CardSheet.Column.Version]),
-                    playtesting: sData[CardSheet.Column.PlaytestVersion] ? new SemVer(sData[CardSheet.Column.PlaytestVersion]) : undefined
+                    current: new SemVer(sData[CardColumn.Version]),
+                    playtesting: sData[CardColumn.PlaytestVersion] ? new SemVer(sData[CardColumn.PlaytestVersion]) : undefined
                 },
-                note: sData[CardSheet.Column.NoteType] || sData[CardSheet.Column.NoteText] ? {
-                    type: sData[CardSheet.Column.NoteType] ? NoteType[sData[CardSheet.Column.NoteType]] : undefined,
-                    text: sData[CardSheet.Column.NoteText] ? sData[CardSheet.Column.NoteText] : undefined
+                note: sData[CardColumn.NoteType] || sData[CardColumn.NoteText] ? {
+                    type: sData[CardColumn.NoteType] ? NoteType[sData[CardColumn.NoteType]] : undefined,
+                    text: sData[CardColumn.NoteText] ? sData[CardColumn.NoteText] : undefined
                 } : undefined,
-                github: sData[CardSheet.Column.GithubIssue] ? {
-                    status: sData[CardSheet.Column.GithubIssue],
-                    issueUrl: extractLinkText(sData[CardSheet.Column.GithubIssue]).link || ""
+                github: sData[CardColumn.GithubIssue] ? {
+                    status: sData[CardColumn.GithubIssue],
+                    issueUrl: extractLinkText(sData[CardColumn.GithubIssue]).link || ""
                 } : undefined,
-                final: sData[CardSheet.Column.PackShort] ? {
-                    packShort: sData[CardSheet.Column.PackShort],
-                    number: parseInt(sData[CardSheet.Column.ReleaseNumber])
+                final: sData[CardColumn.PackShort] ? {
+                    packShort: sData[CardColumn.PackShort],
+                    number: parseInt(sData[CardColumn.ReleaseNumber])
                 } : undefined
             } as Development;
-            const faction = getEnum<Faction>(Faction, sData[CardSheet.Column.Faction]);
-            const name = sData[CardSheet.Column.Name];
-            const type = CardType[sData[CardSheet.Column.Type]];
-            const traits = sData[CardSheet.Column.Traits] ? sData[CardSheet.Column.Traits].split(".").map(t => t.trim()).filter(t => t && t != "-") : [];
-            const text = sData[CardSheet.Column.Textbox];
-            const flavor = sData[CardSheet.Column.Flavor] ? sData[CardSheet.Column.Flavor] : undefined;
-            const illustrator = sData[CardSheet.Column.Illustrator] ? sData[CardSheet.Column.Illustrator] : "?";
-            const designer = sData[CardSheet.Column.Designer] ? sData[CardSheet.Column.Designer] : undefined;
-            const loyal = faction !== Faction.Neutral ? sData[CardSheet.Column.Loyal].toLowerCase() === "loyal" : undefined;
+            const faction = getEnum<Faction>(Faction, sData[CardColumn.Faction]);
+            const name = sData[CardColumn.Name];
+            const type = CardType[sData[CardColumn.Type]];
+            const traits = sData[CardColumn.Traits] ? sData[CardColumn.Traits].split(".").map(t => t.trim()).filter(t => t && t != "-") : [];
+            const text = sData[CardColumn.Textbox];
+            const flavor = sData[CardColumn.Flavor] ? sData[CardColumn.Flavor] : undefined;
+            const illustrator = sData[CardColumn.Illustrator] ? sData[CardColumn.Illustrator] : "?";
+            const designer = sData[CardColumn.Designer] ? sData[CardColumn.Designer] : undefined;
+            const loyal = faction !== Faction.Neutral ? sData[CardColumn.Loyal].toLowerCase() === "loyal" : undefined;
 
             let strength: number | "X" | undefined;
             let icons: Icons | undefined;
@@ -167,8 +167,8 @@ class Card {
             let plotStats: PlotStats | undefined;
             switch (type) {
                 case CardType.Character:
-                    strength = parseTypedNumber(sData[CardSheet.Column.Strength]);
-                    const iconsString = sData[CardSheet.Column.Icons];
+                    strength = parseTypedNumber(sData[CardColumn.Strength]);
+                    const iconsString = sData[CardColumn.Icons];
                     icons = {
                         military: iconsString.includes("M"),
                         intrigue: iconsString.includes("I"),
@@ -176,75 +176,75 @@ class Card {
                     } as Icons;
                 case CardType.Attachment:
                 case CardType.Location:
-                    unique = sData[CardSheet.Column.Unique] === "Unique";
+                    unique = sData[CardColumn.Unique] === "Unique";
                 case CardType.Event:
-                    cost = parseTypedNumber(sData[CardSheet.Column.Cost] ? sData[CardSheet.Column.Cost] : "-");
+                    cost = parseTypedNumber(sData[CardColumn.Cost] ? sData[CardColumn.Cost] : "-");
                     break;
                 case CardType.Plot:
                     plotStats = {
-                        income: parseTypedNumber(sData[CardSheet.Column.Income]),
-                        initiative: parseTypedNumber(sData[CardSheet.Column.Initiative]),
-                        claim: parseTypedNumber(sData[CardSheet.Column.Claim]),
-                        reserve: parseTypedNumber(sData[CardSheet.Column.Reserve])
+                        income: parseTypedNumber(sData[CardColumn.Income]),
+                        initiative: parseTypedNumber(sData[CardColumn.Initiative]),
+                        claim: parseTypedNumber(sData[CardColumn.Claim]),
+                        reserve: parseTypedNumber(sData[CardColumn.Reserve])
                     } as PlotStats;
                 case CardType.Agenda:
                     // Nothing additional to add
                     break;
             }
 
-            const deckLimit = sData[CardSheet.Column.Limit] ? parseInt(sData[CardSheet.Column.Limit]) : DefaultDeckLimit[CardType[type]];
+            const deckLimit = sData[CardColumn.Limit] ? parseInt(sData[CardColumn.Limit]) : DefaultDeckLimit[CardType[type]];
             const quantity = 3;
 
             return new Card(code, development, faction, name, type, traits, text, illustrator, deckLimit, quantity, flavor, designer,
                 loyal, strength, icons, unique, cost, plotStats);
         } catch (err) {
-            throw Error(`Failed to deserialise ${sData[CardSheet.Column.Number] ? `card #${sData[CardSheet.Column.Number]}` : "card with unknown or invalid #"}`, { cause: err });
+            throw Error(`Failed to deserialise ${sData[CardColumn.Number] ? `card #${sData[CardColumn.Number]}` : "card with unknown or invalid #"}`, { cause: err });
         }
     }
 
     static serialise(card: Card) {
-        const data: string[] = Array.from({ length: maxEnum(CardSheet.Column) }, (v, i) => [CardSheet.Column.Loyal, CardSheet.Column.Unique, CardSheet.Column.Cost, CardSheet.Column.Strength, CardSheet.Column.Icons, CardSheet.Column.Traits].includes(i) ? "-" : "");
+        const data: string[] = Array.from({ length: maxEnum(CardColumn) }, (v, i) => [CardColumn.Loyal, CardColumn.Unique, CardColumn.Cost, CardColumn.Strength, CardColumn.Icons, CardColumn.Traits].includes(i) ? "-" : "");
 
         try {
-            data[CardSheet.Column.Number] = card.development.number.toString();
-            data[CardSheet.Column.Version] = card.development.versions.current.toString();
-            data[CardSheet.Column.Faction] = card.faction.toString();
-            data[CardSheet.Column.Name] = card.name;
-            data[CardSheet.Column.Type] = CardType[card.type];
-            data[CardSheet.Column.Loyal] = card.loyal !== undefined ? (card.loyal ? "Loyal" : "Non-Loyal") : "-";
-            data[CardSheet.Column.Traits] = card.traits.length > 0 ? card.traits.map(t => t + ".").join(" ") : "-";
-            data[CardSheet.Column.Textbox] = card.text;
-            data[CardSheet.Column.Flavor] = card.flavor || "";
-            data[CardSheet.Column.Limit] = card.deckLimit !== DefaultDeckLimit[CardType[card.type]] ? card.deckLimit.toString() : "";
-            data[CardSheet.Column.Designer] = card.designer || "";
-            data[CardSheet.Column.Illustrator] = card.illustrator !== "?" ? card.illustrator : "";
-            data[CardSheet.Column.NoteType] = card.development.note ? NoteType[card.development.note.type] : "";
-            data[CardSheet.Column.NoteText] = card.development.note?.text || "";
-            data[CardSheet.Column.PlaytestVersion] = card.development.versions.playtesting?.toString() || "";
-            data[CardSheet.Column.GithubIssue] = card.development.github ? `<a href="${card.development.github.issueUrl}">${card.development.github.status}</a>` : "";
-            data[CardSheet.Column.PackShort] = card.development.final?.packShort || "";
-            data[CardSheet.Column.ReleaseNumber] = card.development.final?.number.toString() || "";
+            data[CardColumn.Number] = card.development.number.toString();
+            data[CardColumn.Version] = card.development.versions.current.toString();
+            data[CardColumn.Faction] = card.faction.toString();
+            data[CardColumn.Name] = card.name;
+            data[CardColumn.Type] = CardType[card.type];
+            data[CardColumn.Loyal] = card.loyal !== undefined ? (card.loyal ? "Loyal" : "Non-Loyal") : "-";
+            data[CardColumn.Traits] = card.traits.length > 0 ? card.traits.map(t => t + ".").join(" ") : "-";
+            data[CardColumn.Textbox] = card.text;
+            data[CardColumn.Flavor] = card.flavor || "";
+            data[CardColumn.Limit] = card.deckLimit !== DefaultDeckLimit[CardType[card.type]] ? card.deckLimit.toString() : "";
+            data[CardColumn.Designer] = card.designer || "";
+            data[CardColumn.Illustrator] = card.illustrator !== "?" ? card.illustrator : "";
+            data[CardColumn.NoteType] = card.development.note ? NoteType[card.development.note.type] : "";
+            data[CardColumn.NoteText] = card.development.note?.text || "";
+            data[CardColumn.PlaytestVersion] = card.development.versions.playtesting?.toString() || "";
+            data[CardColumn.GithubIssue] = card.development.github ? `<a href="${card.development.github.issueUrl}">${card.development.github.status}</a>` : "";
+            data[CardColumn.PackShort] = card.development.final?.packShort || "";
+            data[CardColumn.ReleaseNumber] = card.development.final?.number.toString() || "";
 
             switch (card.type) {
                 case CardType.Character:
-                    data[CardSheet.Column.Strength] = card.strength?.toString() || "-";
+                    data[CardColumn.Strength] = card.strength?.toString() || "-";
                     const iconLetters = [
                         ... card.icons?.military ? ["M"] : [],
                         ... card.icons?.intrigue ? ["I"] : [],
                         ... card.icons?.power ? ["P"] : []
                     ];
-                    data[CardSheet.Column.Icons] = iconLetters.join(" / ");
+                    data[CardColumn.Icons] = iconLetters.join(" / ");
                 case CardType.Attachment:
                 case CardType.Location:
-                    data[CardSheet.Column.Unique] = card.unique ? "Unique" : "Non-Unique";
+                    data[CardColumn.Unique] = card.unique ? "Unique" : "Non-Unique";
                 case CardType.Event:
-                    data[CardSheet.Column.Cost] = card.cost?.toString() || "-";
+                    data[CardColumn.Cost] = card.cost?.toString() || "-";
                     break;
                 case CardType.Plot:
-                    data[CardSheet.Column.Income] = (card.plotStats?.income || 0).toString();
-                    data[CardSheet.Column.Initiative] = (card.plotStats?.initiative || 0).toString();
-                    data[CardSheet.Column.Claim] = (card.plotStats?.claim || 0).toString();
-                    data[CardSheet.Column.Reserve] = (card.plotStats?.reserve || 0).toString();
+                    data[CardColumn.Income] = (card.plotStats?.income || 0).toString();
+                    data[CardColumn.Initiative] = (card.plotStats?.initiative || 0).toString();
+                    data[CardColumn.Claim] = (card.plotStats?.claim || 0).toString();
+                    data[CardColumn.Reserve] = (card.plotStats?.reserve || 0).toString();
                 case CardType.Agenda:
                 // Nothing to set
             }

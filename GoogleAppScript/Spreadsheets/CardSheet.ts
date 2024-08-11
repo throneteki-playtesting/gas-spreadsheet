@@ -1,12 +1,15 @@
+/* eslint-disable @typescript-eslint/no-namespace */
 import { CardId } from "@/Common/Identifiers";
 
-const cardIdFunc = (row: unknown[], rowIndex: number, id: CardId) => id.number === row[Column.Number] && (!id.version || id.version === row[Column.Version]);
+export namespace CardSheet {
+    export const cardIdFunc = (row: unknown[], rowIndex: number, id: CardId) => id.number === row[CardColumn.Number] && (!id.version || id.version === row[CardColumn.Version]);
 
-function getCardId(values: unknown[]) {
-    return new CardId(parseInt(values[Column.Number] as string), values[Column.Version] as string);
-}
+    export function getCardId(values: unknown[]) {
+        return new CardId(parseInt(values[CardColumn.Number] as string), values[CardColumn.Version] as string);
+    }
+};
 
-enum Column {
+export enum CardColumn {
     Number,
     Version,
     Faction,
@@ -34,9 +37,3 @@ enum Column {
     PackShort,
     ReleaseNumber
 }
-
-export {
-    cardIdFunc,
-    getCardId,
-    Column
-};

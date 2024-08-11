@@ -1,13 +1,13 @@
 import { Log } from "../CloudLogger.js";
-import { cardIdFunc } from "./CardSheet.js";
 import { reviewIdFunc } from "./ReviewSheet.js";
 import { DataColumn } from "./DataColumn.js";
+import { CardSheet } from "./CardSheet.js";
 
 type FilterFunc<Id> = (values: unknown[], index: number, id?: Id) => boolean;
 
 const dataSheets = {
-    latest: () => new DataSheet("Latest Cards", "static", cardIdFunc),
-    archive: () => new DataSheet("Archived Cards", "dynamic", cardIdFunc),
+    latest: () => new DataSheet("Latest Cards", "static", CardSheet.cardIdFunc),
+    archive: () => new DataSheet("Archived Cards", "dynamic", CardSheet.cardIdFunc),
     review: () => new DataSheet("Archived Reviews", "dynamic", reviewIdFunc)
 };
 

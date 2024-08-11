@@ -4,7 +4,7 @@ import { Log } from "../CloudLogger.js";
 import { GooglePropertiesType, Settings } from "../Settings.js";
 import { UIHelper } from "./UserInput.js";
 import { dataSheets } from "./Data.js";
-import { cardIdFunc } from "./CardSheet.js";
+import { CardSheet } from "./CardSheet.js";
 
 // Events //
 function onSpreadsheetOpen() {
@@ -57,17 +57,9 @@ function onSpreadsheetOpen() {
         //     // )
         //     .addToUi();
     }
-
-    // Add installable triggers if not already added
-    const allTriggers = ScriptApp.getProjectTriggers();
-    if (!allTriggers.some((t) => t.getHandlerFunction() === "onEdited")) {
-        ScriptApp.newTrigger("onEdited")
-            .forSpreadsheet(SpreadsheetApp.getActiveSpreadsheet())
-            .onEdit()
-            .create();
-    }
 }
 
+// Optional trigger method (must be manually configured on App Script settings)
 function onEdited(e: GoogleAppsScript.Events.SheetsOnEdit) {
     const apiUrl = PropertiesService.getScriptProperties().getProperty("apiUrl");
     const range = e.range;
@@ -144,7 +136,7 @@ class SpreadsheetHandler {
     static readCards({ types, read }: { types?: AvailableSheetTypes[], read?: CardId[] }) {
         types = types || ["archive", "latest"];
         const cards: string[][] = [];
-        const filterFunc = read ? (values: unknown[], index: number) => read.some((id) => cardIdFunc(values, index, id)) : () => true;
+        const filterFunc = read ? (values: unknown[], index: number) => read.some((id) => CardSheet.cardIdFunc(values, index, id)) : () => true;
         if (types.includes("latest")) {
             cards.push(...dataSheets.latest().read(filterFunc));
         }
@@ -175,7 +167,7 @@ class SpreadsheetHandler {
     }
     static destroyCards({ types, destroy }: { types?: AvailableSheetTypes[], destroy: CardId[] }) {
         types = types || ["archive", "latest"];
-        const filterFunc = (values: unknown[], index: number) => destroy.some((id) => cardIdFunc(values, index, id));
+        const filterFunc = (values: unknown[], index: number) => destroy.some((id) => CardSheet.cardIdFunc(values, index, id));
 
         let total = 0;
         if (types.includes("latest")) {

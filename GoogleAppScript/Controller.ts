@@ -1,6 +1,6 @@
 import { ExpandoObject, ExpandoValue } from "../Common/Utils.js";
 import { Log } from "./CloudLogger.js";
-import { getCardId } from "./Spreadsheets/CardSheet.js";
+import { CardSheet } from "./Spreadsheets/CardSheet.js";
 import { AvailableSheetTypes, SpreadsheetHandler } from "./Spreadsheets/Spreadsheet.js";
 
 export function doGet(e: GoogleAppsScript.Events.DoGet) {
@@ -70,7 +70,7 @@ export function doPost(e: GoogleAppsScript.Events.DoPost) {
 
                 switch (subAction) {
                     case "destroy":
-                        const destroying = json.map(getCardId);
+                        const destroying = json.map(CardSheet.getCardId);
                         const destroyed = SpreadsheetHandler.destroyCards({ types, destroy: destroying });
                         return sendResponse({
                             request: e,
@@ -89,7 +89,7 @@ export function doPost(e: GoogleAppsScript.Events.DoPost) {
                         });
                     case "update":
                     default:
-                        const updating = json.map((j) => ({ id: getCardId(j), values: j }));
+                        const updating = json.map((j) => ({ id: CardSheet.getCardId(j), values: j }));
                         const updated = SpreadsheetHandler.updateCards({ types, update: updating });
                         return sendResponse({
                             request: e,

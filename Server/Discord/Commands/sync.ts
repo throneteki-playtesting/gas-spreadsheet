@@ -25,6 +25,11 @@ export async function data() {
             option.setName("create")
                 .setDescription("Whether sync should create new threads if it does not already exist")
                 .setRequired(false)
+        )
+        .addBooleanOption(option =>
+            option.setName("hard")
+                .setDescription("Whether sync should pull latest data from spreadsheet (will be slower)")
+                .setRequired(false)
         );
 }
 export async function execute(interaction: ChatInputCommandInteraction) {
@@ -34,9 +39,10 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         const projectShort = interaction.options.getString("project");
         const numberString = interaction.options.getString("card");
         const canCreate = interaction.options.getBoolean("create");
+        const hardRefresh = interaction.options.getBoolean("hard") || true;
 
         const ids = numberString ? [new CardId(parseInt(numberString))] : undefined;
-        const cards = await service.data.cards.read({ projectShort, ids, hard: true });
+        const cards = await service.data.cards.read({ projectShort, ids, hard: hardRefresh });
         const { succeeded, failed } = await service.discord.syncCardThreads(cards, [guild], canCreate);
 
         let content = `:white_check_mark: ${succeeded.length === 1 ? `Successfully synced card: ${succeeded[0].url}` : `${succeeded.length} cards synced.`}`;
