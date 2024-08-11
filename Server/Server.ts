@@ -11,7 +11,7 @@ export default class Server {
     public static apiUrl: string;
 
     public static initialise(apiHost: string, serverPort: number, clientPort: number) {
-        this.apiUrl = apiHost;
+        this.apiUrl = apiHost || `http://localhost:${serverPort}`;
 
         // Add express
         const app = express();
@@ -42,7 +42,7 @@ export default class Server {
         });
 
         app.listen(serverPort, () => {
-            logger.info(`Server running on port ${serverPort}`);
+            logger.info(`Server running at ${this.apiUrl}`);
         });
 
         return app;

@@ -1,6 +1,6 @@
 {
     "server": {
-        "host": "localhost",
+        "host": null,
         "ports": {
             "api": 8080,
             "client": 4000

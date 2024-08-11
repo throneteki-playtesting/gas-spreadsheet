@@ -12,5 +12,4 @@ export const service = {
     discord: new DiscordService(config.get("discord.token"), config.get("discord.clientId"))
 };
 export const logger = Logger.initialise();
-export const host = config.has("apiHost") ? config.get("apiHost") : `localhost:${config.get("ports.server")}`;
 export const server = Server.initialise(config.get("server.host"), config.get("server.ports.api"), config.get("server.ports.client"));
