@@ -13,7 +13,8 @@ class RenderingService {
 
         const imgBuffers = await this.asPNG(syncing);
 
-        do {
+        while (syncing.length > 0)
+        {
             const card = syncing.shift();
             const imgBuffer = imgBuffers.shiftBuffer();
             const filePath = filePathFunc(card);
@@ -22,7 +23,7 @@ class RenderingService {
                 await fs.promises.mkdir(dirPath, { recursive: true });
             }
             await fs.promises.writeFile(filePath, imgBuffer);
-        } while (syncing.length > 0);
+        }
     }
 
     public async asPNG(cards: Card[]) {
