@@ -322,16 +322,23 @@ class Card {
     }
 
     /**
-     * @returns True if this card is the initial 0.0.0 version
+     * @returns True if this card is the pre-release 0.0.0 version
+     */
+    get isPreRelease() {
+        return Ver.eq(this.development.versions.current, "0.0.0");
+    }
+
+    /**
+     * @returns True if this card is the initial 1.0.0 version
      */
     get isInitial() {
-        return Ver.eq(this.development.versions.current, "0.0.0");
+        return Ver.eq(this.development.versions.current, "1.0.0");
     }
     /**
      * @returns True if the card is in a draft state (eg. it is currently being edited, but not pushed to playtesting yet)
      */
     get isDraft() {
-        return this.isInitial || (this.development.note && this.isPlaytesting);
+        return this.isPreRelease || (this.development.note && this.isPlaytesting);
     }
     /**
      * @returns True if this card is currently the version being playtested

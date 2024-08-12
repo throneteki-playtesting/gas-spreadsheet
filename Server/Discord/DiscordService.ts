@@ -69,7 +69,7 @@ class DiscordService {
                 throw Error("'Design Team' role does not exist");
             }
 
-            const discordReady = cards.filter((card) => card.isInitial || card.isPlaytesting);
+            const discordReady = cards.filter((card) => card.isPreRelease || card.isInitial || card.isPlaytesting);
             let groups = groupCardHistory(discordReady);
             const existingThreads = this.getCardThreads(forumChannel, groups.map((group) => group.latest));
             groups = groups.filter((group) => canCreate || existingThreads.has(group.latest));
