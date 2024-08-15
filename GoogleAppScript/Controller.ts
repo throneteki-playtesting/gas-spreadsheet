@@ -1,7 +1,7 @@
 import { ExpandoObject, ExpandoValue } from "../Common/Utils.js";
 import { Log } from "./CloudLogger.js";
 import { CardSheet } from "../Common/CardSheetInfo.js";
-import { AvailableSheetTypes, SpreadsheetHandler } from "./Spreadsheets/Spreadsheet.js";
+import { CardSheetType, SpreadsheetHandler } from "./Spreadsheets/Spreadsheet.js";
 
 export function doGet(e: GoogleAppsScript.Events.DoGet) {
     try {
@@ -17,7 +17,7 @@ export function doGet(e: GoogleAppsScript.Events.DoGet) {
             case "cards":
                 const { filter, ids } = e.parameter;
 
-                const types = filter?.split(",").map((f) => f.trim() as AvailableSheetTypes);
+                const types = filter?.split(",").map((f) => f.trim() as CardSheetType);
 
                 const idStrings = ids?.split(",");
                 const readIds = idStrings?.map((id) => id.trim().split("@")).map(([number, version]) => ({ number: parseInt(number), version }));
@@ -63,7 +63,7 @@ export function doPost(e: GoogleAppsScript.Events.DoPost) {
             case "cards":
                 const { filter } = e.parameter;
 
-                const types = filter?.split(",").map((f) => f.trim() as AvailableSheetTypes);
+                const types = filter?.split(",").map((f) => f.trim() as CardSheetType);
                 const json = JSON.parse(e.postData.contents) as string[][];
 
                 const subAction = splitPath.shift();

@@ -1,8 +1,7 @@
 import MongoDataSource from "./DataSources/MongoDataSource";
 import GASDataSource from "./DataSources/GASDataSource";
-import { AvailableSheetTypes } from "@/GoogleAppScript/Spreadsheets/Spreadsheet";
-import semverCompareBuild from "semver/functions/compare-build";
-import { eq, SemVer } from "semver";
+import { CardSheetType } from "@/GoogleAppScript/Spreadsheets/Spreadsheet";
+import { eq, compareBuild, SemVer } from "semver";
 import Card from "./Models/Card";
 import Project from "./Models/Project";
 import { logger, service } from "..";
@@ -22,12 +21,12 @@ export default class CardsRepository implements IRepository<CardId, Card> {
         this.database = new CardMongoDataSource(mongoClient.db().collection<Card>("cards"));
         this.spreadsheet = new CardGASDataSource(googleClientEmail, googlePrivateKey, projects);
     }
-    public async create({ projectShort, cards, filter }: { projectShort: string, cards: Card[], filter: AvailableSheetTypes[] }) {
+    public async create({ projectShort, cards, filter }: { projectShort: string, cards: Card[], filter: CardSheetType[] }) {
         await this.database.create({ values: cards });
         await this.spreadsheet.create({ projectShort, values: cards, filter });
     }
 
-    public async read({ projectShort, ids, hard, filter }: { projectShort: string, ids?: CardId[], hard?: boolean, filter?: AvailableSheetTypes[] }) {
+    public async read({ projectShort, ids, hard, filter }: { projectShort: string, ids?: CardId[], hard?: boolean, filter?: CardSheetType[] }) {
         let cards: Card[];
         // Force hard refresh from spreadsheet (slow)
         if (hard) {
@@ -45,7 +44,7 @@ export default class CardsRepository implements IRepository<CardId, Card> {
                 cards = cards.concat(fetched);
             }
         }
-        return cards.sort((a, b) => a.development.number - b.development.number || semverCompareBuild(a.development.versions.current, b.development.versions.current));
+        return cards.sort((a, b) => a.development.number - b.development.number || compareBuild(a.development.versions.current, b.development.versions.current));
     }
 
     public async update({ cards }: { cards: Card[] }) {
@@ -197,7 +196,7 @@ class CardMongoDataSource extends MongoDataSource<CardId, Card> {
 }
 
 class CardGASDataSource extends GASDataSource<CardId, Card> {
-    public async create({ projectShort, values, filter }: { projectShort: string, values: Card[], filter?: AvailableSheetTypes[] }) {
+    public async create({ projectShort, values, filter }: { projectShort: string, values: Card[], filter?: CardSheetType[] }) {
         const query = [
             ...(filter && filter.length > 0 && [ `filter=${filter.join(",")}` ])
         ];
@@ -211,7 +210,7 @@ class CardGASDataSource extends GASDataSource<CardId, Card> {
         return created > 0;
     }
 
-    public async read({ projectShort, ids, filter }: { projectShort: string, ids?: CardId[], filter?: AvailableSheetTypes[] }) {
+    public async read({ projectShort, ids, filter }: { projectShort: string, ids?: CardId[], filter?: CardSheetType[] }) {
         // Converting to format "15" or "15@1.0.0"
         const cardIds = ids?.map((id) => `${id.number}${id.version ? `@${id.version}` : ""}`).join(",");
         const query = [
@@ -242,18 +241,19 @@ class CardGASDataSource extends GASDataSource<CardId, Card> {
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    public async destroy({ projectShort, ids, filter }: { projectShort: string, ids: CardId[], filter?: AvailableSheetTypes[] }) {
+    public async destroy({ projectShort, ids, filter }: { projectShort: string, ids: CardId[], filter?: CardSheetType[] }) {
         // TODO Implement
         logger.error("Attempted to destroy for GAS Data Source; not implemented!");
         return false;
     }
 }
 
+// TODO: Update everything to return a "CardCollection" to mimic this methods behaviour
 export function groupCardHistory(cards: Card[]) {
     const groups = Map.groupBy(cards, (card) => card.development.number);
 
     return Array.from(groups.entries()).map(([number, c]) => {
-        const previous = c.sort((a, b) => -semverCompareBuild(a.development.versions.current, b.development.versions.current));
+        const previous = c.sort((a, b) => -compareBuild(a.development.versions.current, b.development.versions.current));
         const latest = previous.shift();
 
         return { number, latest, previous };

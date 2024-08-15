@@ -1,15 +1,5 @@
-export const Text = {
-    CardUpdate: ":memo:",
-    Implemented: ":white_check_mark:",
-    NotImplemented: ":no_entry_sign:",
-    Replaced: ":twisted_rightwards_arrows:",
-    Reworked: ":arrows_clockwise:",
-    Updated: ":arrow_double_up:",
-    Bugfixed: ":wrench:",
-    Other: ":eight_spoked_asterisk:"
-};
-export const Discord = {
-    CardIcons: {
+export default {
+    CardIcon: {
         unique: "<:unique:701045474332770385>",
         military: "<:military:701045474291089460>",
         intrigue: "<:intrigue:701045474337226813>",
@@ -26,7 +16,7 @@ export const Discord = {
     },
     white_check_mark: "\u2705",
     AuthorIcon: "https://cdn-icons-png.flaticon.com/128/6138/6138221.png",
-    RatingEmoji: {
+    Rating: {
         1: ":one:",
         2: ":two:",
         3: ":three:",
@@ -37,7 +27,16 @@ export const Discord = {
         8: ":eight:",
         9: ":nine:"
     },
-    EmbedColor: {
-        Review: 10053324
+    Color: {
+        Review: 10053324,
+        "House Baratheon": "#e3d852",
+        "House Greyjoy": "#1d7a99",
+        "House Lannister": "#c00106",
+        "House Martell": "#e89521",
+        "House Stark": "#cfcfcf",
+        "The Night's Watch": "#7a7a7a",
+        "House Targaryen": "#1c1c1c",
+        "House Tyrell": "#509f16",
+        "Neutral": "#a99560"
     }
 };

@@ -1,11 +1,12 @@
 import express from "express";
 import { celebrate, Joi, Segments } from "celebrate";
 import asyncHandler from "express-async-handler";
-import { getEnumName, ResourceFormat } from "../../../../Common/Enums";
 import { logger, service } from "../../..";
 import Project from "@/Server/Data/Models/Project";
 import Card from "@/Server/Data/Models/Card";
 import { CardId } from "@/Common/CardSheetInfo";
+
+export type ResourceFormat = "JSON" | "HTML" | "TXT" | "PNG" | "PDF";
 
 const router = express.Router();
 
@@ -14,7 +15,7 @@ const router = express.Router();
  */
 router.get("/:project", celebrate({
     [Segments.QUERY]: {
-        format: Joi.string().insensitive().valid(...Object.keys(ResourceFormat)).default(getEnumName(ResourceFormat, ResourceFormat.JSON)),
+        format: Joi.string().insensitive().valid("JSON", "HTML", "PDF", "TXT").default("JSON"),
         hard: Joi.boolean().default(false),
         id: Joi.alternatives().try(
             Joi.array().items(Joi.string().regex(CardId.format)),
@@ -25,7 +26,7 @@ router.get("/:project", celebrate({
     }
 }), asyncHandler(async (req, res) => {
     const projectShort = req.params.project;
-    const format = ResourceFormat[req.query.format as string];
+    const format = req.query.format as ResourceFormat;
     const hard = req.query.hard as unknown as boolean;
     const ids = !req.query.id ? undefined : (Array.isArray(req.query.id) ? req.query.id : [req.query.id]).map((id) => CardId.deserialize(id as string));
     const copies = req.query.copies as unknown as number;
@@ -34,15 +35,15 @@ router.get("/:project", celebrate({
     const cards = await service.data.cards.read({ ids, projectShort, hard });
 
     switch (format) {
-        case ResourceFormat.JSON:
+        case "JSON":
             const json = cards.map((card) => card.toJSON());
             res.json(json);
             break;
-        case ResourceFormat.HTML:
+        case "HTML":
             const html = service.render.asHtml("Batch", cards, { copies, perPage });
             res.send(html);
             break;
-        case ResourceFormat.PDF:
+        case "PDF":
             const pdf = await service.render.asPDF(cards, { copies, perPage });
             res.contentType("application/pdf");
             res.send(pdf);
@@ -57,14 +58,14 @@ router.get("/:project", celebrate({
  */
 router.get("/:project/:number", celebrate({
     [Segments.QUERY]: {
-        format: Joi.string().insensitive().valid(...Object.keys(ResourceFormat)).default(getEnumName(ResourceFormat, ResourceFormat.JSON)),
+        format: Joi.string().insensitive().valid("JSON", "HTML", "PNG", "TXT").default("JSON"),
         hard: Joi.boolean().default(false),
         version: Joi.string().regex(/^\d+.\d+.\d+$/)
     }
 }), asyncHandler(async (req, res) => {
     const projectShort = req.params.project;
     const number = parseInt(req.params.number);
-    const format = ResourceFormat[req.query.format as string];
+    const format = req.query.format as ResourceFormat;
     const hard = req.query.hard as unknown as boolean;
     const version = req.query.version as string | undefined;
 
@@ -73,13 +74,13 @@ router.get("/:project/:number", celebrate({
     const card = cards.shift();
 
     switch (format) {
-        case ResourceFormat.JSON:
+        case "JSON":
             res.json(card?.toJSON());
             break;
-        case ResourceFormat.HTML:
+        case "HTML":
             res.send(service.render.asHtml("Single", card));
             break;
-        case ResourceFormat.PNG:
+        case "PNG":
             const png = (await service.render.asPNG([card])).shiftBuffer();
             res.type("png");
             res.send(png);
@@ -89,6 +90,7 @@ router.get("/:project/:number", celebrate({
     }
 }));
 
+// TODO: Add celebrate validation
 router.post("/", asyncHandler(async (req, res) => {
     const project = Project.deserialise(req.body.project);
     const rawCards = req.body.cards as unknown[][];

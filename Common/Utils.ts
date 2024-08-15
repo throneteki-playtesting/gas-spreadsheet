@@ -19,3 +19,7 @@ export function getQueryArray(value: string | string[]) {
         return value.split(",").map((v) => v.trim());
     }
 }
+
+export function maxEnum(o: unknown) {
+    return Math.max(...Object.keys(o).filter(obj => !isNaN(parseInt(obj))).map(obj => parseInt(obj))) + 1;
+}

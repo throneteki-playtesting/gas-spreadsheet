@@ -1,13 +1,13 @@
-import ejs from "ejs";
-import fs from "fs";
 import { AttachmentBuilder, BaseMessageOptions, Client, EmbedBuilder, ForumChannel, Guild, Message, Role, ThreadChannel } from "discord.js";
 import { deployCommands } from "./DeployCommands";
 import { commands } from "./Commands";
-import { Discord } from "../../Common/Emojis";
-import { getEnumName, NoteType } from "../../Common/Enums";
 import { logger } from "..";
-import path from "path";
 import Card from "../Data/Models/Card";
+import Utilities from "./Utilities";
+import ejs from "ejs";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import { groupCardHistory } from "../Data/CardsRepository";
 
 class DiscordService {
@@ -104,22 +104,23 @@ class DiscordService {
                         });
                         succeeded.push(await thread.fetchStarterMessage());
                     } else {
-                        // Ensure correct tags are applied
-                        await thread.setAppliedTags([projectTag.id, factionTag.id]);
-                        // Ensure archive duration is respected
-                        await thread.setAutoArchiveDuration(forumChannel.defaultAutoArchiveDuration);
-                        // Ensure name is up to date
-                        await thread.setName(`${prefix}${latest.name}`);
-                        // Update initial message
                         const starter = await thread.fetchStarterMessage();
                         const requiresUpdateMessage = previous.length > 0 && !starter.attachments.some((attachment) => attachment.description === this.generateAttachment(latest).description);
-                        await starter.edit(this.generatePrimaryMessage(designTeamRole, latest, previous));
+                        const promises = [
+                            // Ensure correct tags are applied
+                            await thread.setAppliedTags([projectTag.id, factionTag.id]),
+                            // Ensure archive duration is respected
+                            await thread.setAutoArchiveDuration(forumChannel.defaultAutoArchiveDuration),
+                            // Ensure name is up to date
+                            await thread.setName(`${prefix}${latest.name}`),
+                            // Update starter message
+                            await starter.edit(this.generatePrimaryMessage(designTeamRole, latest, previous))
+                        ];
                         if (requiresUpdateMessage) {
-                            const update = await thread.send(this.generateUpdateMessage(designTeamRole, latest, previous[0], starter));
-                            succeeded.push(update);
-                        } else {
-                            succeeded.push(starter);
+                            promises.push(await thread.send(this.generateUpdateMessage(designTeamRole, latest, previous[0], starter)));
                         }
+                        const responses = await Promise.all(promises);
+                        succeeded.push(responses[responses.length - 1] as Message<true>);
                     }
                 } catch (err) {
                     console.error(err);
@@ -151,13 +152,13 @@ class DiscordService {
 
         const embeds = previous.map((pCard) => {
             const embedBuilder = new EmbedBuilder()
-                .setColor(Discord.EmbedColor.Review) // TODO: Update this to faction color
+                .setColor(Utilities.Color[pCard.faction as string])
                 .setTitle(pCard.toString())
                 .setURL(pCard.imageUrl)
                 .setThumbnail(pCard.imageUrl);
             if (pCard.development.note) {
                 embedBuilder.addFields(
-                    { name: getEnumName(NoteType, pCard.development.note.type), value: pCard.development.note.text }
+                    { name: pCard.development.note.type, value: pCard.development.note.text }
                 );
             }
             return embedBuilder;
@@ -230,6 +231,7 @@ class DiscordService {
     // }
 
     private renderTemplate(fileName: string, data: ejs.Data) {
+        const __dirname = path.dirname(fileURLToPath(import.meta.url));
         const filepath = `${__dirname}/Templates/${fileName}.ejs`;
         const file = fs.readFileSync(filepath).toString();
         return ejs.render(file, { filename: filepath, ...data });

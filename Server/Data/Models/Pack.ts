@@ -1,4 +1,3 @@
-import { ProjectType } from "@/Common/Enums.js";
 import Card from "./Card.js";
 
 class Pack {
@@ -16,7 +15,7 @@ class Pack {
         if (releaseDate) {
             this.releaseDate = releaseDate;
         } else {
-            if (project.type === ProjectType.Cycle) {
+            if (project.type === "Cycle") {
                 this.name += " (Unreleased)";
             }
             this.releaseDate = null;

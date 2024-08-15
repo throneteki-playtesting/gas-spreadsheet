@@ -1,10 +1,12 @@
 import ejs from "ejs";
 import fs from "fs";
-import { CardType, DefaultDeckLimit, Faction } from "../../Common/Enums";
 import path from "path";
+import { fileURLToPath } from "url";
 import puppeteer, { Viewport } from "puppeteer";
-import Card from "../Data/Models/Card";
-import BufferCollection from "buffer-collection";
+import Card, { DefaultDeckLimit } from "../Data/Models/Card";
+import { BufferCollection } from "buffer-collection";
+
+export type RenderType = "Single" | "Batch";
 
 class RenderingService {
     public async syncImages(cards: Card[], override = false) {
@@ -42,8 +44,8 @@ class RenderingService {
         const buffers = new BufferCollection();
         for (const card of cards) {
             page.setViewport({
-                width: card.type === CardType.Plot ? height : width,
-                height: card.type === CardType.Plot ? width : height,
+                width: card.type === "Plot" ? height : width,
+                height: card.type === "Plot" ? width : height,
                 deviceScaleFactor: 1.25
             });
             const htmlContent = this.asHtml("Single", card, { includeCSS: true, includeJS: true });
@@ -75,16 +77,16 @@ class RenderingService {
         return buffer;
     }
 
-    public asHtml(mode: "Single" | "Batch", cards: Card | Card[], options? : { copies?: number, perPage?: number, includeCSS?: boolean, includeJS?: boolean }) {
+    public asHtml(mode: RenderType, cards: Card | Card[], options? : { copies?: number, perPage?: number, includeCSS?: boolean, includeJS?: boolean }) {
         switch (mode) {
             case "Single":
                 const single = Array.isArray(cards) ? cards[0] : cards as Card;
                 options = { ...{ includeCSS: false, includeJS: false }, ...options };
-                return this.renderTemplate({ type: mode, card: this.prepareCard(single), ...options });
+                return RenderingService.renderTemplate({ type: mode, card: this.prepareCard(single), ...options });
             case "Batch":
                 const batch = Array.isArray(cards) ? cards : [cards];
                 options = { ... { includeCSS: false, includeJS: false, copies: 3, perPage: 9 }, ...options };
-                return this.renderTemplate({ type: mode, cards: batch.map((card) => this.prepareCard(card)), ...options });
+                return RenderingService.renderTemplate({ type: mode, cards: batch.map((card) => this.prepareCard(card)), ...options });
         }
     }
 
@@ -92,9 +94,9 @@ class RenderingService {
         return {
             ...card,
             ... {
-                type: CardType[card.type],
+                type: card.typeLower,
                 traits: card.traits.map((t: string) => `${t}.`).join(" "),
-                faction: Object.keys(Faction)[Object.values(Faction).indexOf(card.faction)].toLowerCase(),
+                faction: card.factionLower,
                 text: card.text
                     .replace(/\[([^\]]+)\]/g, "<span class=\"icon-$1\"></span>")
                     .replace(/\n/g, "<br>")
@@ -106,12 +108,13 @@ class RenderingService {
                     .replace(/(<br>-\s*.*\.)/g, "<ul>$1</ul>")
                     // ... and wrap each line in li
                     .replace(/<br>-\s*(.*?\.)(?=<br>|<\/ul>)/g, "<li>$1</li>"),
-                deckLimit: card.deckLimit !== DefaultDeckLimit[CardType[card.type]] ? `Deck Limit: ${card.deckLimit}` : ""
+                deckLimit: card.deckLimit !== DefaultDeckLimit[card.type] ? `Deck Limit: ${card.deckLimit}` : ""
             }
         } as ejs.Data;
     }
 
-    private renderTemplate(data: ejs.Data) {
+    private static renderTemplate(data: ejs.Data) {
+        const __dirname = path.dirname(fileURLToPath(import.meta.url));
         const filepath = `${__dirname}/Templates/Render.ejs`;
         const file = fs.readFileSync(filepath).toString();
         const { includeCSS, includeJS, ...restData } = data;

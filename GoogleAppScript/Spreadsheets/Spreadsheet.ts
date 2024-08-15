@@ -111,9 +111,9 @@ function convertToDataSheet(sheet: GoogleAppsScript.Spreadsheet.Sheet) {
     return null;
 }
 
-export type AvailableSheetTypes = "archive" | "latest";
+export type CardSheetType = "archive" | "latest";
 class SpreadsheetHandler {
-    static createCards({ types, create }: { types?: AvailableSheetTypes[], create: string[][] }) {
+    static createCards({ types, create }: { types?: CardSheetType[], create: string[][] }) {
         types = types || ["archive", "latest"];
 
         let total = 0;
@@ -133,7 +133,7 @@ class SpreadsheetHandler {
      * @param numbers Card numbers to fetch
      * @returns Array of serialized card values
      */
-    static readCards({ types, read }: { types?: AvailableSheetTypes[], read?: CardId[] }) {
+    static readCards({ types, read }: { types?: CardSheetType[], read?: CardId[] }) {
         types = types || ["archive", "latest"];
         const cards: string[][] = [];
         const filterFunc = read ? (values: unknown[], index: number) => read.some((id) => CardSheet.cardIdFunc(values, index, id)) : () => true;
@@ -152,7 +152,7 @@ class SpreadsheetHandler {
      * @param type Either "latest" or "archive". Defaults to "latest"
      * @param cards Card values to update. Uses the column defined in "Column.Number" to match spreadsheet data
      */
-    static updateCards({ types, update }: { types?: AvailableSheetTypes[], update: { id: CardId, values: string[] }[] }) {
+    static updateCards({ types, update }: { types?: CardSheetType[], update: { id: CardId, values: string[] }[] }) {
         types = types || ["archive", "latest"];
 
         let total = 0;
@@ -165,7 +165,7 @@ class SpreadsheetHandler {
 
         return total;
     }
-    static destroyCards({ types, destroy }: { types?: AvailableSheetTypes[], destroy: CardId[] }) {
+    static destroyCards({ types, destroy }: { types?: CardSheetType[], destroy: CardId[] }) {
         types = types || ["archive", "latest"];
         const filterFunc = (values: unknown[], index: number) => destroy.some((id) => CardSheet.cardIdFunc(values, index, id));
 

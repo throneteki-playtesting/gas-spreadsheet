@@ -1,6 +1,204 @@
-// import { Endpoints } from "@octokit/types";
-// import { Issue, PullRequest } from "./Issues";
-// import Card from "../Models/Card";
+import { App } from "octokit";
+import { OctokitResponse } from "@octokit/types";
+import { components } from "@octokit/openapi-types";
+import { logger, service } from "..";
+import { Issue } from "./Issues";
+import Card from "../Data/Models/Card";
+import { Octokit } from "@octokit/core";
+import { paginateGraphQLInterface } from "@octokit/plugin-paginate-graphql";
+import { Api } from "@octokit/plugin-rest-endpoint-methods";
+
+class GithubService {
+    private client: Octokit & { paginate: import("@octokit/plugin-paginate-rest").PaginateInterface; } & paginateGraphQLInterface & Api & { retry: { retryRequest: (error: import("octokit").RequestError, retries: number, retryAfter: number) => import("octokit").RequestError; }; };
+    private repoDetails: { owner: string, repo: string };
+    constructor(owner: string, repository: string, appId: string, privateKey: string) {
+        this.repoDetails = { owner, repo: repository };
+
+        this.getClient(appId, privateKey).then((octokit) => {
+            this.client = octokit;
+        });
+    }
+
+    private async getClient(appId: string, privateKey: string) {
+        const app = new App({
+            appId,
+            privateKey
+        });
+        const { data: installation } = await app.octokit.rest.apps.getOrgInstallation({ org: this.repoDetails.owner });
+        logger.info(`Connected to GitHub App ${installation.app_slug}`);
+        return app.getInstallationOctokit(installation.id);
+    }
+
+    public async syncIssues({ projectShort, hard = false }: { projectShort: string, hard?: boolean }) {
+        const cards = await service.data.cards.read({ projectShort, hard });
+        const issues = await this.getIssues(projectShort);
+
+        type IssueDetail = { number: number, state: string, html_url: string, body: string };
+        const promises: { card: Card, promise: Promise<IssueDetail | string> }[] = [];
+
+        for (const card of [cards[0]]) {
+            const generated = Issue.for(card);
+            if (!generated) {
+                continue;
+            }
+            const found = issues.find((issue) => generated.title === issue.title);
+
+            // Issue exists for card
+            if (found) {
+                const { number, state, html_url, body } = found;
+                // Open issues should have their body checked.
+                // If the body needs to change, update issue...
+                if (state === "open" && generated.body !== body) {
+                    const promise = this.client.rest.issues.update({
+                        ...this.repoDetails,
+                        issue_number: number,
+                        body: generated.body
+                    })
+                        .then(({ data }) => ({ number: data.number, state: data.state, html_url: data.html_url, body: data.body }))
+                        .catch((response) => {
+                            logger.error(`Failed to update issue #${number} for ${card.toString()}: ${response}`);
+                            return response.toString();
+                        });
+
+                    promises.push({ card, promise });
+                }
+                // ...otherwise, simply pass through the existing IssueDetail
+                else {
+                    promises.push({ card, promise: new Promise(() => ({ number, state, html_url, body })) });
+                }
+            }
+            // New issue needs to be created for card
+            else {
+                const promise = this.client.rest.issues.create({
+                    ...this.repoDetails,
+                    ...generated
+                })
+                    .then(({ data }) => ({ number: data.number, state: data.state, html_url: data.html_url, body: data.body }))
+                    .catch((response) => {
+                        logger.error(`Failed to create issue for ${card.toString()}: ${response}`);
+                        return response.toString();
+                    });
+                promises.push({ card, promise });
+            }
+        }
+
+        // Send all promises (update, create, existing); keeps all bound to original card
+        const responses = await Promise.all(promises.map(({ card, promise }) => promise.then((response) => ({ card, response }))));
+
+        const needsUpdate = [];
+        for (const { card, response } of responses) {
+            // Response threw an error, which was already caught & logged; can continue
+            if (typeof response === "string") {
+                continue;
+            }
+            let updated = false;
+            // Issue state & card github status are not matching, or URL is different? Update!
+            if (card.development.github?.status !== response.state || card.development.github.issueUrl !== response.html_url) {
+                card.development.github = { status: response.state, issueUrl: response.html_url };
+                updated = true;
+            }
+
+            // Unimplemented card has been implemented? Mark as implemented!
+            // TODO: Confirm this logic works as intended
+            if (card.isImplemented && card.development.note && response.state === "closed") {
+                card.development.note.type = "Implemented";
+                updated = true;
+            }
+
+            if (updated) {
+                needsUpdate.push(card);
+            }
+        }
+
+        if (needsUpdate.length > 0) {
+            await service.data.cards.update({ cards: needsUpdate });
+        }
+    }
+
+    private async getIssues(projectShort: string) {
+        const query = `repo:${this.repoDetails.owner}/${this.repoDetails.repo} is:issue ${projectShort} in:title`;
+
+        const results: components["schemas"]["issue-search-result-item"][] = [];
+        const perPage = 100;
+        let page = 1;
+        let response: OctokitResponse<{ total_count: number; incomplete_results: boolean; items: components["schemas"]["issue-search-result-item"][]; }, 200>;
+        do {
+            response = await this.client.rest.search.issuesAndPullRequests({
+                q: query,
+                per_page: perPage,
+                page
+            });
+            results.push(...response.data.items);
+            page++;
+        } while (response.data.incomplete_results);
+
+        return results;
+    }
+
+    public static githubify(text: string) {
+        // Html Converting
+        return text
+            .replace(/<i>/g, "***")
+            .replace(/<\/i>/g, "***")
+            .replace(/<b>|<\/b>/g, "**")
+            .replace(/<em>|<\/em>/g, "_")
+            .replace(/<s>|<\/s>/g, "~~")
+            .replace(/<cite>/g, "-")
+            .replace(/<\/cite>/g, "")
+            .replace(/<nl>/g, "")
+            .replace(/<h1>/g, "# ")
+            .replace(/<\/h1>/g, "")
+            .replace(/<h2>/g, "## ")
+            .replace(/<\/h2>/g, "")
+            .replace(/<h3>/g, "### ")
+            .replace(/<\/h3>/g, "")
+            .replace(/ {2}/g, " &nbsp;");
+    }
+}
+
+// syncIssue(currentIssues: Endpoints["GET /search/issues"]["response"]["data"]["items"]): "Added" | "Updated" | "Closed" | undefined {
+//     if (!this.requiresImplementation) {
+//         return;
+//     }
+
+//     // Sync image before pushing new or updating old issue
+//     this.syncImage();
+//     const potentialIssue = Issue.for(this.getReferenceCard());
+
+//     const currentIssue = currentIssues.find(current => current.title === potentialIssue.title);
+
+//     let action: "Added" | "Updated" | "Closed" | undefined;
+
+//     if (currentIssue) {
+//         if (currentIssue.state === "closed") {
+//             if (this.development.github?.status !== "closed") {
+//                 this.development.github = { status: currentIssue.state, issueUrl: currentIssue.html_url };
+//                 action = "Closed";
+//                 Log.verbose("Set issue status of " + this.toString() + " to 'Closed'");
+//             }
+//         }
+//         // Check & Update issue if body is different (for open issues)
+//         else if (potentialIssue.body !== currentIssue.body) {
+//             potentialIssue.number = currentIssue.number;
+//             let { number, state, html_url } = GithubAPI.updateIssue(potentialIssue);
+//             this.development.github = { status: state, issueUrl: html_url };
+//             action = "Updated";
+//             Log.verbose("Updated existing issue (#" + number + ") for " + this.toString());
+//         }
+//     } else {
+//         // Create new issue
+//         let { number, state, html_url } = GithubAPI.addIssue(potentialIssue);
+//         this.development.github = { status: state, issueUrl: html_url };
+//         action = "Added";
+//         Log.verbose("Added new issue for " + this.toString() + ": #" + number);
+//     }
+
+//     if (action === "Closed" && this.isImplemented && this.development.note) {
+//         this.development.note.type = NoteType.Implemented;
+//         Log.verbose("Marked " + this.toString() + " as implemented");
+//     }
+//     return action;
+// }
 
 // class Github {
 //     static getIssues(card?: Card) {
@@ -288,3 +486,5 @@
 // }
 
 // export { Github, GithubAPI };
+
+export default GithubService;

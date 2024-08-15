@@ -1,73 +1,51 @@
 import { SemVer } from "semver";
 import * as Ver from "semver";
 import Project from "./Project.js";
-import { CardType, DefaultDeckLimit, Faction, getEnum, getEnumName, maxEnum, NoteType } from "../../../Common/Enums.js";
 import Server from "@/Server/Server.js";
 import { CardId, CardColumn } from "@/Common/CardSheetInfo.js";
+import { maxEnum } from "@/Common/Utils.js";
+
+export type Faction = "House Baratheon" | "House Greyjoy" | "House Lannister" | "House Martell" | "The Night's Watch" | "House Stark" | "House Targaryen" | "House Tyrell" | "Neutral";
+export type Type = "Character" | "Location" | "Attachment" | "Event" | "Plot" | "Agenda";
+
+export type NoteType = "Replaced" | "Reworked" | "Updated" | "Implemented" | "Not Implemented";
+
+export enum DefaultDeckLimit {
+    Character = 3,
+    Attachment = 3,
+    Location = 3,
+    Event = 3,
+    Plot = 2,
+    Agenda = 1
+}
 
 class Card {
     constructor(public code: number, public development: Development, public faction: Faction, public name: string,
-        public type: CardType, public traits: string[], public text: string, public illustrator: string, public deckLimit: number,
+        public type: Type, public traits: string[], public text: string, public illustrator: string, public deckLimit: number,
         public quantity: number, public flavor?: string, public designer?: string, public loyal?: boolean, public strength?: number | "X",
         public icons?: Icons, public unique?: boolean, public cost?: number | "X" | "-", public plotStats?: PlotStats) {
 
         // Empty
     }
 
-    // syncIssue(currentIssues: Endpoints["GET /search/issues"]["response"]["data"]["items"]): "Added" | "Updated" | "Closed" | undefined {
-    //     if (!this.requiresImplementation) {
-    //         return;
-    //     }
+    public get typeLower() {
+        return this.type.toLowerCase();
+    }
 
-    //     // Sync image before pushing new or updating old issue
-    //     this.syncImage();
-    //     const potentialIssue = Issue.for(this.getReferenceCard());
-
-    //     const currentIssue = currentIssues.find(current => current.title === potentialIssue.title);
-
-    //     let action: "Added" | "Updated" | "Closed" | undefined;
-
-    //     if (currentIssue) {
-    //         if (currentIssue.state === "closed") {
-    //             if (this.development.github?.status !== "closed") {
-    //                 this.development.github = { status: currentIssue.state, issueUrl: currentIssue.html_url };
-    //                 action = "Closed";
-    //                 Log.verbose("Set issue status of " + this.toString() + " to 'Closed'");
-    //             }
-    //         }
-    //         // Check & Update issue if body is different (for open issues)
-    //         else if (potentialIssue.body !== currentIssue.body) {
-    //             potentialIssue.number = currentIssue.number;
-    //             let { number, state, html_url } = GithubAPI.updateIssue(potentialIssue);
-    //             this.development.github = { status: state, issueUrl: html_url };
-    //             action = "Updated";
-    //             Log.verbose("Updated existing issue (#" + number + ") for " + this.toString());
-    //         }
-    //     } else {
-    //         // Create new issue
-    //         let { number, state, html_url } = GithubAPI.addIssue(potentialIssue);
-    //         this.development.github = { status: state, issueUrl: html_url };
-    //         action = "Added";
-    //         Log.verbose("Added new issue for " + this.toString() + ": #" + number);
-    //     }
-
-    //     if (action === "Closed" && this.isImplemented && this.development.note) {
-    //         this.development.note.type = NoteType.Implemented;
-    //         Log.verbose("Marked " + this.toString() + " as implemented");
-    //     }
-    //     return action;
-    // }
+    public get factionLower() {
+        return this.faction.toLowerCase().replaceAll(/[\s']|(?:house)/gi, "");
+    }
 
     toJSON(workInProgress = false) {
         const obj: CardJSON = {
             code: workInProgress || !this.development.final ? this.code.toString() : this.development.project.code + this.development.final.number.toString().padStart(3, "0"),
             ...(workInProgress && { version: this.development.versions.current.toString() }),
-            type: CardType[this.type].toLowerCase(),
+            type: this.typeLower,
             name: this.name,
             octgnId: null,
             quantity: this.quantity,
             ...(this.unique !== undefined && { unique: this.unique }),
-            faction: getEnumName(Faction, this.faction).toLowerCase(),
+            faction: this.factionLower,
             ...(this.plotStats && { plotStats: this.plotStats }),
             ...(this.loyal !== undefined && { loyal: this.loyal }),
             ...(this.cost !== undefined && { cost: this.cost }),
@@ -126,7 +104,7 @@ class Card {
                         playtesting: new SemVer("0.0.0")
                     }
                 };
-                return new Card(code, tbaDevelopment, Faction.Neutral, "TBA", CardType.Character, [], "", "", 3, 3, undefined, undefined, undefined, 0, { military: false, intrigue: false, power: false }, false, 0, undefined);
+                return new Card(code, tbaDevelopment, "Neutral", "TBA", "Character", [], "", "", 3, 3, undefined, undefined, undefined, 0, { military: false, intrigue: false, power: false }, false, 0, undefined);
             }
             const development = {
                 id: new CardId(number, sData[CardColumn.Version]),
@@ -137,7 +115,7 @@ class Card {
                     playtesting: sData[CardColumn.PlaytestVersion] ? new SemVer(sData[CardColumn.PlaytestVersion]) : undefined
                 },
                 note: sData[CardColumn.NoteType] || sData[CardColumn.NoteText] ? {
-                    type: sData[CardColumn.NoteType] ? NoteType[sData[CardColumn.NoteType]] : undefined,
+                    type: sData[CardColumn.NoteType] ? sData[CardColumn.NoteType] : undefined,
                     text: sData[CardColumn.NoteText] ? sData[CardColumn.NoteText] : undefined
                 } : undefined,
                 github: sData[CardColumn.GithubIssue] ? {
@@ -149,15 +127,15 @@ class Card {
                     number: parseInt(sData[CardColumn.ReleaseNumber])
                 } : undefined
             } as Development;
-            const faction = getEnum<Faction>(Faction, sData[CardColumn.Faction]);
+            const faction = sData[CardColumn.Faction] as Faction;
             const name = sData[CardColumn.Name];
-            const type = CardType[sData[CardColumn.Type]];
+            const type = sData[CardColumn.Type] as Type;
             const traits = sData[CardColumn.Traits] ? sData[CardColumn.Traits].split(".").map(t => t.trim()).filter(t => t && t != "-") : [];
             const text = sData[CardColumn.Textbox];
             const flavor = sData[CardColumn.Flavor] ? sData[CardColumn.Flavor] : undefined;
             const illustrator = sData[CardColumn.Illustrator] ? sData[CardColumn.Illustrator] : "?";
             const designer = sData[CardColumn.Designer] ? sData[CardColumn.Designer] : undefined;
-            const loyal = faction !== Faction.Neutral ? sData[CardColumn.Loyal].toLowerCase() === "loyal" : undefined;
+            const loyal = faction !== "Neutral" ? sData[CardColumn.Loyal].toLowerCase() === "loyal" : undefined;
 
             let strength: number | "X" | undefined;
             let icons: Icons | undefined;
@@ -165,7 +143,7 @@ class Card {
             let cost: number | "X" | "-" | undefined;
             let plotStats: PlotStats | undefined;
             switch (type) {
-                case CardType.Character:
+                case "Character":
                     strength = parseTypedNumber(sData[CardColumn.Strength]);
                     const iconsString = sData[CardColumn.Icons];
                     icons = {
@@ -173,25 +151,25 @@ class Card {
                         intrigue: iconsString.includes("I"),
                         power: iconsString.includes("P")
                     } as Icons;
-                case CardType.Attachment:
-                case CardType.Location:
+                case "Attachment":
+                case "Location":
                     unique = sData[CardColumn.Unique] === "Unique";
-                case CardType.Event:
+                case "Event":
                     cost = parseTypedNumber(sData[CardColumn.Cost] ? sData[CardColumn.Cost] : "-");
                     break;
-                case CardType.Plot:
+                case "Plot":
                     plotStats = {
                         income: parseTypedNumber(sData[CardColumn.Income]),
                         initiative: parseTypedNumber(sData[CardColumn.Initiative]),
                         claim: parseTypedNumber(sData[CardColumn.Claim]),
                         reserve: parseTypedNumber(sData[CardColumn.Reserve])
                     } as PlotStats;
-                case CardType.Agenda:
+                case "Agenda":
                     // Nothing additional to add
                     break;
             }
 
-            const deckLimit = sData[CardColumn.Limit] ? parseInt(sData[CardColumn.Limit]) : DefaultDeckLimit[CardType[type]];
+            const deckLimit = sData[CardColumn.Limit] ? parseInt(sData[CardColumn.Limit]) : DefaultDeckLimit[type];
             const quantity = 3;
 
             return new Card(code, development, faction, name, type, traits, text, illustrator, deckLimit, quantity, flavor, designer,
@@ -209,15 +187,15 @@ class Card {
             data[CardColumn.Version] = card.development.versions.current.toString();
             data[CardColumn.Faction] = card.faction.toString();
             data[CardColumn.Name] = card.name;
-            data[CardColumn.Type] = CardType[card.type];
+            data[CardColumn.Type] = card.type as string;
             data[CardColumn.Loyal] = card.loyal !== undefined ? (card.loyal ? "Loyal" : "Non-Loyal") : "-";
             data[CardColumn.Traits] = card.traits.length > 0 ? card.traits.map(t => t + ".").join(" ") : "-";
             data[CardColumn.Textbox] = card.text;
             data[CardColumn.Flavor] = card.flavor || "";
-            data[CardColumn.Limit] = card.deckLimit !== DefaultDeckLimit[CardType[card.type]] ? card.deckLimit.toString() : "";
+            data[CardColumn.Limit] = card.deckLimit !== DefaultDeckLimit[card.type] ? card.deckLimit.toString() : "";
             data[CardColumn.Designer] = card.designer || "";
             data[CardColumn.Illustrator] = card.illustrator !== "?" ? card.illustrator : "";
-            data[CardColumn.NoteType] = card.development.note ? NoteType[card.development.note.type] : "";
+            data[CardColumn.NoteType] = card.development.note ? card.development.note.type as string : "";
             data[CardColumn.NoteText] = card.development.note?.text || "";
             data[CardColumn.PlaytestVersion] = card.development.versions.playtesting?.toString() || "";
             data[CardColumn.GithubIssue] = card.development.github ? `<a href="${card.development.github.issueUrl}">${card.development.github.status}</a>` : "";
@@ -225,7 +203,7 @@ class Card {
             data[CardColumn.ReleaseNumber] = card.development.final?.number.toString() || "";
 
             switch (card.type) {
-                case CardType.Character:
+                case "Character":
                     data[CardColumn.Strength] = card.strength?.toString() || "-";
                     const iconLetters = [
                         ... card.icons?.military ? ["M"] : [],
@@ -233,18 +211,18 @@ class Card {
                         ... card.icons?.power ? ["P"] : []
                     ];
                     data[CardColumn.Icons] = iconLetters.join(" / ");
-                case CardType.Attachment:
-                case CardType.Location:
+                case "Attachment":
+                case "Location":
                     data[CardColumn.Unique] = card.unique ? "Unique" : "Non-Unique";
-                case CardType.Event:
+                case "Event":
                     data[CardColumn.Cost] = card.cost?.toString() || "-";
                     break;
-                case CardType.Plot:
+                case "Plot":
                     data[CardColumn.Income] = (card.plotStats?.income || 0).toString();
                     data[CardColumn.Initiative] = (card.plotStats?.initiative || 0).toString();
                     data[CardColumn.Claim] = (card.plotStats?.claim || 0).toString();
                     data[CardColumn.Reserve] = (card.plotStats?.reserve || 0).toString();
-                case CardType.Agenda:
+                case "Agenda":
                 // Nothing to set
             }
         } catch (err) {
@@ -311,14 +289,28 @@ class Card {
         return clone;
     }
 
+    static generateDevImageUrl(projectShort: string, id: CardId) {
+        return encodeURI(`${Server.apiUrl}/img/${projectShort}/${id.toString()}.png`);
+    }
+
     get imageUrl() {
         if (!this.isReleasable) {
-            return encodeURI(`${Server.apiUrl}/img/${this.development.project.short}/${this.development.id.toString()}.png`);
+            return Card.generateDevImageUrl(this.development.project.short, this.development.id);
         }
         const project = this.development.project.short;
         const number = this.development.final?.number;
         const name = this.name.replace(/[<>:"/\\|?*']/g, "").replace(/\s/g, "_");
         return encodeURI(`https://throneteki.ams3.cdn.digitaloceanspaces.com/packs/${project}/${number}_${name}.png`);
+    }
+
+    get previousImageUrl() {
+        if (!this.development.versions.playtesting) {
+            return null;
+        }
+        return Card.generateDevImageUrl(
+            this.development.project.short,
+            new CardId(this.development.number, this.development.versions.playtesting.toString())
+        );
     }
 
     /**
@@ -338,7 +330,7 @@ class Card {
      * @returns True if the card is in a draft state (eg. it is currently being edited, but not pushed to playtesting yet)
      */
     get isDraft() {
-        return this.isPreRelease || (this.development.note && this.isPlaytesting);
+        return this.isPreRelease || (this.isChanged && this.isPlaytesting);
     }
     /**
      * @returns True if this card is currently the version being playtested
@@ -346,12 +338,12 @@ class Card {
     get isPlaytesting() {
         return this.development.versions.playtesting && Ver.eq(this.development.versions.current, this.development.versions.playtesting);
     }
-    // /**
-    //  *  @returns True if this card is being or needs to be implemented online
-    //  */
-    // get requiresImplementation() {
-    //     return this.development.github ? this.development.github.status !== "closed" : this.isInitial || this.isChanged;
-    // }
+    /**
+     *  @returns True if this card is being or needs to be implemented online
+     */
+    get requiresImplementation() {
+        return this.development.github ? this.development.github.status !== "closed" : this.isInitial || this.isChanged;
+    }
     /**
      *  @returns True if this card has been implemented online
      */
@@ -376,12 +368,16 @@ class Card {
     // get isPreview() {
     //     return eq(this.development.versions.current, "0.0.0");
     // }
-    // /**
-    //  *  @returns True if this card has been changed (eg. not in its initial or currently playtested state)
-    //  */
-    // get isChanged() {
-    //     return this.development.note && this.development.note.type !== NoteType.Implemented;
-    // }
+    /**
+     *  @returns True if this card has been changed (eg. not in its initial or currently playtested state)
+     */
+    get isChanged() {
+        return this.development.note && this.development.note.type !== "Implemented";
+    }
+
+    get needsIssue() {
+        return !this.development.github && (this.isInitial || this.isChanged);
+    }
 
     /***
      * @returns True if this card has all data ready to be released
@@ -404,7 +400,7 @@ interface Development {
         text: string
     },
     github?: {
-        status: "open" | "closed",
+        status: "open" | "closed" | string,
         issueUrl: string
     },
     final?: {

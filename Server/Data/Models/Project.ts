@@ -1,11 +1,11 @@
 import { SemVer } from "semver";
 import config from "config";
-import { ProjectType } from "@/Common/Enums";
 
+export type Type = "Pack" | "Cycle" | "Expansion";
 class Project {
     readonly active: boolean;
     readonly scriptUrl: string;
-    constructor(readonly name: string, readonly short: string, readonly code: number, readonly type: ProjectType, readonly cards: { perFaction: number, neutral: number }, public version: SemVer) {
+    constructor(readonly name: string, readonly short: string, readonly code: number, readonly type: Type, readonly cards: { perFaction: number, neutral: number }, public version: SemVer) {
         const projectConfig = config.get("projects")[short];
         if (!projectConfig) {
             throw Error(`Missing "${short}" details in config`);
@@ -18,7 +18,7 @@ class Project {
         const name = data["name"] as string;
         const short = data["short"] as string;
         const code = parseInt(data["code"] as string);
-        const type = ProjectType[data["type"] as string];
+        const type = data["type"] as Type;
         const cards = {
             perFaction: parseInt(data["perFaction"] as string),
             neutral: parseInt(data["neutral"] as string)
@@ -37,7 +37,7 @@ class Project {
     }
 
     getDevCardCodeFor(cardNo: number): number {
-        const offset = this.type === ProjectType.Cycle ? 500 : 0;
+        const offset = this.type === "Cycle" ? 500 : 0;
         const codeString = this.code.toString() + (cardNo + offset).toString().padStart(3, "0");
         return parseInt(codeString);
     }

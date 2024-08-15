@@ -1,0 +1,26 @@
+<h2><%= emojis.ChangeLog %> Update requested for <%= updated.name %></h2>
+<em>Date requested: <%= date %></em>
+<nl>
+<h3>What needs to be done?</h3>
+Latest adjustment involves changes to this card's text box (<em>excluding keywords</em>), which will require code changes.
+<em>Non-text box & keyword adjustments are automatically processed with updates to [<%= jsonRepoData.name %>](<%- jsonRepoData.link %>).</em>
+
+Previous Version (<%= previous.version %>) | Updated Version (<%= updated.version %>)
+:-------------------------:|:-------------------------:
+![image](<%= previous.imageUrl %>) |![image](<%= updated.imageUrl %>)
+<nl>
+<h3>Change Notes</h3>
+<%= emojis.Updated %> <b>Updated</b> - <%- updated.note %><nl>
+<nl>
+---
+<nl>
+<h3>Implementation Steps</h3>
+1. Create a branch from `development-<%= project.short %>`
+2. Update card file for this card (within 'server/game/cards/<%= project.short %>')
+3. (Important) Update the card version (near bottom of file) to `UpdatedCardClass.version = '<%= updated.version %>'`
+4. (Optional) Test the implementation locally
+5. When ready (single or in bulk), create Pull Request into `development-<%= project.short %>` branch, linking this issue in the description as 'Closes: #[this issue number]'
+<nl>
+---
+<nl>
+<em>:robot: Issue was automatically created, and will close itself when card update is pushed to the playtesting website.</em>

@@ -1,7 +1,7 @@
 import { GASResponse } from "@/GoogleAppScript/Controller";
 import { JWT } from "google-auth-library";
 import { ExpandoObject } from "@/Common/Utils";
-import { AvailableSheetTypes } from "@/GoogleAppScript/Spreadsheets/Spreadsheet";
+import { CardSheetType } from "@/GoogleAppScript/Spreadsheets/Spreadsheet";
 
 export default abstract class GASDataSource<Id, Model> {
     private readonly scriptSuffix: string;
@@ -62,8 +62,8 @@ export default abstract class GASDataSource<Id, Model> {
         return `${scriptUrl}/${this.scriptSuffix}`;
     }
 
-    abstract create({ projectShort, values, filter }: { projectShort: string, values: Model[], filter?: AvailableSheetTypes[] }): Promise<boolean>;
-    abstract read({ projectShort, ids, filter }: { projectShort: string, ids?: Id[], filter?: AvailableSheetTypes[] }): Promise<Model[]>
+    abstract create({ projectShort, values, filter }: { projectShort: string, values: Model[], filter?: CardSheetType[] }): Promise<boolean>;
+    abstract read({ projectShort, ids, filter }: { projectShort: string, ids?: Id[], filter?: CardSheetType[] }): Promise<Model[]>
     abstract update({ projectShort, values }: { projectShort: string, values: Model[] }): Promise<boolean>
-    abstract destroy({ projectShort, ids, filter }: { projectShort: string, ids: Id[], filter?: AvailableSheetTypes[] }): Promise<boolean>
+    abstract destroy({ projectShort, ids, filter }: { projectShort: string, ids: Id[], filter?: CardSheetType[] }): Promise<boolean>
 }

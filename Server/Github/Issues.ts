@@ -1,74 +1,105 @@
-// import { NoteType } from "../Common/Enums";
-// import { Github } from "./Github";
-// import { PDFAPI } from "../Imaging/PdfAPI";
-// import { Emoji } from "../Common/Emojis";
+import Card from "../Data/Models/Card";
+import GithubService from ".";
+import fs from "fs";
+import ejs from "ejs";
+import { emojis } from "./Utils";
+import path from "path";
+import { fileURLToPath } from "url";
 
-// class Issue {
-//     owner: string;
-//     repo: string;
-//     number?: number;
-//     state?: string;
-//     html_url?: string;
+export type GeneratedIssue = {
+    title: string,
+    body: string,
+    labels: string[]
+};
 
-//     constructor(public title: string, public body: string, public labels: string[]) {
-//         this.owner = "throneteki-playtesting";
-//         this.repo = "throneteki";
-//     }
+export class Issue {
+    owner: string;
+    repo: string;
+    number?: number;
+    state?: string;
+    html_url?: string;
 
-//     static for(card: Card) {
-//         switch (card.development.note.type) {
-//             case NoteType.Replaced: {
-//                 const template = Issue.buildTemplate(card, NoteType.Replaced);
-//                 const title = card.code + " - Replace with " + card.name + " v" + card.development.version.toString();
-//                 const body = Github.githubify(template.evaluate().getContent());
-//                 const labels = ["automated", "implement-card", "update-card"];
-//                 return new Issue(title, body, labels);
-//             }
-//             case NoteType.Reworked:
-//             case NoteType.Updated: {
-//                 const template = Issue.buildTemplate(card, NoteType.Updated);
-//                 const title = card.code + " - Update to " + card.name + " v" + card.development.version.toString();
-//                 const body = Github.githubify(template.evaluate().getContent());
-//                 const labels = ["automated", "update-card"];
-//                 return new Issue(title, body, labels);
-//             }
-//             default: {
-//                 if (card.development.version.is(1, 0) && !card.isImplemented) {
-//                     const template = Issue.buildTemplate(card, NoteType.Implemented);
-//                     const title = card.code + " - Implement " + card.name + " v" + card.development.version.toString();
-//                     const body = Github.githubify(template.evaluate().getContent());
-//                     const labels = ["automated", "implement-card"];
-//                     return new Issue(title, body, labels);
-//                 }
-//                 throw Error("Failed to create Issue for card #" + card.development.number + ": Card is missing note type!");
-//             }
-//         }
-//     }
+    constructor(public title: string, public body: string, public labels: string[]) {
+        this.body = GithubService.githubify(this.body);
+    }
 
-//     private static buildTemplate(card: Card, noteType: NoteType) {
-//         const data = Data.instance;
-//         const template = HtmlService.createTemplateFromFile(`Github/Templates/${NoteType[noteType]}Issue`);
-//         template.newCard = card.clone();
-//         if (template.newCard.development.note) {
-//             template.newCard.development.note.type = Object.keys(NoteType)[Object.values(NoteType).indexOf(template.newCard.development.note.type)];
-//         }
-//         template.pack = data.project;
-//         template.jsonRepoData = {
-//             name: "throneteki-json-data",
-//             url: "https://github.com/throneteki-playtesting/throneteki-json-data"
-//         };
-//         template.date = new Date().toDateString();
+    static for(card: Card) {
+        const type = card.development.note?.type || (card.isInitial && !card.isImplemented ? "Implemented" : null);
+        if (!type) {
+            return null;
+        }
 
-//         if (card.development.playtestVersion && !card.development.version.equals(card.development.playtestVersion)) {
-//             template.oldCard = data.getCard(card.development.number, card.development.playtestVersion).clone();
-//             if (template.oldCard.development.note) {
-//                 template.oldCard.development.note.type = Object.keys(NoteType)[Object.values(NoteType).indexOf(template.oldCard.development.note.type)];
-//             }
-//         }
+        const project = {
+            short: card.development.project.short
+        };
+        const slimCard = {
+            name: card.name,
+            version: card.development.versions.current.toString(),
+            imageUrl: card.imageUrl,
+            note: card.development.note?.text
+        };
+        const previousSlimCard = () => {
+            if (card.development.versions.playtesting) {
+                throw Error("Playtesting version is missing or invalid");
+            }
+            const version = card.development.versions.playtesting.toString();
+            const imageUrl = card.previousImageUrl;
+            return { version, imageUrl };
+        };
+        let title = `${project.short} | ${card.development.number} - `;
 
-//         return template;
-//     }
-// }
+        switch (type) {
+            case "Replaced": {
+                title += `Replace with ${card.toString()}`;
+                const replaced = slimCard;
+                const previous = previousSlimCard();
+                const body = Issue.renderTemplate({ type, replaced, previous, project });
+                const labels = ["automated", "implement-card", "update-card"];
+                return { title, body, labels } as GeneratedIssue;
+            }
+            case "Reworked": {
+                title += `Rework as ${card.toString()}`;
+                const reworked = slimCard;
+                const previous = previousSlimCard();
+                const body = Issue.renderTemplate({ type, reworked, previous, project });
+                const labels = ["automated", "update-card"];
+                return { title, body, labels } as GeneratedIssue;
+            }
+            case "Updated": {
+                title += `Update to ${card.toString()}`;
+                const updated = slimCard;
+                const previous = previousSlimCard();
+                const body = Issue.renderTemplate({ type, updated, previous, project });
+                const labels = ["automated", "update-card"];
+                return { title, body, labels } as GeneratedIssue;
+            }
+            case "Implemented": {
+                title += `Implement ${card.toString()}`;
+                const implemented = slimCard;
+                const body = Issue.renderTemplate({ type, implemented, project });
+                const labels = ["automated", "implement-card"];
+                return { title, body, labels } as GeneratedIssue;
+            }
+            default: throw Error(`"${type}" is not a valid note type`);
+        }
+    }
+
+    private static renderTemplate(data: ejs.Data) {
+        const { type, ...restData } = data;
+        const __dirname = path.dirname(fileURLToPath(import.meta.url));
+        const filePath = `${__dirname}/Templates/Issues/${type}.ejs`;
+        const file = fs.readFileSync(filePath).toString();
+
+        const jsonRepoData = {
+            name: "throneteki-json-data",
+            url: "https://github.com/throneteki-playtesting/throneteki-json-data"
+        };
+        const date = new Date().toDateString();
+        const render = ejs.render(file, { filename: filePath, jsonRepoData, date, emojis, ...restData });
+
+        return GithubService.githubify(render);
+    }
+}
 
 // class PullRequest {
 //     owner: string;
