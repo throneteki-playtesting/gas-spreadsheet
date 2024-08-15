@@ -13,7 +13,7 @@ class DataService {
         this.client.db().command({ ping: 1 })
             .then(() => {
                 // Confirms that MongoDB is running
-                logger.info("MongoDB successfully connected.");
+                logger.info(`MongoDB connected to ${this.client.db().databaseName}`);
 
                 this.cards = new CardsRepository(this.client, googleClientEmail, googlePrivateKey, projects);
                 // this.projects = this.client.db().collection<Project>("projects");

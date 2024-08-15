@@ -42,7 +42,7 @@ export default class Server {
         });
 
         app.listen(serverPort, () => {
-            logger.info(`Server running at ${this.apiUrl}`);
+            logger.info(`Server running on port ${serverPort}: ${this.apiUrl}`);
         });
 
         return app;

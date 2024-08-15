@@ -25,7 +25,7 @@ class GithubService {
             privateKey
         });
         const { data: installation } = await app.octokit.rest.apps.getOrgInstallation({ org: this.repoDetails.owner });
-        logger.info(`Connected to GitHub App ${installation.app_slug}`);
+        logger.info(`GitHub connected with ${installation.app_slug}`);
         return app.getInstallationOctokit(installation.id);
     }
 

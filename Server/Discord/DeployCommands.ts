@@ -8,7 +8,7 @@ export async function deployCommands({ token, clientId, guild }: { token: string
         const body = await Promise.all(Object.values(commands).map((command) => command.data()));
         await rest.put(Routes.applicationGuildCommands(clientId, guild.id), { body });
 
-        logger.info(`Successfully reloaded (/) commands for guild "${guild.name}".`);
+        logger.info(`Reloaded (/) commands for "${guild.name}"`);
     }
     catch (error) {
         console.error(error);

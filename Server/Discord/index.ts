@@ -19,7 +19,7 @@ class DiscordService {
         });
 
         this.client.once("ready", () => {
-            logger.info(`${this.client.user?.tag} logged in & ready!`);
+            logger.info(`Discord connected with ${this.client.user?.tag}`);
         });
 
         const deployOptions = { token: this.token, clientId: this.clientId };
