@@ -1,5 +1,3 @@
-import { ExpandoObject } from "../../Common/Utils.js";
-
 class UIHelper {
     static safelyGet(): GoogleAppsScript.Base.Ui | null {
         try {
@@ -94,7 +92,7 @@ class UIHelper {
     }
 }
 
-function processUserInput(uuid: string, inputValues: ExpandoObject) {
+function processUserInput(uuid: string, inputValues: { [key: string]: string }) {
     CacheService.getUserCache().put(uuid + "_RESPONSE", JSON.stringify(inputValues));
 }
 

@@ -7,15 +7,6 @@ export type NoteType = "Replaced" | "Reworked" | "Updated" | "Implemented" | "No
 // number@version (ranging from 1@0.0.0 to 999@99.99.99)
 export type CardId = `${number}@${SemanticVersion}`
 
-export enum DefaultDeckLimit {
-    Character = 3,
-    Attachment = 3,
-    Location = 3,
-    Event = 3,
-    Plot = 2,
-    Agenda = 1
-}
-
 export interface CardModel {
     id: CardId,
     project: number,

@@ -1,7 +1,7 @@
 import { Log } from "../CloudLogger.js";
 import { CardModel } from "@/Common/Models/Card.js";
-import { apiPost } from "../API.js";
-import CardSerializer from "./CardSerializer.js";
+import { API } from "../API.js";
+import { CardSerializer } from "./CardSerializer.js";
 
 type FilterFunc<Model> = (values: string[], index: number, model?: Model) => boolean;
 type DeserializeFunc<Model> = (values: string[], index: number) => Model;
@@ -15,6 +15,12 @@ export type CardSheet = "archive" | "latest";
 export type Sheet = CardSheet | "review";
 
 export class DataSheet<Model> {
+    public static sheets = new Map<Sheet, DataSheet<CardModel>>([
+        ["latest", new DataSheet("Latest Cards", "cards", "static", CardSerializer.instance)],
+        ["archive", new DataSheet("Archived Cards", "cards", "dynamic", CardSerializer.instance)]//,
+        //TODO Add Reviews
+    ]);
+
     public sheet: GoogleAppsScript.Spreadsheet.Sheet;
     private firstRow: number;
     private firstColumn: number;
@@ -208,7 +214,7 @@ export class DataSheet<Model> {
         if (edited.length > 0) {
             try {
                 const subUrl = this.resource;
-                const response = apiPost(subUrl, edited);
+                const response = API.post(subUrl, edited);
                 Log.information(`Successfully updated ${response.updated} ${this.resource}s.`);
             } catch (err) {
                 Log.error(err);
@@ -216,12 +222,6 @@ export class DataSheet<Model> {
         }
     }
 }
-
-export const dataSheets = new Map<Sheet, DataSheet<CardModel>>([
-    ["latest", new DataSheet("Latest Cards", "cards", "static", CardSerializer)],
-    ["archive", new DataSheet("Archived Cards", "cards", "dynamic", CardSerializer)]//,
-    //TODO Add Reviews
-]);
 
 class DataParser {
     public static toStrings(values: GoogleAppsScript.Spreadsheet.RichTextValue[]): string[] {

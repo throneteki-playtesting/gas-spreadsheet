@@ -1,9 +1,12 @@
+import { Utils } from "@/Common/Utils";
 import * as Model from "../../Common/Models/Card";
-import { maxEnum } from "../../Common/Utils";
 import { GooglePropertiesType, Settings } from "../Settings";
 import { DataSerializer } from "./DataSheets";
 
 class CardSerializer implements DataSerializer<Model.CardModel> {
+    private static stripHTML(value: string) {
+        return value.replace(/<[^>]*>/g, "");
+    }
     private static deserializeTypedNumber<T>(value: string) {
         try {
             const number = parseInt(value);
@@ -26,6 +29,8 @@ class CardSerializer implements DataSerializer<Model.CardModel> {
     }
 
     public deserialize(values: string[]): Model.CardModel {
+        const htmlColumns = [Column.Textbox, Column.Flavor, Column.NoteText];
+        values = values.map((value, index) => htmlColumns.includes(index) ? value.toString() : CardSerializer.stripHTML(value.toString()));
         const model = {
             id: `${values[Column.Number]}@${values[Column.Version]}`,
             project: parseInt(Settings.getProperty(GooglePropertiesType.Script, "code")),
@@ -37,8 +42,8 @@ class CardSerializer implements DataSerializer<Model.CardModel> {
             traits: values[Column.Traits].split(".").map(t => t.trim()).filter(t => t && t != "-"),
             text: values[Column.Textbox],
             flavor: values[Column.Flavor] || undefined,
-            illustrator: values[Column.Illustrator],
-            designer: values[Column.Designer],
+            illustrator: values[Column.Illustrator] || undefined,
+            designer: values[Column.Designer] || undefined,
             loyal: (values[Column.Faction] as Model.Faction) !== "Neutral" ? values[Column.Loyal].toLowerCase() === "loyal" : undefined,
             note: values[Column.NoteType] ? {
                 type: values[Column.NoteType] as Model.NoteType,
@@ -82,7 +87,7 @@ class CardSerializer implements DataSerializer<Model.CardModel> {
 
     public serialize(model: Model.CardModel) {
         // Initialise "empty" values, with dashes for all dashable columns (eg. Loyal, Unique, ...)
-        const values: string[] = Array.from({ length: maxEnum(Column) }, (v, i) => [Column.Loyal, Column.Unique, Column.Cost, Column.Strength, Column.Icons, Column.Traits].includes(i) ? "-" : "");
+        const values: string[] = Array.from({ length: Utils.maxEnum(Column) }, (v, i) => [Column.Loyal, Column.Unique, Column.Cost, Column.Strength, Column.Icons, Column.Traits].includes(i) ? "-" : "");
         values[Column.Number] = model.number.toString();
         values[Column.Version] = model.version;
         values[Column.Faction] = model.faction;
@@ -92,9 +97,9 @@ class CardSerializer implements DataSerializer<Model.CardModel> {
         values[Column.Traits] = model.traits.length > 0 ? model.traits.map(t => t + ".").join(" ") : "-";
         values[Column.Textbox] = model.text;
         values[Column.Flavor] = model.flavor || "";
-        values[Column.Limit] = model.deckLimit !== Model.DefaultDeckLimit[model.type] ? model.deckLimit.toString() : "";
+        values[Column.Limit] = model.deckLimit !== Utils.DefaultDeckLimit[model.type] ? model.deckLimit.toString() : "";
         values[Column.Designer] = model.designer || "";
-        values[Column.Illustrator] = model.illustrator !== "?" ? model.illustrator : "";
+        values[Column.Illustrator] = model.illustrator || "";
         values[Column.NoteType] = model.note ? model.note.type as string : "";
         values[Column.NoteText] = model.note?.text || "";
         values[Column.PlaytestVersion] = model.playtesting || "";
@@ -133,7 +138,8 @@ class CardSerializer implements DataSerializer<Model.CardModel> {
         if (!model) {
             return true;
         }
-        return parseInt(values[Column.Number]) === model.number && (!model.version || values[Column.Version] === model.version);
+        const [number, version] = model.id.split("@");
+        return parseInt(values[Column.Number]) === parseInt(number) && values[Column.Version] === version;
     }
 }
 
@@ -166,4 +172,11 @@ enum Column {
     ReleaseNumber
 }
 
-export default new CardSerializer();
+// eslint-disable-next-line @typescript-eslint/no-namespace
+namespace CardSerializer {
+    export const instance = new CardSerializer();
+}
+
+export {
+    CardSerializer
+};

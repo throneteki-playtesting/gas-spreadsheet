@@ -1,12 +1,12 @@
 import express from "express";
 import { celebrate, Joi, Segments } from "celebrate";
 import asyncHandler from "express-async-handler";
-import { logger, service } from "../../..";
-import Card from "@/Server/Data/Models/Card";
+import Card from "@/Server/Services/Data/Models/Card";
 import { inc } from "semver";
-import { Regex, SemanticVersion } from "@/Common/Utils";
 import * as Schemas from "./Schemas";
-import { CardModel, NoteType } from "@/Common/Models/Card";
+import { CardId, CardModel, NoteType } from "@/Common/Models/Card";
+import { dataService, logger, renderService } from "@/Server/Services/Services";
+import { SemanticVersion, Utils } from "@/Common/Utils";
 
 export type ResourceFormat = "JSON" | "HTML" | "TXT" | "PNG" | "PDF";
 
@@ -23,8 +23,8 @@ router.get("/:project", celebrate({
         format: Joi.string().insensitive().valid("JSON", "HTML", "PDF", "TXT").default("JSON"),
         hard: Joi.boolean().default(false),
         id: Joi.alternatives().try(
-            Joi.array().items(Joi.string().regex(Regex.Card.id.optional)),
-            Joi.string().regex(Regex.Card.id.optional)
+            Joi.array().items(Joi.string().regex(Utils.Regex.Card.id.optional)),
+            Joi.string().regex(Utils.Regex.Card.id.optional)
         ),
         copies: Joi.number().default(3),
         perPage: Joi.number().default(9)
@@ -41,7 +41,7 @@ router.get("/:project", celebrate({
         const [number, version] = id.split("@");
         return { project, number: parseInt(number), version: version as SemanticVersion };
     });
-    const cards = await service.data.cards.read({ matchers, hard });
+    const cards = await dataService.cards.read({ matchers, hard });
 
     switch (format) {
         case "JSON":
@@ -49,11 +49,11 @@ router.get("/:project", celebrate({
             res.json(json);
             break;
         case "HTML":
-            const html = service.render.asHtml("Batch", cards, { copies, perPage });
+            const html = renderService.asHtml("Batch", cards, { copies, perPage });
             res.send(html);
             break;
         case "PDF":
-            const pdf = await service.render.asPDF(cards, { copies, perPage });
+            const pdf = await renderService.asPDF(cards, { copies, perPage });
             res.contentType("application/pdf");
             res.send(pdf);
             break;
@@ -82,18 +82,20 @@ router.get("/:project/:number", celebrate({
     const hard = req.query.hard as unknown as boolean;
     const version = req.query.version ? req.query.version as SemanticVersion : undefined;
 
-    const cards = await service.data.cards.read({ matchers: [{ project, number, version }], hard });
+    const cards = await dataService.cards.read({ matchers: [{ project, number, version }], hard });
     const card = cards.shift();
 
     switch (format) {
         case "JSON":
-            res.json(card?.toJSON());
+            const json = card?.toJSON();
+            res.json(json);
             break;
         case "HTML":
-            res.send(service.render.asHtml("Single", card));
+            const html = await renderService.asHtml("Single", card);
+            res.send(html);
             break;
         case "PNG":
-            const png = (await service.render.asPNG([card])).shiftBuffer();
+            const png = (await renderService.asPNG([card])).shiftBuffer();
             res.type("png");
             res.send(png);
             break;
@@ -105,9 +107,8 @@ router.get("/:project/:number", celebrate({
 router.post("/", celebrate({
     [Segments.BODY]: Joi.array().items(Schemas.Card)
 }), asyncHandler(async (req, res) => {
-    const cards = req.body.cards as CardModel[] as Card[];
+    const cards = (req.body as CardModel[]).map(Card.fromModel);
 
-    const drafts: Card[] = [];
     const incType = (type: NoteType) => {
         switch (type) {
             case "Replaced": return "major";
@@ -115,18 +116,30 @@ router.post("/", celebrate({
             case "Updated": return "patch";
         }
     };
-    for (const card of cards) {
-        // If card change is being drafted, but current version is playtesting version, raise the current version appropriately
-        if (card.isDraft && card.isPlaytesting) {
-            card.version = inc(card.version, incType(card.note.type)) as SemanticVersion;
-            drafts.push(card);
+    const { update, drafts } = cards.reduce(({ update, drafts }, card) => {
+        // If a card is in a draft state, we do not want to update it on server.
+        // We DO however want to ensure the version is being updated appropriately on spreadsheet...
+        if (card.isDraft) {
+            const expectedVersion = inc(card.playtesting, incType(card.note.type));
+            if (card.version !== expectedVersion) {
+                const draft = card.clone();
+                card.version = draft.version = inc(card.playtesting, incType(card.note.type)) as SemanticVersion;
+                // Increment the id only for database insert (draft sent to spreadsheet needs old ID to update)
+                card.id = `${card.number}@${card.version}`;
+                
+                drafts.push(draft);
+            }
+        } else {
+            update.push(card);
         }
-    }
-    const result = await service.data.cards.database.update({ cards });
+        return { update, drafts };
+    }, { update: [], drafts: [] } as { update: Card[], drafts: Card[] });
+
+    const result = await dataService.cards.database.update({ cards: update });
     if (drafts.length > 0) {
-        const sheetResult = await service.data.cards.spreadsheet.update({ cards: drafts });
+        const sheetResult = await dataService.cards.spreadsheet.update({ cards: drafts });
         if (sheetResult) {
-            logger.info(`Increased the versions of following cards:\n- ${drafts.map((card) => `${card.name} -> ${card.version}`).join("\n -")}`);
+            logger.info(`Adjusted draft version(s): ${drafts.map((card) => `${card.id} -> ${card.number}@${card.version}`).join(", ")}`);
         }
     }
     res.send({

@@ -1,17 +1,58 @@
 import config from "config";
-import RenderingService from "./Rendering";
-import DiscordService from "./Discord";
-import DataService from "./Data";
-import Logger from "./Logger";
-import Server from "./Server";
-import GithubService from "./Github";
+import express, { NextFunction, Request, Response } from "express";
+import partials from "express-partials";
+import compression from "compression";
+import cors from "cors";
+import { errors } from "celebrate";
+import api from "./Routes/API";
+import basicAuth from "express-basic-auth";
+import { logger } from "./Services/Services";
 
-// Establish services
-export const service = {
-    data: new DataService(config.get("database.url"), config.get("google.clientEmail"), config.get("google.privateKey")),
-    render: new RenderingService(),
-    discord: new DiscordService(config.get("discord.token"), config.get("discord.clientId")),
-    github: new GithubService(config.get("github.owner"), config.get("github.repository"), config.get("github.appId"), config.get("github.privateKey"))
+export const apiUrl = config.get("server.host") || `http://localhost:${config.get("server.ports.api")}`;
+function initialise(apiHost: string, serverPort: number, clientPort: number, auth: { [username: string]: string; }) {
+    // Add express
+    const app = express();
+
+    // Add middleware
+    app.use(cors({
+        origin: `${apiHost}:${clientPort}`
+    }));
+    app.use(partials());
+    app.use(compression());
+    app.use(express.static("public"));
+    app.use(express.json());
+    app.use(basicAuth({
+        users: auth,
+        challenge: true,
+        unauthorizedResponse: "Unauthorized access. Please provide valid credentials."
+    }));
+
+    app.use(errors());
+    app.use(errorHandler);
+
+    // Register routes
+    app.use("/api", api);
+
+    app.use(errors());
+    app.use((req, res) => {
+        res.status(404).send("Route does not exist");
+    });
+
+    app.listen(serverPort, () => {
+        logger.info(`Server running on port ${serverPort}: ${apiUrl}`);
+    });
+
+    return app;
+}
+
+const errorHandler = (err: Error, req: Request, res: Response, next: NextFunction) => {
+    logger.error(err);
+    if (process.env.NODE_ENV !== "production") {
+        res.status(500).send(err);
+    } else {
+        res.status(500).send("Internal Server Error");
+    }
+    next();
 };
-export const logger = Logger.initialise();
-export const server = Server.initialise(config.get("server.host"), config.get("server.ports.api"), config.get("server.ports.client"));
+
+initialise(config.get("server.host"), config.get("server.ports.api"), config.get("server.ports.client"), config.get("server.auth"));

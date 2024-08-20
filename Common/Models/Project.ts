@@ -1,4 +1,4 @@
-export type Type = "Pack" | "Cycle" | "Expansion";
+export type Type = "Cycle" | "Expansion";
 
 export interface ProjectModel {
     active: boolean,

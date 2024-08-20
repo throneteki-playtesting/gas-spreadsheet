@@ -1,4 +1,4 @@
-import { Regex } from "@/Common/Utils";
+import { Utils } from "@/Common/Utils";
 import { Joi } from "celebrate";
 
 const JoiXNumber = Joi.alternatives().try(
@@ -11,10 +11,10 @@ const JoiXDashNumber = Joi.alternatives().try(
 );
 
 export const Card = {
-    id: Joi.string().required().regex(Regex.Card.id.full),
+    id: Joi.string().required().regex(Utils.Regex.Card.id.full),
     project: Joi.number().required(),
     number: Joi.number().required(),
-    version: Joi.string().required().regex(Regex.SemanticVersion),
+    version: Joi.string().required().regex(Utils.Regex.SemanticVersion),
     faction: Joi.string().required().valid("House Baratheon", "House Greyjoy", "House Lannister", "House Martell", "The Night's Watch", "House Stark", "House Targaryen", "House Tyrell", "Neutral"),
     name: Joi.string().required(),
     type: Joi.string().required().valid("Character", "Location", "Attachment", "Event", "Plot", "Agenda"),
@@ -44,7 +44,7 @@ export const Card = {
         type: Joi.string().required().valid("Replaced", "Reworked", "Updated", "Implemented", "Not Implemented"),
         text: Joi.string().required()
     }),
-    playtesting: Joi.string().regex(Regex.SemanticVersion),
+    playtesting: Joi.string().regex(Utils.Regex.SemanticVersion),
     github: Joi.object({
         status: Joi.string().required(),
         issueUrl: Joi.string().required()
@@ -53,4 +53,15 @@ export const Card = {
         short: Joi.string().required(),
         number: Joi.number().required()
     })
+};
+
+export const Project = {
+    active: Joi.boolean().required(),
+    script: Joi.string().required(),
+    name: Joi.string().required(),
+    short: Joi.string().required(),
+    code: Joi.number().required(),
+    type: Joi.string().required().valid("Cycle", "Expansion"),
+    perFaction: Joi.number().required(),
+    neutral: Joi.number().required()
 };

@@ -1,58 +1,92 @@
-import { onEdited } from "../Spreadsheets/Listeners/onEdited";
+import { Trigger } from "../Spreadsheets/Listeners";
 
-function doGetTester() {
+const defaultDoGet = {
+    parameters: {},
+    contextPath: null,
+    queryString: ""
+};
+const defaultDoPost = {
+    parameters: {},
+    contextPath: null,
+    queryString: ""
+};
+
+function createCardsTest() {
+    const contents = "[{\"project\":26,\"number\":1,\"version\":\"9.9.9\",\"faction\":\"House Baratheon\",\"name\":\"Melisandre\",\"type\":\"Character\",\"traits\":[\"Lady\",\"R'hllor\"],\"text\":\"Shadow (5).\\n<b>Reaction:</b> After you win a challenge in which Melisandre is attacking, choose and reveal a card in shadows controlled by the losing opponent. If that card is a character, you may kneel your faction card to put it into play under your control.\",\"deckLimit\":3,\"loyal\":true,\"cost\":6,\"unique\":true,\"strength\":5,\"icons\":{\"military\":false,\"intrigue\":true,\"power\":true},\"note\":{\"type\":\"Updated\",\"text\":\"Raised cost to 7\"},\"playtesting\":\"9.9.9\",\"id\":\"1@9.9.9\"}]";
     const e = {
+        ...defaultDoPost,
+        contentLength: contents.length,
+        ...{
+            pathInfo: "cards/create",
+            parameter: {},
+            postData: {
+                name: "",
+                type: "application/json",
+                length: contents.length,
+                contents
+            }
+        }
+    } as GoogleAppsScript.Events.DoPost;
+    this.doPost(e);
+}
+function readCardsTest() {
+    const e = {
+        ...defaultDoGet,
+        contentLength: 0,
         pathInfo: "cards",
         parameter: {
-            ids: "1@0.0.0"
+            ids: "1@1.0.0"
         }
-    };
+    } as GoogleAppsScript.Events.DoGet;
     this.doGet(e);
 }
-function doPostTester() {
-    let e: unknown = {};
-    // Create
-    e = {
-        pathInfo: "cards/create",
-        parameter: {
-            filter: "archive"
-        },
-        postData: {
-            contents: "[[\"1\",\"2.0.0\",\"House Baratheon\",\"New Melisandre\",\"Character\",\"Loyal\",\"Unique\",\"6\",\"5\",\"I / P\",\"Lady. R'hllor.\",\"Shadow (5).\\n<b>Reaction:</b> After you win a challenge in which Melisandre is attacking, choose and reveal a card in shadows controlled by the losing opponent. If that card is a character, you may kneel your faction card to put it into play under your control.\",\"\",\"\",\"\",\"\",\"<a href=\\\"https://hcti.io/v1/image/82aa440a-98cd-4d3f-95ee-fb39ffdf67ff\\\">1.0.0</a>\",\"\",\"\",\"1.0.0\",\"\",\"\",\"\"],[\"1\",\"2.0.1\",\"House Baratheon\",\"New Melisandre 2\",\"Character\",\"Loyal\",\"Unique\",\"6\",\"5\",\"I / P\",\"Lady. R'hllor.\",\"Shadow (5).\\n<b>Reaction:</b> After you win a challenge in which Melisandre is attacking, choose and reveal a card in shadows controlled by the losing opponent. If that card is a character, you may kneel your faction card to put it into play under your control.\",\"\",\"\",\"\",\"\",\"<a href=\\\"https://hcti.io/v1/image/82aa440a-98cd-4d3f-95ee-fb39ffdf67ff\\\">1.0.0</a>\",\"\",\"\",\"1.0.0\",\"\",\"\",\"\"]]"
+function updateCardsTest() {
+    const contents = "[{\"project\":26,\"number\":1,\"version\":\"9.9.8\",\"faction\":\"House Baratheon\",\"name\":\"Melisandre\",\"type\":\"Character\",\"traits\":[\"Lady\",\"R'hllor\"],\"text\":\"Shadow (5).\\n<b>Reaction:</b> After you win a challenge in which Melisandre is attacking, choose and reveal a card in shadows controlled by the losing opponent. If that card is a character, you may kneel your faction card to put it into play under your control.\",\"deckLimit\":3,\"loyal\":true,\"cost\":6,\"unique\":true,\"strength\":5,\"icons\":{\"military\":false,\"intrigue\":true,\"power\":true},\"note\":{\"type\":\"Updated\",\"text\":\"Raised cost to 7\"},\"playtesting\":\"9.9.9\",\"id\":\"1@9.9.9\"}]";
+    const e = {
+        ...defaultDoPost,
+        contentLength: contents.length,
+        ...{
+            pathInfo: "cards/update",
+            parameter: {},
+            postData: {
+                name: "",
+                type: "application/json",
+                length: contents.length,
+                contents
+            }
         }
-    };
-    this.doPost(e);
-
-    // Update
-    e = {
-        pathInfo: "cards/update",
-        parameter: {},
-        postData: {
-            contents: "[[\"1\",\"2.0.0\",\"House Baratheon\",\"New Melisandre Updated\",\"Character\",\"Loyal\",\"Unique\",\"6\",\"5\",\"I / P\",\"Lady. R'hllor.\",\"Shadow (5).\\n<b>Reaction:</b> After you win a challenge in which Melisandre is attacking, choose and reveal a card in shadows controlled by the losing opponent. If that card is a character, you may kneel your faction card to put it into play under your control.\",\"\",\"\",\"\",\"\",\"<a href=\\\"https://hcti.io/v1/image/82aa440a-98cd-4d3f-95ee-fb39ffdf67ff\\\">1.0.0</a>\",\"\",\"\",\"1.0.0\",\"\",\"\",\"\"]]"
-        }
-    };
-    this.doPost(e);
-
-    // Delete
-    e = {
-        pathInfo: "cards/delete",
-        parameter: {},
-        postData: {
-            contents: "[[\"1\",\"2.0.0\"],[\"1\",\"2.0.1\"]]"
-        }
-    };
+    } as GoogleAppsScript.Events.DoPost;
     this.doPost(e);
 }
-
-function onEditedTester() {
+function destroyCardsTest() {
+    const contents = "[{\"id\":\"1@9.9.9\"},{\"id\":\"2@9.9.9\"}]";
+    const e = {
+        ...defaultDoPost,
+        contentLength: contents.length,
+        ...{
+            pathInfo: "cards/destroy",
+            parameter: {},
+            postData: {
+                name: "",
+                type: "application/json",
+                length: contents.length,
+                contents
+            }
+        }
+    } as GoogleAppsScript.Events.DoPost;
+    this.doPost(e);
+}
+function onEditTest() {
     const e = {
         range: SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Latest Cards").getRange(5, 13)
     } as GoogleAppsScript.Events.SheetsOnEdit;
-    onEdited(e);
+    Trigger.edit(e);
 }
 
 export {
-    doGetTester,
-    doPostTester,
-    onEditedTester
+    createCardsTest,
+    readCardsTest,
+    updateCardsTest,
+    destroyCardsTest,
+    onEditTest
 };
