@@ -22,6 +22,10 @@ class Project implements ProjectModel {
         return new Project(model.active, model.name, model.short, model.code, model.type, model.perFaction, model.neutral, model.script);
     }
 
+    static toModel(project: Project) {
+        return { ...project } as ProjectModel;
+    }
+
     clone() {
         const active = this.active;
         const name = this.name;
