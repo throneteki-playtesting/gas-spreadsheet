@@ -1,4 +1,4 @@
-import { onEdited } from "../Spreadsheets/Spreadsheet";
+import { onEdited } from "../Spreadsheets/Listeners/onEdited";
 
 function doGetTester() {
     const e = {

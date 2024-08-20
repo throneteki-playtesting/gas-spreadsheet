@@ -3,14 +3,15 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import puppeteer, { Viewport } from "puppeteer";
-import Card, { DefaultDeckLimit } from "../Data/Models/Card";
+import Card from "../Data/Models/Card";
 import { BufferCollection } from "buffer-collection";
+import { DefaultDeckLimit } from "@/Common/Models/Card";
 
 export type RenderType = "Single" | "Batch";
 
 class RenderingService {
     public async syncImages(cards: Card[], override = false) {
-        const filePathFunc = (card: Card) => `./public/img/${card.development.project.short}/${card.development.id.toString()}.png`;
+        const filePathFunc = (card: Card) => `./public/img/${card.project}/${card.id}.png`;
         const syncing = override ? [...cards] : cards.filter((card) => !fs.existsSync(filePathFunc(card)));
 
         const imgBuffers = await this.asPNG(syncing);

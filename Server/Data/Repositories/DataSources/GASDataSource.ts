@@ -1,11 +1,11 @@
-import { GASResponse } from "@/GoogleAppScript/Controller";
+import { GASResponse } from "@/GoogleAppScript/Controllers/Controller";
+import { service } from "@/Server";
 import { JWT } from "google-auth-library";
-import { ExpandoObject } from "@/Common/Utils";
-import { CardSheetType } from "@/GoogleAppScript/Spreadsheets/Spreadsheet";
 
-export default abstract class GASDataSource<Id, Model> {
+
+export default abstract class GASDataSource<Model> {
     private readonly scriptSuffix: string;
-    constructor(private clientEmail: string, private privateKey: string, private projects: ExpandoObject) {
+    constructor(private clientEmail: string, private privateKey: string) {
         this.scriptSuffix = process.env.NODE_ENV !== "production" ? "dev" : "exec";
     }
 
@@ -25,7 +25,7 @@ export default abstract class GASDataSource<Id, Model> {
         return `Bearer ${token}`;
     }
 
-    private async fetch(url: string, request: RequestInit) {
+    private async fetch<T>(url: string, request: RequestInit) {
         if (!(request.headers && request.headers["Authorization"])) {
             request.headers = request.headers || {};
             request.headers["Authorization"] = await this.getAuthorization();
@@ -37,7 +37,7 @@ export default abstract class GASDataSource<Id, Model> {
             throw Error(`Google App Script ${request.method} request failed`, { cause: { status: response.status, message: response.statusText } });
         }
 
-        const json = await response.json() as GASResponse;
+        const json = await response.json() as GASResponse<T>;
 
         if (json.error) {
             throw Error(`Google App Script ${request.method} request successful, but returned error(s)`, { cause: json.error });
@@ -46,24 +46,25 @@ export default abstract class GASDataSource<Id, Model> {
         return json.data;
     }
 
-    protected async get(url: string) {
-        return await this.fetch(url, { method: "GET" });
+    protected async get<T>(url: string) {
+        return await this.fetch<T>(url, { method: "GET" });
     }
 
-    protected async post(url: string, body: BodyInit) {
-        return await this.fetch(url, { method: "POST", body });
+    protected async post<T>(url: string, body: BodyInit) {
+        return await this.fetch<T>(url, { method: "POST", body });
     }
 
-    protected getUrl(projectShort: string) {
-        const scriptUrl = this.projects[projectShort]["script"] as string;
-        if (!scriptUrl) {
-            throw Error(`Missing project script for '${projectShort}' in config`);
+    protected async getProject(project: number) {
+        const proj = (await service.data.projects.read({ codes: [project] }))[0];
+        if (!proj) {
+            throw Error(`Missing project script for code ${project}`);
         }
-        return `${scriptUrl}/${this.scriptSuffix}`;
+        proj.script = `${proj.script}/${this.scriptSuffix}`;
+        return proj;
     }
 
-    abstract create({ projectShort, values, filter }: { projectShort: string, values: Model[], filter?: CardSheetType[] }): Promise<boolean>;
-    abstract read({ projectShort, ids, filter }: { projectShort: string, ids?: Id[], filter?: CardSheetType[] }): Promise<Model[]>
-    abstract update({ projectShort, values }: { projectShort: string, values: Model[] }): Promise<boolean>
-    abstract destroy({ projectShort, ids, filter }: { projectShort: string, ids: Id[], filter?: CardSheetType[] }): Promise<boolean>
+    abstract create(model?: object): Promise<number>;
+    abstract read(model?: object): Promise<Model[]>
+    abstract update(model?: object): Promise<number>
+    abstract destroy(model?: object): Promise<number>
 }

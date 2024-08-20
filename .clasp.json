@@ -1,22 +1,22 @@
 {
     "scriptId": "1R1IXJ2GwGKjc38VseHVJ2WVE0Y2Z_GE2LL0Ak-rJgcyHbIHFtS8keAvk",
     "filePushOrder": [
-        "Common/Enums.ts",
-        "Common/Emojis.ts",
-        "Common/Identifiers.ts",
+        "Common/Models/Project.ts",
+        "Common/Models/Card.ts",
         "Common/Utils.ts",
-        "Common/CardSheet.ts",
-        "Common/ReviewSheet.ts",
         "GoogleAppScript/CloudLogger.ts",
         "GoogleAppScript/Settings.ts",
+        "GoogleAppScript/API.ts",
+        "GoogleAppScript/Forms/Form.ts",
+        "GoogleAppScript/Spreadsheets/Listeners/onEdited.ts",
+        "GoogleAppScript/Spreadsheets/Listeners/onOpen.ts",
         "GoogleAppScript/Spreadsheets/Templates/Clipboard Popup.html",
         "GoogleAppScript/Spreadsheets/Templates/Multiform.html",
-        "GoogleAppScript/Spreadsheets/DataColumn.ts",
-        "GoogleAppScript/Spreadsheets/Data.ts",
-        "GoogleAppScript/Spreadsheets/Spreadsheet.ts",
+        "GoogleAppScript/Spreadsheets/CardSerializer.ts",
+        "GoogleAppScript/Spreadsheets/DataSheets.ts",
         "GoogleAppScript/Spreadsheets/UserInput.ts",
-        "GoogleAppScript/Forms/Form.ts",
-        "GoogleAppScript/Controller.ts",
+        "GoogleAppScript/Controllers/CardsController.ts",
+        "GoogleAppScript/Controllers/Controller.ts",
         "GoogleAppScript/Tests/Tester.ts"
     ]
 }

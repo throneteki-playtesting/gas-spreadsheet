@@ -5,6 +5,7 @@ import ejs from "ejs";
 import { emojis } from "./Utils";
 import path from "path";
 import { fileURLToPath } from "url";
+import Project from "../Data/Models/Project";
 
 export type GeneratedIssue = {
     title: string,
@@ -23,30 +24,26 @@ export class Issue {
         this.body = GithubService.githubify(this.body);
     }
 
-    static for(card: Card) {
-        const type = card.development.note?.type || (card.isInitial && !card.isImplemented ? "Implemented" : null);
+    static for(project: Project, card: Card) {
+        const type = card.note?.type || (card.isInitial && !card.isImplemented ? "Implemented" : null);
         if (!type) {
             return null;
         }
-
-        const project = {
-            short: card.development.project.short
-        };
         const slimCard = {
             name: card.name,
-            version: card.development.versions.current.toString(),
+            version: card.version,
             imageUrl: card.imageUrl,
-            note: card.development.note?.text
+            note: card.note?.text
         };
         const previousSlimCard = () => {
-            if (card.development.versions.playtesting) {
+            if (card.playtesting) {
                 throw Error("Playtesting version is missing or invalid");
             }
-            const version = card.development.versions.playtesting.toString();
+            const version = card.playtesting;
             const imageUrl = card.previousImageUrl;
             return { version, imageUrl };
         };
-        let title = `${project.short} | ${card.development.number} - `;
+        let title = `${card.code} | ${project.short} - `;
 
         switch (type) {
             case "Replaced": {

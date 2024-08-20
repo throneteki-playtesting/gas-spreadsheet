@@ -1,5 +1,5 @@
-import * as sync from "./sync";
-import * as refresh from "./refresh";
+import refresh from "./refresh";
+import sync from "./sync";
 
 export const commands = {
     sync,

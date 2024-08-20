@@ -1,23 +1,30 @@
-import { ExpandoObject } from "../../Common/Utils";
-import CardsRepository from "./CardsRepository";
+import CardsRepository from "./Repositories/CardsRepository";
 import { MongoClient } from "mongodb";
 import { logger } from "..";
+import MongoDataSource from "./Repositories/DataSources/MongoDataSource";
+import GASDataSource from "./Repositories/DataSources/GASDataSource";
+import ProjectsRepository from "./Repositories/ProjectsRepository";
+
+export interface IRepository<Model> {
+    database?: MongoDataSource<Model>
+    spreadsheet?: GASDataSource<Model>
+}
 
 class DataService {
     private client: MongoClient;
-    public cards: CardsRepository;
-    // public projects: ProjectsRepository;
 
-    constructor(databaseUrl: string, googleClientEmail: string, googlePrivateKey: string, private projects: ExpandoObject) {
+    public projects: ProjectsRepository;
+    public cards: CardsRepository;
+
+    constructor(databaseUrl: string, googleClientEmail: string, googlePrivateKey: string) {
         this.client = new MongoClient(databaseUrl);
         this.client.db().command({ ping: 1 })
             .then(() => {
                 // Confirms that MongoDB is running
                 logger.info(`MongoDB connected to ${this.client.db().databaseName}`);
 
-                this.cards = new CardsRepository(this.client, googleClientEmail, googlePrivateKey, projects);
-                // this.projects = this.client.db().collection<Project>("projects");
-                // this.reviews = this.client.db().collection<Review>("reviews");
+                this.projects = new ProjectsRepository(this.client);
+                this.cards = new CardsRepository(this.client, googleClientEmail, googlePrivateKey);
             })
             .catch(console.dir);
     }

@@ -29,56 +29,61 @@ class GithubService {
         return app.getInstallationOctokit(installation.id);
     }
 
-    public async syncIssues({ projectShort, hard = false }: { projectShort: string, hard?: boolean }) {
-        const cards = await service.data.cards.read({ projectShort, hard });
-        const issues = await this.getIssues(projectShort);
+    public async syncIssues({ project, hard = false }: { project: number, hard?: boolean }) {
+        const proj = (await service.data.projects.read({ codes: [project] }))[0];
+        const cards = await service.data.cards.read({ matchers: [{ project }], hard });
+        const issues = await this.getIssues(project);
 
         type IssueDetail = { number: number, state: string, html_url: string, body: string };
         const promises: { card: Card, promise: Promise<IssueDetail | string> }[] = [];
 
-        for (const card of [cards[0]]) {
-            const generated = Issue.for(card);
-            if (!generated) {
-                continue;
-            }
-            const found = issues.find((issue) => generated.title === issue.title);
+        for (const card of cards) {
+            try {
+                const generated = Issue.for(proj, card);
+                if (!generated) {
+                    continue;
+                }
+                const found = issues.find((issue) => generated.title === issue.title);
 
-            // Issue exists for card
-            if (found) {
-                const { number, state, html_url, body } = found;
-                // Open issues should have their body checked.
-                // If the body needs to change, update issue...
-                if (state === "open" && generated.body !== body) {
-                    const promise = this.client.rest.issues.update({
+                // Issue exists for card
+                if (found) {
+                    const { number, state, html_url, body } = found;
+                    // Open issues should have their body checked.
+                    // If the body needs to change, update issue...
+                    if (state === "open" && generated.body !== body) {
+                        const promise = this.client.rest.issues.update({
+                            ...this.repoDetails,
+                            issue_number: number,
+                            body: generated.body
+                        })
+                            .then(({ data }) => ({ number: data.number, state: data.state, html_url: data.html_url, body: data.body }))
+                            .catch((response) => {
+                                logger.error(`Failed to update issue #${number} for ${card.toString()}: ${response}`);
+                                return response.toString();
+                            });
+
+                        promises.push({ card, promise });
+                    }
+                    // ...otherwise, simply pass through the existing IssueDetail
+                    else {
+                        promises.push({ card, promise: new Promise(() => ({ number, state, html_url, body })) });
+                    }
+                }
+                // New issue needs to be created for card
+                else {
+                    const promise = this.client.rest.issues.create({
                         ...this.repoDetails,
-                        issue_number: number,
-                        body: generated.body
+                        ...generated
                     })
                         .then(({ data }) => ({ number: data.number, state: data.state, html_url: data.html_url, body: data.body }))
                         .catch((response) => {
-                            logger.error(`Failed to update issue #${number} for ${card.toString()}: ${response}`);
+                            logger.error(`Failed to create issue for ${card.toString()}: ${response}`);
                             return response.toString();
                         });
-
                     promises.push({ card, promise });
                 }
-                // ...otherwise, simply pass through the existing IssueDetail
-                else {
-                    promises.push({ card, promise: new Promise(() => ({ number, state, html_url, body })) });
-                }
-            }
-            // New issue needs to be created for card
-            else {
-                const promise = this.client.rest.issues.create({
-                    ...this.repoDetails,
-                    ...generated
-                })
-                    .then(({ data }) => ({ number: data.number, state: data.state, html_url: data.html_url, body: data.body }))
-                    .catch((response) => {
-                        logger.error(`Failed to create issue for ${card.toString()}: ${response}`);
-                        return response.toString();
-                    });
-                promises.push({ card, promise });
+            } catch (err) {
+                logger.error(`Failed to sync issues for ${card.toString()}: ${err}`);
             }
         }
 
@@ -93,15 +98,15 @@ class GithubService {
             }
             let updated = false;
             // Issue state & card github status are not matching, or URL is different? Update!
-            if (card.development.github?.status !== response.state || card.development.github.issueUrl !== response.html_url) {
-                card.development.github = { status: response.state, issueUrl: response.html_url };
+            if (card.github?.status !== response.state || card.github.issueUrl !== response.html_url) {
+                card.github = { status: response.state, issueUrl: response.html_url };
                 updated = true;
             }
 
             // Unimplemented card has been implemented? Mark as implemented!
             // TODO: Confirm this logic works as intended
-            if (card.isImplemented && card.development.note && response.state === "closed") {
-                card.development.note.type = "Implemented";
+            if (card.isImplemented && card.note && response.state === "closed") {
+                card.note.type = "Implemented";
                 updated = true;
             }
 
@@ -115,8 +120,9 @@ class GithubService {
         }
     }
 
-    private async getIssues(projectShort: string) {
-        const query = `repo:${this.repoDetails.owner}/${this.repoDetails.repo} is:issue ${projectShort} in:title`;
+    private async getIssues(project: number) {
+        const proj = (await service.data.projects.read({ codes: [project] }))[0];
+        const query = `repo:${this.repoDetails.owner}/${this.repoDetails.repo} is:issue ${proj.short} in:title`;
 
         const results: components["schemas"]["issue-search-result-item"][] = [];
         const perPage = 100;

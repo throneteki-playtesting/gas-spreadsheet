@@ -1,4 +1,5 @@
 export type ExpandoValue = string | number | ExpandoObject | ExpandoValue[];
+export type SemanticVersion = `${number}.${number}.${number}`;
 
 export interface ExpandoObject {
     [key: string]: ExpandoValue
@@ -23,3 +24,13 @@ export function getQueryArray(value: string | string[]) {
 export function maxEnum(o: unknown) {
     return Math.max(...Object.keys(o).filter(obj => !isNaN(parseInt(obj))).map(obj => parseInt(obj))) + 1;
 }
+
+export const Regex = {
+    Card: {
+        id: {
+            full: /^\d+@\d+.\d+.\d+$/,
+            optional: /^\d+(?:@\d+.\d+.\d+)?$/
+        }
+    },
+    SemanticVersion: /^\d+.\d+.\d+$/
+};

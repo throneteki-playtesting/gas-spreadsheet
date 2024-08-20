@@ -2,9 +2,11 @@ import express from "express";
 import { celebrate, Joi, Segments } from "celebrate";
 import asyncHandler from "express-async-handler";
 import { logger, service } from "../../..";
-import Project from "@/Server/Data/Models/Project";
 import Card from "@/Server/Data/Models/Card";
-import { CardId } from "@/Common/CardSheetInfo";
+import { inc } from "semver";
+import { Regex, SemanticVersion } from "@/Common/Utils";
+import * as Schemas from "./Schemas";
+import { CardModel, NoteType } from "@/Common/Models/Card";
 
 export type ResourceFormat = "JSON" | "HTML" | "TXT" | "PNG" | "PDF";
 
@@ -14,25 +16,32 @@ const router = express.Router();
  * Fetch a range of cards from a specific project, in a format (defaults to JSON)
  */
 router.get("/:project", celebrate({
+    [Segments.PARAMS]: {
+        project: Joi.number().required()
+    },
     [Segments.QUERY]: {
         format: Joi.string().insensitive().valid("JSON", "HTML", "PDF", "TXT").default("JSON"),
         hard: Joi.boolean().default(false),
         id: Joi.alternatives().try(
-            Joi.array().items(Joi.string().regex(CardId.format)),
-            Joi.string().regex(CardId.format)
+            Joi.array().items(Joi.string().regex(Regex.Card.id.optional)),
+            Joi.string().regex(Regex.Card.id.optional)
         ),
         copies: Joi.number().default(3),
         perPage: Joi.number().default(9)
     }
 }), asyncHandler(async (req, res) => {
-    const projectShort = req.params.project;
+    const project = req.params.project as unknown as number;
     const format = req.query.format as ResourceFormat;
     const hard = req.query.hard as unknown as boolean;
-    const ids = !req.query.id ? undefined : (Array.isArray(req.query.id) ? req.query.id : [req.query.id]).map((id) => CardId.deserialize(id as string));
+    const ids = !req.query.id ? undefined : (Array.isArray(req.query.id) ? req.query.id as string[] : [req.query.id as string]);
     const copies = req.query.copies as unknown as number;
     const perPage = req.query.perPage as unknown as number;
 
-    const cards = await service.data.cards.read({ ids, projectShort, hard });
+    const matchers = ids?.map((id) => {
+        const [number, version] = id.split("@");
+        return { project, number: parseInt(number), version: version as SemanticVersion };
+    });
+    const cards = await service.data.cards.read({ matchers, hard });
 
     switch (format) {
         case "JSON":
@@ -57,20 +66,23 @@ router.get("/:project", celebrate({
  * Fetch a specific card from a specific project, in a format (defaults to JSON)
  */
 router.get("/:project/:number", celebrate({
+    [Segments.PARAMS]: {
+        project: Joi.number().required(),
+        number: Joi.number().required()
+    },
     [Segments.QUERY]: {
         format: Joi.string().insensitive().valid("JSON", "HTML", "PNG", "TXT").default("JSON"),
         hard: Joi.boolean().default(false),
         version: Joi.string().regex(/^\d+.\d+.\d+$/)
     }
 }), asyncHandler(async (req, res) => {
-    const projectShort = req.params.project;
-    const number = parseInt(req.params.number);
+    const project = req.params.project as unknown as number;
+    const number = req.params.number as unknown as number;
     const format = req.query.format as ResourceFormat;
     const hard = req.query.hard as unknown as boolean;
-    const version = req.query.version as string | undefined;
+    const version = req.query.version ? req.query.version as SemanticVersion : undefined;
 
-    const ids = [new CardId(number, version)];
-    const cards = await service.data.cards.read({ projectShort, hard, ids });
+    const cards = await service.data.cards.read({ matchers: [{ project, number, version }], hard });
     const card = cards.shift();
 
     switch (format) {
@@ -90,17 +102,35 @@ router.get("/:project/:number", celebrate({
     }
 }));
 
-// TODO: Add celebrate validation
-router.post("/", asyncHandler(async (req, res) => {
-    const project = Project.deserialise(req.body.project);
-    const rawCards = req.body.cards as unknown[][];
-    const cards = rawCards.map((rawCard) => Card.deserialise(project, rawCard));
+router.post("/", celebrate({
+    [Segments.BODY]: Joi.array().items(Schemas.Card)
+}), asyncHandler(async (req, res) => {
+    const cards = req.body.cards as CardModel[] as Card[];
 
-    const result = await service.data.cards.database.update({ projectShort: project.short, values: cards });
-    logger.info(`Card update recieved from ${project.short} spreadsheet: ${result.insertedCount} added, ${result.modifiedCount} updated`);
+    const drafts: Card[] = [];
+    const incType = (type: NoteType) => {
+        switch (type) {
+            case "Replaced": return "major";
+            case "Reworked": return "minor";
+            case "Updated": return "patch";
+        }
+    };
+    for (const card of cards) {
+        // If card change is being drafted, but current version is playtesting version, raise the current version appropriately
+        if (card.isDraft && card.isPlaytesting) {
+            card.version = inc(card.version, incType(card.note.type)) as SemanticVersion;
+            drafts.push(card);
+        }
+    }
+    const result = await service.data.cards.database.update({ cards });
+    if (drafts.length > 0) {
+        const sheetResult = await service.data.cards.spreadsheet.update({ cards: drafts });
+        if (sheetResult) {
+            logger.info(`Increased the versions of following cards:\n- ${drafts.map((card) => `${card.name} -> ${card.version}`).join("\n -")}`);
+        }
+    }
     res.send({
-        added: result.insertedCount,
-        updated: result.modifiedCount
+        updated: result
     });
 }));
 

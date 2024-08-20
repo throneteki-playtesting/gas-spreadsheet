@@ -8,7 +8,8 @@ import ejs from "ejs";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { groupCardHistory } from "../Data/CardsRepository";
+import { groupCardHistory } from "../Data/Repositories/CardsRepository";
+import Project from "../Data/Models/Project";
 
 class DiscordService {
     private client: Client;
@@ -53,7 +54,7 @@ class DiscordService {
         this.client.login(token);
     }
 
-    public async syncCardThreads(cards?: Card[], guilds?: Guild[], canCreate?: boolean) {
+    public async syncCardThreads(project: Project, cards?: Card[], guilds?: Guild[], canCreate?: boolean) {
         const sendTo = guilds || Array.from(this.client.guilds.cache.values());
         const succeeded: Message<true>[] = [];
         const failed: Card[] = [];
@@ -77,13 +78,12 @@ class DiscordService {
             for (const group of groups) {
                 const latest = group.latest;
                 const previous = group.previous;
-                const prefix = `${latest.development.number}. `;
+                const prefix = `${latest.number}. `;
                 try {
-
                     // Validation
-                    const projectTag = forumChannel.availableTags.find((t) => t.name === latest.development.project.short);
+                    const projectTag = forumChannel.availableTags.find((t) => t.name === project.short);
                     if (!projectTag) {
-                        throw Error(`"${latest.development.project.short}" tag is missing on Forum channel "${forumChannel.name}" for ${prefix}${latest.name}`);
+                        throw Error(`"${project.short}" tag is missing on Forum channel "${forumChannel.name}" for ${prefix}${latest.name}`);
                     }
                     const factionTag = forumChannel.availableTags.find((t) => t.name === latest.faction);
                     if (!factionTag) {
@@ -94,7 +94,7 @@ class DiscordService {
                     let thread = existingThreads.get(latest);
                     if (!thread) {
                         const name = `${prefix}${latest.name}`;
-                        const reason = `Design Team discussion for ${latest.development.project.short} card #${latest.development.number}`;
+                        const reason = `Design Team discussion for ${project.short} card #${latest.number}`;
                         thread = await forumChannel.threads.create({
                             name,
                             reason,
@@ -133,7 +133,7 @@ class DiscordService {
     }
 
     private getCardThreads(forumChannel: ForumChannel, cards: Card[]) {
-        const prefix = (card: Card) => `${card.development.number}. `;
+        const prefix = (card: Card) => `${card.number}. `;
         const threadsCache = forumChannel.threads.cache;
 
         return cards.reduce((threads, card) => {
@@ -156,9 +156,9 @@ class DiscordService {
                 .setTitle(pCard.toString())
                 .setURL(pCard.imageUrl)
                 .setThumbnail(pCard.imageUrl);
-            if (pCard.development.note) {
+            if (pCard.note) {
                 embedBuilder.addFields(
-                    { name: pCard.development.note.type, value: pCard.development.note.text }
+                    { name: pCard.note.type, value: pCard.note.text }
                 );
             }
             return embedBuilder;
