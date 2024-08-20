@@ -63,8 +63,8 @@ export default abstract class GASDataSource<Model> {
         return proj;
     }
 
-    abstract create(model?: object): Promise<number>;
+    abstract create(model?: object): Promise<Model[]>;
     abstract read(model?: object): Promise<Model[]>
-    abstract update(model?: object): Promise<number>
-    abstract destroy(model?: object): Promise<number>
+    abstract update(model?: object): Promise<Model[]>
+    abstract destroy(model?: object): Promise<Model[]>
 }

@@ -119,7 +119,7 @@ router.post("/", celebrate({
     const { database, spreadsheet } = cards.reduce(({ database, spreadsheet }, card) => {
         // If a card is in a draft state, we do not want to update it on server.
         // We DO however want to ensure the version is being updated appropriately on spreadsheet...
-        if (card.isDraft) {
+        if (!!card.playtesting && card.isDraft) {
             const expectedVersion = inc(card.playtesting, incType(card.note.type));
             if (card.version !== expectedVersion) {
                 const draft = card.clone();
@@ -141,8 +141,11 @@ router.post("/", celebrate({
     const result = await dataService.cards.database.update({ cards: database });
     if (spreadsheet.length > 0) {
         const sheetResult = await dataService.cards.spreadsheet.update({ cards: spreadsheet });
-        if (sheetResult) {
-            logger.info(`Adjusted draft version(s): ${spreadsheet.map((card) => `${card.id} -> ${card.number}@${card.version}`).join(", ")}`);
+        for (const card of sheetResult) {
+            const previous = spreadsheet.find((p) => card.id === `${p.number}@${p.version}`);
+            if (previous) {
+                logger.info(`Adjusted draft version: ${previous.id} -> ${card.id}`);
+            }
         }
     }
     res.send({

@@ -30,9 +30,9 @@ namespace CardsController {
         });
     }
     
-    export interface GASCreateCardsResponse { created: number }
-    export interface GASUpdateCardsResponse { updated: number }
-    export interface GASDestroyCardsResponse { destroyed: number }
+    export interface GASCreateCardsResponse { created: CardModel[] }
+    export interface GASUpdateCardsResponse { updated: CardModel[] }
+    export interface GASDestroyCardsResponse { destroyed: CardModel[] }
     export function doPostCards(path: string[], e: GoogleAppsScript.Events.DoPost) {
         const { filter } = e.parameter;
     
@@ -40,25 +40,25 @@ namespace CardsController {
         const cards = JSON.parse(e.postData.contents) as CardModel[];
     
         const action = path.shift();
-    
+        const latest = DataSheet.sheets.get("latest");
+        const archive = DataSheet.sheets.get("archive");
         switch (action) {
             case "create":
-                const c = { request: e, data: { created: 0 } } as Controller.GASResponse<GASCreateCardsResponse>;
-                doForEachSheet(types, (sheet) => {
-                    c.data.created += sheet.create(cards);
-                });
+                // Card Create will add a card to archive
+                const c = { request: e, data: { created: [] } } as Controller.GASResponse<GASCreateCardsResponse>;
+                c.data.created.push(...archive.create(cards));
                 return Controller.sendResponse(c);
             case "update":
-                const u = { request: e, data: { updated: 0 } } as Controller.GASResponse<GASUpdateCardsResponse>;
-                doForEachSheet(types, (sheet) => {
-                    u.data.updated += sheet.update(cards);
-                });
+                // Card Update will update the first card it finds, "latest" first
+                const u = { request: e, data: { updated: [] } } as Controller.GASResponse<GASUpdateCardsResponse>;
+                u.data.updated.push(...latest.update(cards, true));
+                const remaining = cards.filter((c) => u.data.updated.some((u) => c.id !== u.id));
+                u.data.updated.push(...archive.update(remaining, true));
                 return Controller.sendResponse(u);
             case "destroy":
-                const d = { request: e, data: { destroyed: 0 } } as Controller.GASResponse<GASDestroyCardsResponse>;
-                doForEachSheet(types, (sheet) => {
-                    d.data.destroyed += sheet.delete(cards);
-                });
+                // Card Destroy will delete a card from archive
+                const d = { request: e, data: { destroyed: [] } } as Controller.GASResponse<GASDestroyCardsResponse>;
+                d.data.destroyed.push(...archive.delete(cards));
                 return Controller.sendResponse(d);
             default:
                 throw Error(`"${action}" is not a valid card post action`);

@@ -53,6 +53,10 @@ export class DataSheet<Model> {
             throw Error(`You cannot create rows on static data sheet "${this.sheet.getName()}"`);
         }
 
+        if (models.length === 0) {
+            return [];
+        }
+
         // Default number of template rows is 1.
         // Only inserts if there is already data (eg. does not insert for first value, as this is consumed by template row)
         const insertingRows = models.length - Math.max(0, (this.firstRow - this.sheet.getLastRow()));
@@ -71,7 +75,7 @@ export class DataSheet<Model> {
         this.sheet.getRange(lastRow + 1, this.firstColumn, richTextValues.length, this.maxColumns).setRichTextValues(richTextValues);
 
         Log.information(`Created ${richTextValues.length} rows in ${this.sheet.getName()}`);
-        return richTextValues.length;
+        return models;
     }
 
     public read(filter: FilterFunc<Model> = this.serializer.filter) {
@@ -111,62 +115,64 @@ export class DataSheet<Model> {
         return result;
     }
 
-    public update(models: Model[]) {
+    public update(models: Model[], firstOnly = false) {
         // TODO: Save current filter, unapply, then reapply when finished reading
-        if (this.maxRows <= 0) {
-            return 0;
+        if (this.maxRows <= 0 || models.length === 0) {
+            return [];
         }
 
         // Fetch all rows (as needs to be filtered)
         const range = this.sheet.getRange(this.firstRow, this.firstColumn, this.maxRows, this.maxColumns);
         const valueMatrix = range.getValues().map((row) => row.map((col) => col as string));
 
+        const updated: Model[] = [];
         const setMap = new Map<number, string[][]>();
         for (let i = 0 ; i < valueMatrix.length ; i++) {
             const values = valueMatrix[i];
 
             let startRow: number;
             const matched = models.find((model) => this.serializer.filter(values, i, model));
-            if (matched) {
+            if (matched && (!firstOnly || !updated.includes(matched))) {
                 startRow = startRow || (this.firstRow + i);
                 const group: string[][] = setMap[startRow] || [];
                 const rowValues = this.serializer.serialize(matched);
                 group.push(rowValues);
                 setMap.set(startRow, group);
+
+                updated.push(matched);
             } else if (startRow !== undefined) {
                 startRow = undefined;
             }
         }
 
         let totalGroups = 0;
-        let totalUpdated = 0;
         for (const [startRow, values] of Array.from(setMap.entries())) {
             totalGroups++;
             const richTextValues = values.map((row) => DataParser.toRichTextValues(row));
             this.sheet.getRange(startRow, this.firstColumn, values.length, this.maxColumns).setRichTextValues(richTextValues);
-            totalUpdated += richTextValues.length;
         }
 
-        Log.information(`Updated ${totalUpdated} rows (${totalGroups} groups) in ${this.sheet.getName()}`);
-        return totalUpdated;
+        Log.information(`Updated ${updated.length} rows (${totalGroups} groups) in ${this.sheet.getName()}`);
+        return updated;
     }
 
     public delete(models: Model[]) {
-        if (this.maxRows <= 0) {
-            return 0;
+        if (this.maxRows <= 0 || models.length === 0) {
+            return [];
         }
 
         // Fetch all rows (as needs to be filtered)
         const range = this.sheet.getRange(this.firstRow, this.firstColumn, this.maxRows, this.maxColumns);
         const valueMatrix = range.getValues();
 
+        const deleted: Model[] = [];
         const setMap = new Map<number, unknown[]>();
         let startGroupRow: number;
         for (let i = 0 ; i < valueMatrix.length ; i++) {
             const values = valueMatrix[i];
 
-            const match = models.find((model) => this.serializer.filter(values, i, model));
-            if (match) {
+            const matched = models.find((model) => this.serializer.filter(values, i, model));
+            if (matched) {
                 if (this.type === "static") {
                     throw Error(`You cannot delete rows on static data sheet "${this.sheet.getName()}"`);
                 }
@@ -174,13 +180,14 @@ export class DataSheet<Model> {
                 const group: unknown[] = setMap.get(startGroupRow) || [];
                 group.push(values);
                 setMap.set(startGroupRow, group);
+
+                deleted.push(matched);
             } else if (startGroupRow !== undefined) {
                 startGroupRow = undefined;
             }
         }
 
         let totalGroups = 0;
-        let totalDeleted = 0;
         // Delete backwards to ensure higher row deletions are not affecting lower row deletions
         for (const [startRow, values] of Array.from(setMap.entries()).reverse()) {
             totalGroups++;
@@ -193,11 +200,10 @@ export class DataSheet<Model> {
             } else {
                 this.sheet.deleteRows(startRow, values.length);
             }
-            totalDeleted += values.length;
         }
 
-        Log.information(`Deleted ${totalDeleted} rows (${totalGroups} groups) in ${this.sheet.getName()}`);
-        return totalDeleted;
+        Log.information(`Deleted ${deleted.length} rows (${totalGroups} groups) in ${this.sheet.getName()}`);
+        return deleted;
     }
 
     public convertToDataRowNum(sheetRow: number) {
