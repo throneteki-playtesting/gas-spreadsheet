@@ -138,8 +138,8 @@ class CardSerializer implements DataSerializer<Model.CardModel> {
         if (!model) {
             return true;
         }
-        const [number, version] = model.id.split("@");
-        return parseInt(values[Column.Number]) === parseInt(number) && values[Column.Version] === version;
+        const [number, version] = model.id?.split("@") || [model.number.toString(), model.version];
+        return parseInt(values[Column.Number]) === parseInt(number) && (!version || values[Column.Version] === version);
     }
 }
 

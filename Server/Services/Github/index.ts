@@ -7,6 +7,8 @@ import { Octokit } from "@octokit/core";
 import { paginateGraphQLInterface } from "@octokit/plugin-paginate-graphql";
 import { Api } from "@octokit/plugin-rest-endpoint-methods";
 import { dataService, logger } from "../Services";
+import { SemanticVersion } from "@/Common/Utils";
+import Project from "../Data/Models/Project";
 
 class GithubService {
     private client: Octokit & { paginate: import("@octokit/plugin-paginate-rest").PaginateInterface; } & paginateGraphQLInterface & Api & { retry: { retryRequest: (error: import("octokit").RequestError, retries: number, retryAfter: number) => import("octokit").RequestError; }; };
@@ -29,17 +31,17 @@ class GithubService {
         return app.getInstallationOctokit(installation.id);
     }
 
-    public async syncIssues({ project, hard = false }: { project: number, hard?: boolean }) {
-        const proj = (await dataService.projects.read({ codes: [project] }))[0];
-        const cards = await dataService.cards.read({ matchers: [{ project }], hard });
-        const issues = await this.getIssues(project);
+    public async syncIssues({ matchers, hard }: { matchers: { project: number, number?: number, version?: SemanticVersion }[], hard?: boolean }) {
+        const projects = await dataService.projects.read({ codes: matchers.map((m) => m.project) });
+        const cards = await dataService.cards.read({ matchers, hard });
+        const issues = await this.getIssues(projects);
 
         type IssueDetail = { number: number, state: string, html_url: string, body: string };
         const promises: { card: Card, promise: Promise<IssueDetail | string> }[] = [];
 
         for (const card of cards) {
             try {
-                const generated = Issue.for(proj, card);
+                const generated = Issue.for(card, projects.find((p) => p.code === card.project));
                 if (!generated) {
                     continue;
                 }
@@ -120,23 +122,25 @@ class GithubService {
         }
     }
 
-    private async getIssues(project: number) {
-        const proj = (await dataService.projects.read({ codes: [project] }))[0];
-        const query = `repo:${this.repoDetails.owner}/${this.repoDetails.repo} is:issue ${proj.short} in:title`;
-
+    private async getIssues(projects: Project[]) {
         const results: components["schemas"]["issue-search-result-item"][] = [];
-        const perPage = 100;
-        let page = 1;
-        let response: OctokitResponse<{ total_count: number; incomplete_results: boolean; items: components["schemas"]["issue-search-result-item"][]; }, 200>;
-        do {
-            response = await this.client.rest.search.issuesAndPullRequests({
-                q: query,
-                per_page: perPage,
-                page
-            });
-            results.push(...response.data.items);
-            page++;
-        } while (response.data.incomplete_results);
+
+        for (const project of projects) {
+            const query = `repo:${this.repoDetails.owner}/${this.repoDetails.repo} is:issue ${project.short} in:title`;
+
+            const perPage = 100;
+            let page = 1;
+            let response: OctokitResponse<{ total_count: number; incomplete_results: boolean; items: components["schemas"]["issue-search-result-item"][]; }, 200>;
+            do {
+                response = await this.client.rest.search.issuesAndPullRequests({
+                    q: query,
+                    per_page: perPage,
+                    page
+                });
+                results.push(...response.data.items);
+                page++;
+            } while (response.data.incomplete_results);
+        }
 
         return results;
     }

@@ -1,6 +1,6 @@
 import { AutocompleteInteraction, ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
 import { Command } from "../DeployCommands";
-import { dataService, discordService, logger } from "../../Services";
+import { dataService, discordService, githubService, logger } from "../../Services";
 
 const sync = {
     async data() {
@@ -42,6 +42,7 @@ const sync = {
             const cards = await dataService.cards.read({ matchers: [{ project, number }], hard });
             const proj = (await dataService.projects.read({ codes: [project] }))[0];
             const { succeeded, failed } = await discordService.syncCardThreads(proj, cards, [guild], canCreate);
+            await githubService.syncIssues({ matchers: [{ project, number }] });
 
             let content = `:white_check_mark: ${succeeded.length === 1 ? `Successfully synced card: ${succeeded[0].url}` : `${succeeded.length} cards synced.`}`;
             if (failed.length > 0) {
@@ -58,14 +59,14 @@ const sync = {
     },
     async autocomplete(interaction: AutocompleteInteraction) {
         // Selecting project
-        if (!interaction.options.getString("project").trim()) {
+        const project = parseInt(interaction.options.getString("project"));
+        if (Number.isNaN(project)) {
             const projects = await dataService.projects.read();
-            const choices = projects.filter((project) => project.active).map((project) => ({ name: project.name, value: project.code.toString() }));
+            const choices = projects.filter((p) => p.active).map((p) => ({ name: p.name, value: p.code.toString() }));
             await interaction.respond(choices).catch(logger.error);
             return;
         }
         // Selecting card
-        const project = parseInt(interaction.options.getString("project"));
         const focusedValue = interaction.options.getFocused().trim();
 
         const cards = await dataService.cards.database.read({ matchers: [{ project }] });

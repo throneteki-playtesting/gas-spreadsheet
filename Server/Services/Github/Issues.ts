@@ -24,7 +24,7 @@ export class Issue {
         this.body = GithubService.githubify(this.body);
     }
 
-    static for(project: Project, card: Card) {
+    static for(card: Card, project: Project) {
         const type = card.note?.type || (card.isInitial && !card.isImplemented ? "Implemented" : null);
         if (!type) {
             return null;

@@ -109,7 +109,7 @@ class CardMongoDataSource extends MongoDataSource<Card> {
         const result = await this.collection.find(query, { projection: { _id: 0 } }).toArray();
 
         logger.verbose(`Read ${result.length} values from card collection`);
-        return result as Card[];
+        return result.map(Card.fromModel);
     }
 
     public async update({ cards }: { cards: Card[] }) {

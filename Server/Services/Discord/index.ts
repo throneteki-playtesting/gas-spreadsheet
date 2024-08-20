@@ -100,7 +100,7 @@ class DiscordService {
                         thread = await forumChannel.threads.create({
                             name,
                             reason,
-                            message: this.generatePrimaryMessage(designTeamRole, latest, previous),
+                            message: this.generatePrimaryMessage(designTeamRole, latest, previous, project),
                             appliedTags: [projectTag.id, factionTag.id],
                             autoArchiveDuration: forumChannel.defaultAutoArchiveDuration
                         });
@@ -116,7 +116,7 @@ class DiscordService {
                             // Ensure name is up to date
                             await thread.setName(`${prefix}${latest.name}`),
                             // Update starter message
-                            await starter.edit(this.generatePrimaryMessage(designTeamRole, latest, previous))
+                            await starter.edit(this.generatePrimaryMessage(designTeamRole, latest, previous, project))
                         ];
                         if (requiresUpdateMessage) {
                             promises.push(await thread.send(this.generateUpdateMessage(designTeamRole, latest, previous[0], starter)));
@@ -147,8 +147,8 @@ class DiscordService {
         }, new Map<Card, ThreadChannel<true>>());
     }
 
-    private generatePrimaryMessage(taggedRole: Role, latest: Card, previous: Card[]) {
-        const content = this.renderTemplate("CardThreadPrimary", { role: taggedRole, card: latest });
+    private generatePrimaryMessage(taggedRole: Role, latest: Card, previous: Card[], project: Project) {
+        const content = this.renderTemplate("CardThreadPrimary", { role: taggedRole, card: latest, project });
         const files = [this.generateAttachment(latest)];
         const allowedMentions = { parse: ["roles"] };
 
