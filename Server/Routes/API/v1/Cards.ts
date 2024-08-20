@@ -116,7 +116,7 @@ router.post("/", celebrate({
             case "Updated": return "patch";
         }
     };
-    const { update, drafts } = cards.reduce(({ update, drafts }, card) => {
+    const { database, spreadsheet } = cards.reduce(({ database, spreadsheet }, card) => {
         // If a card is in a draft state, we do not want to update it on server.
         // We DO however want to ensure the version is being updated appropriately on spreadsheet...
         if (card.isDraft) {
@@ -127,19 +127,22 @@ router.post("/", celebrate({
                 // Increment the id only for database insert (draft sent to spreadsheet needs old ID to update)
                 card.id = `${card.number}@${card.version}`;
                 
-                drafts.push(draft);
+                spreadsheet.push(draft);
             }
+        } else if (!!card.playtesting && card.version !== card.playtesting) {
+            card.version = card.playtesting;
+            spreadsheet.push(card);
         } else {
-            update.push(card);
+            database.push(card);
         }
-        return { update, drafts };
-    }, { update: [], drafts: [] } as { update: Card[], drafts: Card[] });
+        return { database, spreadsheet };
+    }, { database: [], spreadsheet: [] } as { database: Card[], spreadsheet: Card[] });
 
-    const result = await dataService.cards.database.update({ cards: update });
-    if (drafts.length > 0) {
-        const sheetResult = await dataService.cards.spreadsheet.update({ cards: drafts });
+    const result = await dataService.cards.database.update({ cards: database });
+    if (spreadsheet.length > 0) {
+        const sheetResult = await dataService.cards.spreadsheet.update({ cards: spreadsheet });
         if (sheetResult) {
-            logger.info(`Adjusted draft version(s): ${drafts.map((card) => `${card.id} -> ${card.number}@${card.version}`).join(", ")}`);
+            logger.info(`Adjusted draft version(s): ${spreadsheet.map((card) => `${card.id} -> ${card.number}@${card.version}`).join(", ")}`);
         }
     }
     res.send({
