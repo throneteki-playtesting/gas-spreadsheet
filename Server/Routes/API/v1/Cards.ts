@@ -37,10 +37,10 @@ router.get("/:project", celebrate({
     const copies = req.query.copies as unknown as number;
     const perPage = req.query.perPage as unknown as number;
 
-    const matchers = ids?.map((id) => {
+    const matchers = ids ? ids.map((id) => {
         const [number, version] = id.split("@");
         return { project, number: parseInt(number), version: version as SemanticVersion };
-    });
+    }) : [{ project }];
     const cards = await dataService.cards.read({ matchers, hard });
 
     switch (format) {
