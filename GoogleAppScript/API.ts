@@ -36,12 +36,8 @@ namespace API {
     }
 
     export function postProjectDetails() {
-        try {
-            API.post("projects", Project.get());
-            Log.information("Successfully sent project info to API");
-        } catch (err) {
-            Log.error(err);
-        }
+        API.post("projects", Project.get());
+        Log.information("Successfully sent project info to API");
     }
 }
 

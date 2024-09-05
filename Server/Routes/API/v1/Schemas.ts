@@ -63,5 +63,8 @@ export const Project = {
     code: Joi.number().required(),
     type: Joi.string().required().valid("Cycle", "Expansion"),
     perFaction: Joi.number().required(),
-    neutral: Joi.number().required()
+    neutral: Joi.number().required(),
+    releases: Joi.number().required(),
+    milestone: Joi.number().required(),
+    emoji: Joi.string()
 };

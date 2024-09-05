@@ -98,8 +98,8 @@ class CardMongoDataSource extends MongoDataSource<Card> {
         logger.verbose(`Inserted ${results.insertedCount} values into card collection`);
         return results.insertedCount;
     }
-    public async read({ matchers }: { matchers: CardMatcher[] }) {
-        const query = { "$or": matchers };
+    public async read({ matchers }: { matchers?: CardMatcher[] }) {
+        const query = { ...(matchers && { "$or": matchers }) };
         const result = await this.collection.find(query, { projection: { _id: 0 } }).toArray();
 
         logger.verbose(`Read ${result.length} values from card collection`);
@@ -123,8 +123,8 @@ class CardMongoDataSource extends MongoDataSource<Card> {
         return results.modifiedCount + results.upsertedCount;
     }
 
-    public async destroy({ matchers }: { matchers: CardMatcher[] }) {
-        const query = { "$or": matchers };
+    public async destroy({ matchers }: { matchers?: CardMatcher[] }) {
+        const query = { ...(matchers && { "$or": matchers }) };
         const results = await this.collection.deleteMany(query);
 
         logger.verbose(`Deleted ${results.deletedCount} values from card collection`);

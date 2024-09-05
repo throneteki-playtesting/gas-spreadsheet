@@ -13,10 +13,11 @@ export default class LoggerService {
             transports: [
                 new winston.transports.Console({ format: winston.format.combine(winston.format.colorize({ level: true }), ...baseFormat), level: verbose ? "verbose" : "info" }),
                 ...(process.env.NODE_ENV === "production" ? [
-                    new winston.transports.File({ filename: "logs\\error.log", level: "error" }),
+                    new winston.transports.File({ filename: "logs\\error.log", level: "error", handleExceptions: true }),
                     new winston.transports.File({ filename: "logs\\combined.log" })
                 ] : [])
-            ]
+            ],
+            exitOnError: false
         });
     }
 }
