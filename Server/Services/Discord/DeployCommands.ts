@@ -1,10 +1,10 @@
-import { AutocompleteInteraction, ChatInputCommandInteraction, Guild, REST, Routes, SlashCommandOptionsOnlyBuilder } from "discord.js";
+import { AutocompleteInteraction, ChatInputCommandInteraction, Guild, REST, Routes, SlashCommandBuilder, SlashCommandOptionsOnlyBuilder } from "discord.js";
 import { commands } from "./Commands";
 import Project from "../Data/Models/Project";
 import { logger } from "../Services";
 
 export interface Command {
-    data(projects?: Project[]): Promise<SlashCommandOptionsOnlyBuilder>,
+    data(projects?: Project[]): Promise<SlashCommandBuilder>,
     execute(interaction: ChatInputCommandInteraction): Promise<void>,
     autocomplete?(interaction: AutocompleteInteraction): Promise<void>
 }

@@ -4,7 +4,7 @@ import asyncHandler from "express-async-handler";
 import Card from "@/Server/Services/Data/Models/Card";
 import { inc } from "semver";
 import * as Schemas from "./Schemas";
-import { CardId, CardModel, NoteType } from "@/Common/Models/Card";
+import { CardModel, NoteType } from "@/Common/Models/Card";
 import { dataService, logger, renderService } from "@/Server/Services/Services";
 import { SemanticVersion, Utils } from "@/Common/Utils";
 
@@ -116,7 +116,7 @@ router.post("/", celebrate({
             case "Updated": return "patch";
         }
     };
-    const { database, spreadsheet } = cards.reduce(({ database, spreadsheet }, card) => {
+    const { database, spreadsheet } = cards.reduce((data, card) => {
         // If a card is in a draft state, we do not want to update it on server.
         // We DO however want to ensure the version is being updated appropriately on spreadsheet...
         if (!!card.playtesting && card.isDraft) {
@@ -125,17 +125,17 @@ router.post("/", celebrate({
                 const draft = card.clone();
                 card.version = draft.version = inc(card.playtesting, incType(card.note.type)) as SemanticVersion;
                 // Increment the id only for database insert (draft sent to spreadsheet needs old ID to update)
-                card.id = `${card.number}@${card.version}`;
-                
-                spreadsheet.push(draft);
+                card._id = `${card.number}@${card.version}`;
+
+                data.spreadsheet.push(draft);
             }
         } else if (!!card.playtesting && card.version !== card.playtesting) {
             card.version = card.playtesting;
-            spreadsheet.push(card);
+            data.spreadsheet.push(card);
         } else {
-            database.push(card);
+            data.database.push(card);
         }
-        return { database, spreadsheet };
+        return data;
     }, { database: [], spreadsheet: [] } as { database: Card[], spreadsheet: Card[] });
 
     const result = await dataService.cards.database.update({ cards: database });

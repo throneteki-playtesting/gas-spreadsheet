@@ -6,9 +6,10 @@ export type NoteType = "Replaced" | "Reworked" | "Updated" | "Implemented" | "No
 
 // number@version (ranging from 1@0.0.0 to 999@99.99.99)
 export type CardId = `${number}@${SemanticVersion}`
+export type CardMatcher = { project: number, number?: number, version?: SemanticVersion };
 
 export interface CardModel {
-    id: CardId,
+    _id: CardId,
     project: number,
     number: number,
     version: SemanticVersion,

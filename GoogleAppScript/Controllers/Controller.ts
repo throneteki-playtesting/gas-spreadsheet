@@ -1,17 +1,12 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Log } from "../CloudLogger.js";
 import { CardsController } from "./CardsController.js";
+import { ProjectController } from "./ProjectController.js";
 
-function doGet(e: GoogleAppsScript.Events.DoGet) {
-    return Controller.get(e);
-}
-function doPost(e: GoogleAppsScript.Events.DoPost) {
-    return Controller.post(e);
-}
 // eslint-disable-next-line @typescript-eslint/no-namespace
 namespace Controller {
     const getActions = {
-        cards: CardsController.doGetCards
+        cards: CardsController.doGet,
+        project: ProjectController.doGet
     };
     export function get(e: GoogleAppsScript.Events.DoGet) {
         try {
@@ -40,7 +35,8 @@ namespace Controller {
     }
 
     const postActions = {
-        cards: CardsController.doPostCards
+        cards: CardsController.doPost,
+        project: ProjectController.doPost
     };
     export function post(e: GoogleAppsScript.Events.DoPost) {
         try {
@@ -78,6 +74,15 @@ namespace Controller {
     }
 }
 
+function doGet(e: GoogleAppsScript.Events.DoGet) {
+    return Controller.get(e);
+}
+function doPost(e: GoogleAppsScript.Events.DoPost) {
+    return Controller.post(e);
+}
+
 export {
-    Controller
+    Controller,
+    doGet,
+    doPost
 };

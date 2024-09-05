@@ -60,74 +60,79 @@ class DiscordService {
         const sendTo = guilds || Array.from(this.client.guilds.cache.values());
         const succeeded: Message<true>[] = [];
         const failed: Card[] = [];
+
         for (const guild of sendTo) {
-            const forumName = "card-forum";
-            const forumChannel = guild.channels.cache.find((channel) => channel instanceof ForumChannel && channel.name.endsWith(forumName)) as ForumChannel;
-            if (!forumChannel) {
-                throw Error(`Forum channel "${forumName}" does not exist`);
-            }
-
-            const designTeamRole = guild.roles.cache.find((role) => role.name === "Design Team");
-            if (!designTeamRole) {
-                throw Error("'Design Team' role does not exist");
-            }
-
-            const discordReady = cards.filter((card) => card.isPreRelease || card.isInitial || card.isPlaytesting);
-            let groups = groupCardHistory(discordReady);
-            const existingThreads = this.getCardThreads(forumChannel, groups.map((group) => group.latest));
-            groups = groups.filter((group) => canCreate || existingThreads.has(group.latest));
-
-            for (const group of groups) {
-                const latest = group.latest;
-                const previous = group.previous;
-                const prefix = `${latest.number}. `;
-                try {
-                    // Validation
-                    const projectTag = forumChannel.availableTags.find((t) => t.name === project.short);
-                    if (!projectTag) {
-                        throw Error(`"${project.short}" tag is missing on Forum channel "${forumChannel.name}" for ${prefix}${latest.name}`);
-                    }
-                    const factionTag = forumChannel.availableTags.find((t) => t.name === latest.faction);
-                    if (!factionTag) {
-                        throw Error(`"${latest.faction}" tag is missing on Forum channel "${forumChannel.name}" for ${prefix}${latest.name}`);
-                    }
-
-                    // Create new thread (if allowed), or update existing (either update starter msg, or send update msg)
-                    let thread = existingThreads.get(latest);
-                    if (!thread) {
-                        const name = `${prefix}${latest.name}`;
-                        const reason = `Design Team discussion for ${project.short} card #${latest.number}`;
-                        thread = await forumChannel.threads.create({
-                            name,
-                            reason,
-                            message: this.generatePrimaryMessage(designTeamRole, latest, previous, project),
-                            appliedTags: [projectTag.id, factionTag.id],
-                            autoArchiveDuration: forumChannel.defaultAutoArchiveDuration
-                        });
-                        succeeded.push(await thread.fetchStarterMessage());
-                    } else {
-                        const starter = await thread.fetchStarterMessage();
-                        const requiresUpdateMessage = previous.length > 0 && !starter.attachments.some((attachment) => attachment.description === this.generateAttachment(latest).description);
-                        const promises = [
-                            // Ensure correct tags are applied
-                            await thread.setAppliedTags([projectTag.id, factionTag.id]),
-                            // Ensure archive duration is respected
-                            await thread.setAutoArchiveDuration(forumChannel.defaultAutoArchiveDuration),
-                            // Ensure name is up to date
-                            await thread.setName(`${prefix}${latest.name}`),
-                            // Update starter message
-                            await starter.edit(this.generatePrimaryMessage(designTeamRole, latest, previous, project))
-                        ];
-                        if (requiresUpdateMessage) {
-                            promises.push(await thread.send(this.generateUpdateMessage(designTeamRole, latest, previous[0], starter)));
-                        }
-                        const responses = await Promise.all(promises);
-                        succeeded.push(responses[responses.length - 1] as Message<true>);
-                    }
-                } catch (err) {
-                    logger.error(err);
-                    failed.push(latest);
+            try {
+                const forumName = "card-forum";
+                const forumChannel = guild.channels.cache.find((channel) => channel instanceof ForumChannel && channel.name.endsWith(forumName)) as ForumChannel;
+                if (!forumChannel) {
+                    throw Error(`Forum channel "${forumName}" does not exist`);
                 }
+
+                const designTeamRole = guild.roles.cache.find((role) => role.name === "Design Team");
+                if (!designTeamRole) {
+                    throw Error("'Design Team' role does not exist");
+                }
+
+                const discordReady = cards.filter((card) => card.isPreRelease || card.isPlaytesting);
+                let groups = groupCardHistory(discordReady);
+                const existingThreads = this.getCardThreads(forumChannel, groups.map((group) => group.latest));
+                groups = groups.filter((group) => canCreate || existingThreads.has(group.latest));
+
+                for (const group of groups) {
+                    const latest = group.latest;
+                    const previous = group.previous;
+                    const prefix = `${latest.number}. `;
+                    try {
+                        // Validation
+                        const projectTag = forumChannel.availableTags.find((t) => t.name === project.short);
+                        if (!projectTag) {
+                            throw Error(`"${project.short}" tag is missing on Forum channel "${forumChannel.name}" for ${prefix}${latest.name}`);
+                        }
+                        const factionTag = forumChannel.availableTags.find((t) => t.name === latest.faction);
+                        if (!factionTag) {
+                            throw Error(`"${latest.faction}" tag is missing on Forum channel "${forumChannel.name}" for ${prefix}${latest.name}`);
+                        }
+
+                        // Create new thread (if allowed), or update existing (either update starter msg, or send update msg)
+                        let thread = existingThreads.get(latest);
+                        if (!thread) {
+                            const name = `${prefix}${latest.name}`;
+                            const reason = `Design Team discussion for ${project.short} card #${latest.number}`;
+                            thread = await forumChannel.threads.create({
+                                name,
+                                reason,
+                                message: this.generatePrimaryMessage(designTeamRole, latest, previous, project),
+                                appliedTags: [projectTag.id, factionTag.id],
+                                autoArchiveDuration: forumChannel.defaultAutoArchiveDuration
+                            });
+                            succeeded.push(await thread.fetchStarterMessage());
+                        } else {
+                            const starter = await thread.fetchStarterMessage();
+                            const requiresUpdateMessage = previous.length > 0 && !starter.attachments.some((attachment) => attachment.description === this.generateAttachment(latest).description);
+                            const promises = [
+                                // Ensure correct tags are applied
+                                await thread.setAppliedTags([projectTag.id, factionTag.id]),
+                                // Ensure archive duration is respected
+                                await thread.setAutoArchiveDuration(forumChannel.defaultAutoArchiveDuration),
+                                // Ensure name is up to date
+                                await thread.setName(`${prefix}${latest.name}`),
+                                // Update starter message
+                                await starter.edit(this.generatePrimaryMessage(designTeamRole, latest, previous, project))
+                            ];
+                            if (requiresUpdateMessage) {
+                                promises.push(await thread.send(this.generateUpdateMessage(designTeamRole, latest, previous[0], starter)));
+                            }
+                            const responses = await Promise.all(promises);
+                            succeeded.push(responses[responses.length - 1] as Message<true>);
+                        }
+                    } catch (err) {
+                        logger.error(err);
+                        failed.push(latest);
+                    }
+                }
+            } catch (err) {
+                logger.error(`Failed to sync card threads for forum "${guild.name}": ${err}`);
             }
         }
 

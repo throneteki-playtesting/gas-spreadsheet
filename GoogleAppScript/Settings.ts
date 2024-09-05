@@ -1,3 +1,4 @@
+import { ProjectModel } from "@/Common/Models/Project.js";
 import { UIHelper } from "./Spreadsheets/UserInput.js";
 
 enum GooglePropertiesType {
@@ -59,7 +60,41 @@ class Settings {
     }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-namespace
+namespace Project {
+    export function get() {
+        const releases = Settings.getProperty(GooglePropertiesType.Script, "releases");
+        const project = {
+            active: Settings.getProperty(GooglePropertiesType.Script, "active") === "true",
+            script: Settings.getProperty(GooglePropertiesType.Script, "script"),
+            name: Settings.getProperty(GooglePropertiesType.Script, "name"),
+            short: Settings.getProperty(GooglePropertiesType.Script, "short"),
+            code: parseInt(Settings.getProperty(GooglePropertiesType.Script, "code")),
+            type: Settings.getProperty(GooglePropertiesType.Script, "type"),
+            perFaction: parseInt(Settings.getProperty(GooglePropertiesType.Script, "perFaction")),
+            neutral: parseInt(Settings.getProperty(GooglePropertiesType.Script, "neutral")),
+            releases: releases ? parseInt(releases) : 0,
+            milestone: parseInt(Settings.getProperty(GooglePropertiesType.Script, "milestone"))
+        } as ProjectModel;
+        return project;
+    }
+
+    export function set(project: ProjectModel) {
+        Settings.setProperty(GooglePropertiesType.Script, "active", `${project.active}`);
+        Settings.setProperty(GooglePropertiesType.Script, "script", project.script);
+        Settings.setProperty(GooglePropertiesType.Script, "name", project.name);
+        Settings.setProperty(GooglePropertiesType.Script, "short", project.short);
+        Settings.setProperty(GooglePropertiesType.Script, "code", `${project.code}`);
+        Settings.setProperty(GooglePropertiesType.Script, "type", project.type);
+        Settings.setProperty(GooglePropertiesType.Script, "perFaction", `${project.perFaction}`);
+        Settings.setProperty(GooglePropertiesType.Script, "neutral", `${project.neutral}`);
+        Settings.setProperty(GooglePropertiesType.Script, "releases", `${project.releases}`);
+        Settings.setProperty(GooglePropertiesType.Script, "milestone", `${project.milestone}`);
+    }
+}
+
 export {
     GooglePropertiesType,
-    Settings
+    Settings,
+    Project
 };

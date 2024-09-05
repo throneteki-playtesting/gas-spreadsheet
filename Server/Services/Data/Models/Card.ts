@@ -6,7 +6,7 @@ import { apiUrl } from "@/Server";
 
 
 class Card implements CardModel {
-    public id: CardId;
+    public _id: CardId;
     public quantity: 3;
     constructor(
         public project: number,
@@ -50,9 +50,12 @@ class Card implements CardModel {
             number: number
         }
     ) {
-        this.id = `${number}@${version}`;
+        this._id = `${number}@${version}`;
     }
 
+    get id() {
+        return this._id;
+    }
     get code() {
         // Cycles require ranges 0-499 for "live" cards, and 500-999 for "development" cards
         const codeString = this.project.toString() + (this.number + 500).toString().padStart(3, "0");
@@ -171,17 +174,10 @@ class Card implements CardModel {
     }
 
     /**
-     * @returns True if this card is the pre-release 0.0.0 version
+     * @returns True if this card has not been pushed to playtesting yet at all
      */
     get isPreRelease() {
-        return Ver.eq(this.version, "0.0.0");
-    }
-
-    /**
-     * @returns True if this card is the initial 1.0.0 version
-     */
-    get isInitial() {
-        return Ver.eq(this.version, "1.0.0");
+        return Ver.lte(this.version, "1.0.0") && !this.playtesting;
     }
     /**
      * @returns True if the card is in a draft state (eg. it is currently being edited, but not pushed to playtesting yet)
@@ -199,7 +195,7 @@ class Card implements CardModel {
      *  @returns True if this card is being or needs to be implemented online
      */
     get requiresImplementation() {
-        return this.github ? this.github.status !== "closed" : this.isInitial || this.isChanged;
+        return this.github ? this.github.status !== "closed" : this.isPreRelease || this.isChanged;
     }
     /**
      *  @returns True if this card has been implemented online
@@ -207,12 +203,12 @@ class Card implements CardModel {
     get isImplemented() {
         return this.github ? this.github.status === "closed" : this.isPlaytesting;
     }
-    // /**
-    //  * @returns True if this card has been implemented online after the previous playtesting update
-    //  */
-    // get isNewlyImplemented() {
-    //     return this.development.github?.status === "closed";
-    // }
+    /**
+     * @returns True if this card has been implemented online after the previous playtesting update
+     */
+    get isNewlyImplemented() {
+        return this.github?.status === "closed";
+    }
     // /**
     //  * @returns True if this card is currently the version being playtested
     //  */
@@ -233,7 +229,7 @@ class Card implements CardModel {
     }
 
     get needsIssue() {
-        return !this.github && (this.isInitial || this.isChanged);
+        return !this.github && (this.isPreRelease || this.isChanged);
     }
 
     /***

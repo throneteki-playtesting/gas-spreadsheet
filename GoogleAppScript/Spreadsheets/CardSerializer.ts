@@ -32,7 +32,7 @@ class CardSerializer implements DataSerializer<Model.CardModel> {
         const htmlColumns = [Column.Textbox, Column.Flavor, Column.NoteText];
         values = values.map((value, index) => htmlColumns.includes(index) ? value.toString() : CardSerializer.stripHTML(value.toString()));
         const model = {
-            id: `${values[Column.Number]}@${values[Column.Version]}`,
+            _id: `${values[Column.Number]}@${values[Column.Version]}`,
             project: parseInt(Settings.getProperty(GooglePropertiesType.Script, "code")),
             number: parseInt(values[Column.Number]),
             version: values[Column.Version],
@@ -138,7 +138,7 @@ class CardSerializer implements DataSerializer<Model.CardModel> {
         if (!model) {
             return true;
         }
-        const [number, version] = model.id?.split("@") || [model.number.toString(), model.version];
+        const [number, version] = model._id?.split("@") || [model.number.toString(), model.version];
         return parseInt(values[Column.Number]) === parseInt(number) && (!version || values[Column.Version] === version);
     }
 }

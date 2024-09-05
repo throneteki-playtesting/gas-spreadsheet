@@ -55,9 +55,7 @@ class ProjectMongoDataSource extends MongoDataSource<Project> {
         }
         const results = await this.collection.bulkWrite(projects.map((project) => ({
             replaceOne: {
-                filter: {
-                    "code": project.code
-                },
+                filter: { "_id": project._id },
                 replacement: project,
                 upsert: true
             }

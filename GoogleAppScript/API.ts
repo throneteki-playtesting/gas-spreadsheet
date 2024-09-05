@@ -1,5 +1,4 @@
-import { ProjectModel } from "@/Common/Models/Project";
-import { GooglePropertiesType, Settings } from "./Settings";
+import { GooglePropertiesType, Project, Settings } from "./Settings";
 import { Log } from "./CloudLogger";
 import { UIHelper } from "./Spreadsheets/UserInput";
 
@@ -37,19 +36,8 @@ namespace API {
     }
 
     export function postProjectDetails() {
-        const project = {
-            active: Settings.getProperty(GooglePropertiesType.Script, "active") === "true",
-            script: Settings.getProperty(GooglePropertiesType.Script, "script"),
-            name: Settings.getProperty(GooglePropertiesType.Script, "name"),
-            short: Settings.getProperty(GooglePropertiesType.Script, "short"),
-            code: parseInt(Settings.getProperty(GooglePropertiesType.Script, "code")),
-            type: Settings.getProperty(GooglePropertiesType.Script, "type"),
-            perFaction: parseInt(Settings.getProperty(GooglePropertiesType.Script, "perFaction")),
-            neutral: parseInt(Settings.getProperty(GooglePropertiesType.Script, "neutral"))
-        } as ProjectModel;
-
         try {
-            API.post("projects", project);
+            API.post("projects", Project.get());
             Log.information("Successfully sent project info to API");
         } catch (err) {
             Log.error(err);

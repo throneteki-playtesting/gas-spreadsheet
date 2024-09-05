@@ -9,7 +9,7 @@ import basicAuth from "express-basic-auth";
 import { logger } from "./Services/Services";
 
 export const apiUrl = config.get("server.host") || `http://localhost:${config.get("server.ports.api")}`;
-function initialise(apiHost: string, serverPort: number, clientPort: number, auth: { [username: string]: string; }) {
+function initialise(apiHost: string, serverPort: number, clientPort: number) {
     // Add express
     const app = express();
 
@@ -21,17 +21,16 @@ function initialise(apiHost: string, serverPort: number, clientPort: number, aut
     app.use(compression());
     app.use(express.static("public"));
     app.use(express.json());
-    app.use(basicAuth({
-        users: auth,
-        challenge: true,
-        unauthorizedResponse: "Unauthorized access. Please provide valid credentials."
-    }));
 
     app.use(errors());
     app.use(errorHandler);
 
     // Register routes
-    app.use("/api", api);
+    app.use("/api", basicAuth({
+        users: config.get("server.auth"),
+        challenge: true,
+        unauthorizedResponse: "Unauthorized access. Please provide valid credentials."
+    }), api);
 
     app.use(errors());
     app.use((req, res) => {
@@ -55,4 +54,4 @@ const errorHandler = (err: Error, req: Request, res: Response, next: NextFunctio
     next();
 };
 
-initialise(config.get("server.host"), config.get("server.ports.api"), config.get("server.ports.client"), config.get("server.auth"));
+initialise(config.get("server.host"), config.get("server.ports.api"), config.get("server.ports.client"));

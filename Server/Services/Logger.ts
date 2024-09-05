@@ -2,7 +2,11 @@ import winston from "winston";
 
 export default class LoggerService {
     public static initialise(verbose: boolean = false) {
-        const baseFormat = [winston.format.timestamp({ format: "YYYY-MM-DD hh:mm:ss" }), winston.format.printf((info) => `${info.timestamp} ${info.level}: ${info.message}`)];
+        const baseFormat = [
+            winston.format.errors({ stack: true }),
+            winston.format.timestamp({ format: "YYYY-MM-DD hh:mm:ss" }),
+            winston.format.printf(({ timestamp, level, message, stack }) => `${timestamp} ${level}: ${stack ? stack : message}`)
+        ];
         return winston.createLogger({
             level: "info",
             format: winston.format.combine(...baseFormat),

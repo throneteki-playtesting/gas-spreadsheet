@@ -4,8 +4,7 @@ import { compareBuild } from "semver";
 import { MongoClient } from "mongodb";
 import Card from "../Models/Card";
 import { IRepository } from "..";
-import { CardId, CardModel } from "@/Common/Models/Card";
-import { SemanticVersion } from "@/Common/Utils";
+import { CardId, CardMatcher, CardModel } from "@/Common/Models/Card";
 import { CardsController } from "@/GoogleAppScript/Controllers/CardsController";
 import { logger, renderService } from "../../Services";
 
@@ -21,7 +20,7 @@ export default class CardsRepository implements IRepository<Card> {
         await this.spreadsheet.create({ cards });
     }
 
-    public async read({ matchers, hard }: { matchers: { project: number, number?: number, version?: SemanticVersion }[], hard?: boolean }) {
+    public async read({ matchers, hard }: { matchers: CardMatcher[], hard?: boolean }) {
         let cards: Card[];
         // Force hard refresh from spreadsheet (slow)
         if (hard) {
@@ -31,7 +30,7 @@ export default class CardsRepository implements IRepository<Card> {
         } else {
             // Otherwise, use database (fast)...
             cards = await this.database.read({ matchers });
-            const missing = matchers?.filter((matcher) => !cards.some((card) => card.number === matcher.number && !(matcher.version || (card.version === matcher.version)))) || [];
+            const missing = matchers?.filter((matcher) => !cards.some((card) => card.project === matcher.project && (!matcher.number || card.number === matcher.number) && (!matcher.version || (card.version === matcher.version)))) || [];
             // ... but fetch any which are missing (unlikely)
             if (missing.length > 0) {
                 const fetched = await this.spreadsheet.read({ matchers: missing });
@@ -47,7 +46,7 @@ export default class CardsRepository implements IRepository<Card> {
         await this.spreadsheet.update({ cards });
     }
 
-    public async destroy({ matchers }: { matchers: { project: number, number?: number, version?: SemanticVersion }[] }) {
+    public async destroy({ matchers }: { matchers: CardMatcher[] }) {
         await this.database.destroy({ matchers });
         await this.database.destroy({ matchers });
     }
@@ -99,13 +98,8 @@ class CardMongoDataSource extends MongoDataSource<Card> {
         logger.verbose(`Inserted ${results.insertedCount} values into card collection`);
         return results.insertedCount;
     }
-    public async read({ matchers }: { matchers: { project: number, number?: number, version?: SemanticVersion }[] }) {
-        const mappedCodes = matchers.map((matcher) => ({
-            "project": matcher.project,
-            ...(matcher.number && { "number": matcher.number }),
-            ...(matcher.version && { "version": matcher.version })
-        }));
-        const query = { "$or": mappedCodes };
+    public async read({ matchers }: { matchers: CardMatcher[] }) {
+        const query = { "$or": matchers };
         const result = await this.collection.find(query, { projection: { _id: 0 } }).toArray();
 
         logger.verbose(`Read ${result.length} values from card collection`);
@@ -119,10 +113,7 @@ class CardMongoDataSource extends MongoDataSource<Card> {
         await renderService.syncImages(cards, true);
         const results = await this.collection.bulkWrite(cards.map((card) => ({
             replaceOne: {
-                filter: {
-                    "project": card.project,
-                    "id": card.id
-                },
+                filter: { "_id": card._id },
                 replacement: card,
                 upsert: true
             }
@@ -132,13 +123,8 @@ class CardMongoDataSource extends MongoDataSource<Card> {
         return results.modifiedCount + results.upsertedCount;
     }
 
-    public async destroy({ matchers }: { matchers: { project: number, number?: number, version?: SemanticVersion }[] }) {
-        const mappedCodes = matchers.map((matcher) => ({
-            "project": matcher.project,
-            ...(matcher.number && { "number": matcher.number }),
-            ...(matcher.version && { "version": matcher.version })
-        }));
-        const query = { "$or": mappedCodes };
+    public async destroy({ matchers }: { matchers: CardMatcher[] }) {
+        const query = { "$or": matchers };
         const results = await this.collection.deleteMany(query);
 
         logger.verbose(`Deleted ${results.deletedCount} values from card collection`);
@@ -162,7 +148,7 @@ class CardGASDataSource extends GASDataSource<Card> {
         return created;
     }
 
-    public async read({ matchers }: { matchers: { project: number, number?: number, version?: SemanticVersion }[] }) {
+    public async read({ matchers }: { matchers: CardMatcher[] }) {
         const groups = Map.groupBy(matchers, (matcher) => matcher.project);
         const read: Card[] = [];
         for (const [p, m] of groups.entries()) {
@@ -194,7 +180,7 @@ class CardGASDataSource extends GASDataSource<Card> {
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    public async destroy({ matchers }: { matchers: { project: number, number?: number, version?: SemanticVersion }[] }) {
+    public async destroy({ matchers }: { matchers: CardMatcher[] }) {
         const groups = Map.groupBy(matchers, (matcher) => matcher.project);
         const destroyed: Card[] = [];
         for (const [p, m] of groups.entries()) {

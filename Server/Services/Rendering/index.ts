@@ -6,8 +6,9 @@ import puppeteer, { Viewport } from "puppeteer";
 import Card from "../Data/Models/Card";
 import { BufferCollection } from "buffer-collection";
 import Project from "../Data/Models/Project";
-import { dataService } from "../Services";
+import { dataService, logger } from "../Services";
 import { Utils } from "@/Common/Utils";
+import { groupCardHistory } from "../Data/Repositories/CardsRepository";
 
 export type RenderType = "Single" | "Batch";
 
@@ -18,6 +19,7 @@ class RenderingService {
 
         const imgBuffers = await this.asPNG(syncing);
 
+        const promises: Promise<unknown>[] = [];
         while (syncing.length > 0)
         {
             const card = syncing.shift();
@@ -25,9 +27,35 @@ class RenderingService {
             const filePath = filePathFunc(card);
             const dirPath = path.dirname(filePath);
             if (!fs.existsSync(dirPath)) {
+                // Make directory immediately, in case conflicts with writing file later
                 await fs.promises.mkdir(dirPath, { recursive: true });
             }
-            await fs.promises.writeFile(filePath, imgBuffer);
+            const promise = fs.promises.writeFile(filePath, imgBuffer)
+                .catch((rejected) => logger.error(`Failed to write "${filePath}": ${rejected}`));
+            promises.push(promise);
+        }
+
+        await Promise.allSettled(promises);
+    }
+    public async syncPDFs(project: Project, cards?: Card[]) {
+        cards = cards || await dataService.cards.read({ matchers: [{ project: project.code }] });
+        const all = groupCardHistory(cards).map((group) => group.latest);
+        const updated = all.filter((card) => card.isChanged);
+        const filePathFunc = (collection: "all"|"updated") => `./public/pdf/${project.code}/${project.releases + 1}_${collection}.pdf`;
+
+        const allPdfBuffer = await this.asPDF(all);
+        const allFilePath = filePathFunc("all");
+
+        const dirPath = path.dirname(allFilePath);
+        if (!fs.existsSync(dirPath)) {
+            await fs.promises.mkdir(dirPath, { recursive: true });
+        }
+
+        await fs.promises.writeFile(allFilePath, allPdfBuffer);
+        if (updated.length > 0) {
+            const updatedPdfBuffer = await this.asPDF(updated);
+            const updatedFilePath = filePathFunc("updated");
+            await fs.promises.writeFile(updatedFilePath, updatedPdfBuffer);
         }
     }
 

@@ -15,6 +15,7 @@
         "GoogleAppScript/Spreadsheets/DataSheets.ts",
         "GoogleAppScript/Spreadsheets/UserInput.ts",
         "GoogleAppScript/Controllers/CardsController.ts",
+        "GoogleAppScript/Controllers/ProjectController.ts",
         "GoogleAppScript/Controllers/Controller.ts",
         "GoogleAppScript/Tests/Tester.ts"
     ]
