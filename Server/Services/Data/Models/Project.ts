@@ -1,4 +1,5 @@
 import { ProjectModel, Type } from "@/Common/Models/Project";
+import { Joi } from "celebrate";
 
 class Project implements ProjectModel {
     public _id: number;
@@ -49,6 +50,20 @@ class Project implements ProjectModel {
     toString() {
         return this.name;
     }
+
+    public static schema = {
+        active: Joi.boolean().required(),
+        script: Joi.string().required(),
+        name: Joi.string().required(),
+        short: Joi.string().required(),
+        code: Joi.number().required(),
+        type: Joi.string().required().valid("Cycle", "Expansion"),
+        perFaction: Joi.number().required(),
+        neutral: Joi.number().required(),
+        releases: Joi.number().required(),
+        milestone: Joi.number().required(),
+        emoji: Joi.string()
+    };
 }
 
 export default Project;

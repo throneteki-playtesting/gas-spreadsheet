@@ -3,7 +3,6 @@ import { celebrate, Joi, Segments } from "celebrate";
 import asyncHandler from "express-async-handler";
 import Card from "@/Server/Services/Data/Models/Card";
 import { inc } from "semver";
-import * as Schemas from "./Schemas";
 import { CardModel, NoteType } from "@/Common/Models/Card";
 import { dataService, logger, renderService } from "@/Server/Services/Services";
 import { SemanticVersion, Utils } from "@/Common/Utils";
@@ -105,7 +104,7 @@ router.get("/:project/:number", celebrate({
 }));
 
 router.post("/", celebrate({
-    [Segments.BODY]: Joi.array().items(Schemas.Card)
+    [Segments.BODY]: Joi.array().items(Card.schema)
 }), asyncHandler(async (req, res) => {
     const cards = (req.body as CardModel[]).map(Card.fromModel);
 
