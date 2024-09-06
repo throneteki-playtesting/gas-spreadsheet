@@ -248,7 +248,7 @@ class Card implements CardModel {
     }
 
     public static schema = {
-        id: Joi.string().required().regex(Utils.Regex.Card.id.full),
+        _id: Joi.string().required().regex(Utils.Regex.Card.id.full),
         project: Joi.number().required(),
         number: Joi.number().required(),
         version: Joi.string().required().regex(Utils.Regex.SemanticVersion),

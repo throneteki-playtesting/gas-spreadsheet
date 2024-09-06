@@ -2,6 +2,7 @@ import { Log } from "../CloudLogger.js";
 import { CardModel } from "@/Common/Models/Card.js";
 import { API } from "../API.js";
 import { CardSerializer } from "./CardSerializer.js";
+import { Utils } from "@/Common/Utils.js";
 
 type FilterFunc<Model> = (values: string[], index: number, model?: Model) => boolean;
 type DeserializeFunc<Model> = (values: string[], index: number) => Model;
@@ -218,13 +219,9 @@ export class DataSheet<Model> {
         const edited = this.read((values: unknown[], index: number) => (index + 1) >= firstRow && (index + 1) <= lastRow);
 
         if (edited.length > 0) {
-            try {
-                const subUrl = this.resource;
-                const response = API.post(subUrl, edited);
-                Log.information(`Successfully updated ${response.updated} ${this.resource}s.`);
-            } catch (err) {
-                Log.error(err);
-            }
+            const subUrl = this.resource;
+            const response = API.post(subUrl, edited);
+            Log.information(`${Utils.titleCase(this.resource)} - Posted ${response.updated} update(s)`);
         }
     }
 }

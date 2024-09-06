@@ -115,6 +115,7 @@ router.post("/", celebrate({
             case "Updated": return "patch";
         }
     };
+    logger.verbose(`Recieved ${cards.length} card update(s) from sheets`);
     const { database, spreadsheet } = cards.reduce((data, card) => {
         // If a card is in a draft state, we do not want to update it on server.
         // We DO however want to ensure the version is being updated appropriately on spreadsheet...
