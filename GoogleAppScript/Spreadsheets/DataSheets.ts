@@ -3,6 +3,7 @@ import { CardModel } from "@/Common/Models/Card.js";
 import { API } from "../API.js";
 import { CardSerializer } from "./CardSerializer.js";
 import { Utils } from "@/Common/Utils.js";
+import { GooglePropertiesType, Settings } from "../Settings.js";
 
 type FilterFunc<Model> = (values: string[], index: number, model?: Model) => boolean;
 type DeserializeFunc<Model> = (values: string[], index: number) => Model;
@@ -213,15 +214,45 @@ export class DataSheet<Model> {
 
     /* LISTENER METHODS */
     public onEdit(e: GoogleAppsScript.Events.SheetsOnEdit) {
-        const range = e.range;
-        const firstRow = this.convertToDataRowNum(range.getRowIndex());
-        const lastRow = this.convertToDataRowNum(range.getRowIndex() + range.getNumRows() - 1);
-        const edited = this.read((values: unknown[], index: number) => (index + 1) >= firstRow && (index + 1) <= lastRow);
+        const editDate = (new Date()).toUTCString();
 
-        if (edited.length > 0) {
-            const subUrl = this.resource;
-            const response = API.post(subUrl, edited);
-            Log.information(`${Utils.titleCase(this.resource)} - Posted ${response.updated} update(s)`);
+        // Cache the latest edit into either an existing or new "batchEdit" variable
+        const cache = CacheService.getDocumentCache();
+        const cacheKey = `editBatch_${this.sheet.getName()}`;
+        const editBatch = cache.get(cacheKey);
+        const rangeString = `${this.convertToDataRowNum(e.range.getRowIndex())}:${this.convertToDataRowNum(e.range.getRowIndex() + e.range.getNumRows() - 1)}`;
+        let value = `${editDate}|`;
+        if (editBatch) {
+            const editRanges = editBatch.split("|")[1].split(",");
+            if (!editRanges.includes(rangeString)) {
+                editRanges.push(rangeString);
+            }
+            value += editRanges.join(",");
+        } else {
+            value += rangeString;
+        }
+        cache.put(cacheKey, value);
+
+        // Wait...
+        const cooldown = parseInt(Settings.getProperty(GooglePropertiesType.Script, "editCooldown")) * 1000;
+        Utilities.sleep(cooldown);
+
+        // Then check if edits should be pushed
+        const [lastEditDate, rangesString] = cache.get(cacheKey).split("|");
+        // If this edit's date is the current batch date, then it is the most recent change
+        if (lastEditDate === editDate) {
+            cache.remove(cacheKey);
+            const editRanges = rangesString.split(",").map((str) => {
+                const [from, to] = str.split(":");
+                return { from: parseInt(from), to: parseInt(to) };
+            });
+            Log.information(`Batch edit triggered with ${editRanges.length} ranges`);
+            const edited = this.read((values: unknown[], index: number) => editRanges.some(({ from, to }) => (index + 1) >= from && (index + 1) <= to));
+            if (edited.length > 0) {
+                const subUrl = this.resource;
+                const response = API.post(subUrl, edited);
+                Log.information(`${Utils.titleCase(this.resource)} - Posted ${response.updated} update(s)`);
+            }
         }
     }
 }
