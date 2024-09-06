@@ -238,7 +238,8 @@ export class DataSheet<Model> {
         Utilities.sleep(cooldown);
 
         // Then check if edits should be pushed
-        const [lastEditDate, rangesString] = cache.get(cacheKey).split("|");
+        const latestBatchEdit = cache.get(cacheKey);
+        const [lastEditDate, rangesString] = latestBatchEdit?.split("|") || [];
         // If this edit's date is the current batch date, then it is the most recent change
         if (lastEditDate === editDate) {
             cache.remove(cacheKey);
