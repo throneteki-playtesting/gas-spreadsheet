@@ -128,9 +128,8 @@ class RenderingService {
         return {
             ...jCard,
             ...{
-                type: jCard.type,
+                renderFile: Utils.titleCase(jCard.type),
                 traits: jCard.traits.map((t: string) => `${t}.`).join(" "),
-                faction: jCard.faction,
                 text: jCard.text
                     .replace(/\[([^\]]+)\]/g, "<span class=\"icon-$1\"></span>")
                     .replace(/\n/g, "<br>")
