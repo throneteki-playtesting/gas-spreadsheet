@@ -59,6 +59,8 @@ class Card implements CardModel {
         }
     ) {
         this._id = `${number}@${version}`;
+        this.faction = Utils.titleCase(this.faction) as Faction;
+        this.type = Utils.titleCase(this.type) as Type;
     }
 
     get id() {
