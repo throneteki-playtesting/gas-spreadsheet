@@ -38,7 +38,7 @@ router.get("/:project", celebrate({
 
     const matchers = ids ? ids.map((id) => {
         const [number, version] = id.split("@");
-        return { project, number: parseInt(number), version: version as SemanticVersion };
+        return { project, number: parseInt(number), ...(version && { version: version as SemanticVersion }) };
     }) : [{ project }];
     const cards = await dataService.cards.read({ matchers, hard });
 
@@ -48,7 +48,7 @@ router.get("/:project", celebrate({
             res.json(json);
             break;
         case "HTML":
-            const html = renderService.asHtml("Batch", cards, { copies, perPage });
+            const html = await renderService.asHtml("Batch", cards, { copies, perPage });
             res.send(html);
             break;
         case "PDF":
@@ -81,8 +81,8 @@ router.get("/:project/:number", celebrate({
     const hard = req.query.hard as unknown as boolean;
     const version = req.query.version ? req.query.version as SemanticVersion : undefined;
 
-    const cards = await dataService.cards.read({ matchers: [{ project, number, version }], hard });
-    const card = cards.shift();
+    const cards = await dataService.cards.read({ matchers: [{ project, number, ...(version && { version }) }], hard });
+    const card = cards.shift(); // Always get latest version
 
     switch (format) {
         case "JSON":
