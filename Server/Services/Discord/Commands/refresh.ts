@@ -1,6 +1,7 @@
 import { Command } from "../DeployCommands";
-import { AutocompleteInteraction, ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
+import { AutocompleteInteraction, ChatInputCommandInteraction, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
 import { dataService, logger } from "../../Services";
+import { FollowUpHelper } from ".";
 
 const refresh = {
     async data() {
@@ -12,7 +13,8 @@ const refresh = {
                     .setDescription("Project to clear data for")
                     .setRequired(true)
                     .setAutocomplete(true)
-            ).addStringOption(option =>
+            )
+            .addStringOption(option =>
                 option.setName("type")
                     .setDescription("Type of data to clear")
                     .setRequired(true)
@@ -20,7 +22,9 @@ const refresh = {
                         { name: "Card", value: "card" },
                         { name: "Review", value: "review" }
                     ])
-            );
+            )
+            .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+            .setDMPermission(false);
     },
     async execute(interaction: ChatInputCommandInteraction) {
         await interaction.deferReply({ ephemeral: true });
@@ -37,16 +41,10 @@ const refresh = {
                     throw Error("Review clear not implemented yet!");
             }
 
-            await interaction.followUp({
-                content: `:white_check_mark: Successfully refreshed ${type} cache!`,
-                ephemeral: true
-            });
+            await FollowUpHelper.success(interaction, `Successfully refreshed ${type} cache!`);
         } catch (err) {
             logger.error(err);
-            await interaction.followUp({
-                content: `:exclamation: Failed to clear cache: ${err.message}`,
-                ephemeral: true
-            }).catch(logger.error);
+            FollowUpHelper.error(interaction, `Failed to clear cache: ${err.message}`);
         }
     },
     async autocomplete(interaction: AutocompleteInteraction) {
