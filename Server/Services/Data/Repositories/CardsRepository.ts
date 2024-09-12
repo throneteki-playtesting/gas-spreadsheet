@@ -7,6 +7,7 @@ import { IRepository } from "..";
 import { CardId, CardMatcher, CardModel } from "@/Common/Models/Card";
 import { CardsController } from "@/GoogleAppScript/Controllers/CardsController";
 import { logger, renderService } from "../../Services";
+import { Utils } from "@/Common/Utils";
 
 export default class CardsRepository implements IRepository<Card> {
     public database: CardMongoDataSource;
@@ -99,7 +100,7 @@ class CardMongoDataSource extends MongoDataSource<Card> {
         return results.insertedCount;
     }
     public async read({ matchers }: { matchers: CardMatcher[] }) {
-        const query = { "$or": matchers };
+        const query = { "$or": matchers.map(Utils.cleanObject) };
         const result = await this.collection.find(query, { projection: { _id: 0 } }).toArray();
 
         logger.verbose(`Read ${result.length} values from card collection`);
@@ -124,7 +125,7 @@ class CardMongoDataSource extends MongoDataSource<Card> {
     }
 
     public async destroy({ matchers }: { matchers?: CardMatcher[] }) {
-        const query = { "$or": matchers };
+        const query = { "$or": matchers.map(Utils.cleanObject) };
         const results = await this.collection.deleteMany(query);
 
         logger.verbose(`Deleted ${results.deletedCount} values from card collection`);
@@ -149,7 +150,7 @@ class CardGASDataSource extends GASDataSource<Card> {
     }
 
     public async read({ matchers }: { matchers: CardMatcher[] }) {
-        const groups = Map.groupBy(matchers, (matcher) => matcher.project);
+        const groups = Map.groupBy(matchers.map(Utils.cleanObject), (matcher) => matcher.project);
         const read: Card[] = [];
         for (const [p, m] of groups.entries()) {
             const project = await this.getProject(p);
@@ -181,7 +182,7 @@ class CardGASDataSource extends GASDataSource<Card> {
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     public async destroy({ matchers }: { matchers: CardMatcher[] }) {
-        const groups = Map.groupBy(matchers, (matcher) => matcher.project);
+        const groups = Map.groupBy(matchers.map(Utils.cleanObject), (matcher) => matcher.project);
         const destroyed: Card[] = [];
         for (const [p, m] of groups.entries()) {
             const project = await this.getProject(p);

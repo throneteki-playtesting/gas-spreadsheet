@@ -46,6 +46,16 @@ namespace Utils {
             .map(w => w[0].toUpperCase() + w.substring(1).toLowerCase())
             .join(" ");
     }
+
+    export function cleanObject<T>(object: T) {
+        for (const key in object) {
+            if (object[key] === undefined) {
+                delete object[key];
+            }
+        }
+
+        return object;
+    }
 }
 
 export {

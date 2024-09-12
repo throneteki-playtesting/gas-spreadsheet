@@ -62,12 +62,34 @@ const sync = {
                             .setRequired(true)
                             .setAutocomplete(true)
                     )
+            )
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName("images")
+                    .setDescription("Sync card images")
+                    .addStringOption(option =>
+                        option.setName("project")
+                            .setDescription("Project for images")
+                            .setRequired(true)
+                            .setAutocomplete(true)
+                    )
+                    .addStringOption(option =>
+                        option.setName("card")
+                            .setDescription("Card image to sync")
+                            .setRequired(false)
+                            .setAutocomplete(true)
+                    )
+                    .addBooleanOption(option =>
+                        option.setName("override")
+                            .setDescription("Whether to override existing images")
+                            .setRequired(false)
+                    )
             );
     },
     async execute(interaction: ChatInputCommandInteraction) {
         await interaction.deferReply({ ephemeral: true });
         try {
-            const subcommand = interaction.options.getSubcommand() as "cards" | "issues" | "pullrequests";
+            const subcommand = interaction.options.getSubcommand() as "cards" | "issues" | "pullrequests" | "images";
 
             switch (subcommand) {
                 case "cards":
@@ -76,6 +98,8 @@ const sync = {
                     return await issuesCommand.execute(interaction);
                 case "pullrequests":
                     return await pullRequestCommand.execute(interaction);
+                case "images":
+                    return await imagesCommand.execute(interaction);
             }
         } catch (err) {
             logger.error(err);
@@ -106,12 +130,13 @@ const cardsCommand = {
     async execute(interaction: ChatInputCommandInteraction) {
         const guild = interaction.guild;
         const project = parseInt(interaction.options.getString("project"));
-        const number = parseInt(interaction.options.getString("card"));
+        const number = parseInt(interaction.options.getString("card")) || undefined;
         const canCreate = interaction.options.getBoolean("create");
         const hard = interaction.options.getBoolean("hard") || true;
 
         const cards = await dataService.cards.read({ matchers: [{ project, number }], hard });
         const proj = (await dataService.projects.read({ codes: [project] }))[0];
+        await renderService.syncImages(cards, true);
         const { succeeded, failed } = await discordService.syncCardThreads(proj, cards, [guild], canCreate);
 
         let content = succeeded.length === 1 ? `Successfully synced card: ${succeeded[0].url}` : `${succeeded.length} cards synced.`;
@@ -119,30 +144,13 @@ const cardsCommand = {
             content += `\n:exclamation: Failed to process the following: ${failed.map((card) => card.toString()).join(", ")}`;
         }
         await FollowUpHelper.success(interaction, content);
-    },
-    async autoComplete(interaction: AutocompleteInteraction) {
-        // Selecting project
-        const project = parseInt(interaction.options.getString("project"));
-        if (Number.isNaN(project)) {
-            const projects = await dataService.projects.read();
-            const choices = projects.filter((p) => p.active).map((p) => ({ name: p.name, value: p.code.toString() }));
-            await interaction.respond(choices).catch(logger.error);
-            return;
-        }
-        // Selecting card
-        const focusedValue = interaction.options.getFocused().trim();
-        const cards = await dataService.cards.database.read({ matchers: [{ project }] });
-        const choices = cards.filter((card) => card.isPreRelease || card.isPlaytesting).map((card) => ({ name: `${card.number} - ${card.name}`, value: card.number.toString() }));
-        // Only get first 25 (limit by discord)
-        const filtered = choices.filter((choice) => choice.name.toLowerCase().includes(focusedValue.toLowerCase())).slice(0, 25);
-        await interaction.respond(filtered).catch(logger.error);
     }
 };
 
 const issuesCommand = {
     async execute(interaction: ChatInputCommandInteraction) {
         const project = parseInt(interaction.options.getString("project"));
-        const number = parseInt(interaction.options.getString("card"));
+        const number = parseInt(interaction.options.getString("card")) || undefined;
 
         const cards = await dataService.cards.read({ matchers: [{ project, number }] });
         const proj = (await dataService.projects.read({ codes: [project] }))[0];
@@ -168,6 +176,21 @@ const pullRequestCommand = {
             const content = `Failed to sync pull request: ${err.message}`;
             await FollowUpHelper.error(interaction, content);
         }
+    }
+};
+
+const imagesCommand = {
+    async execute(interaction: ChatInputCommandInteraction) {
+        const project = parseInt(interaction.options.getString("project"));
+        const number = parseInt(interaction.options.getString("card")) || undefined;
+        const override = interaction.options.getBoolean("override") || true;
+
+        const cards = await dataService.cards.read({ matchers: [{ project, number }] });
+
+        await renderService.syncImages(cards, override);
+
+        const content = `Successfully synced ${cards.length} card images`;
+        await FollowUpHelper.success(interaction, content);
     }
 };
 
