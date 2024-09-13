@@ -109,9 +109,13 @@ class DiscordService {
                             });
                             succeeded.push(await thread.fetchStarterMessage());
                         } else {
+                            const wasArchived = thread.archived;
+
                             const starter = await thread.fetchStarterMessage();
                             const requiresUpdateMessage = previous.length > 0 && !starter.attachments.some((attachment) => attachment.description === this.generateAttachment(latest).description);
                             const promises = [
+                                // Unarchives thread, if applicable
+                                ...(wasArchived ? [await thread.setArchived(false)] : []),
                                 // Ensure correct tags are applied
                                 await thread.setAppliedTags([projectTag.id, factionTag.id]),
                                 // Ensure archive duration is respected
@@ -119,11 +123,12 @@ class DiscordService {
                                 // Ensure name is up to date
                                 await thread.setName(`${prefix}${latest.name}`),
                                 // Update starter message
-                                await starter.edit(this.generatePrimaryMessage(designTeamRole, latest, previous, project))
+                                await starter.edit(this.generatePrimaryMessage(designTeamRole, latest, previous, project)),
+                                // Sends update message, if applicable
+                                ...(requiresUpdateMessage ? [await thread.send(this.generateUpdateMessage(designTeamRole, latest, previous[0], starter))] : []),
+                                // Re-archive thread (if no update message was sent)
+                                ...(wasArchived && !requiresUpdateMessage ? [await thread.setArchived(true)] : [])
                             ];
-                            if (requiresUpdateMessage) {
-                                promises.push(await thread.send(this.generateUpdateMessage(designTeamRole, latest, previous[0], starter)));
-                            }
                             const responses = await Promise.all(promises);
                             succeeded.push(responses[responses.length - 1] as Message<true>);
                         }
