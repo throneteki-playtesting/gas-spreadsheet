@@ -1,4 +1,4 @@
-import { AutocompleteInteraction, ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
+import { AutocompleteInteraction, ChatInputCommandInteraction, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
 import { Command } from "../DeployCommands";
 import { dataService, discordService, githubService, logger, renderService } from "../../Services";
 import { FollowUpHelper } from ".";
@@ -84,7 +84,9 @@ const sync = {
                             .setDescription("Whether to override existing images")
                             .setRequired(false)
                     )
-            );
+            )
+            .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+            .setDMPermission(false);
     },
     async execute(interaction: ChatInputCommandInteraction) {
         await interaction.deferReply({ ephemeral: true });
