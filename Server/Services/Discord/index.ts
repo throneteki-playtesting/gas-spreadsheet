@@ -1,4 +1,4 @@
-import { AttachmentBuilder, BaseMessageOptions, Client, EmbedBuilder, ForumChannel, Guild, Message, Role, ThreadChannel } from "discord.js";
+import { AttachmentBuilder, BaseMessageOptions, Client, EmbedBuilder, ForumChannel, Guild, GuildForumTag, Message, Role, ThreadChannel } from "discord.js";
 import { buildCommands, deployCommands } from "./DeployCommands";
 import { commands } from "./Commands";
 import Card from "../Data/Models/Card";
@@ -74,9 +74,14 @@ class DiscordService {
                     throw Error("'Design Team' role does not exist");
                 }
 
+                const projectTag = forumChannel.availableTags.find((t) => t.name === project.short);
+                if (!projectTag) {
+                    throw Error(`"${project.short}" tag is missing on Forum channel "${forumChannel.name}"`);
+                }
+
                 const discordReady = cards.filter((card) => card.isPreRelease || card.isPlaytesting);
                 let groups = groupCardHistory(discordReady);
-                const existingThreads = this.getCardThreads(forumChannel, groups.map((group) => group.latest));
+                const existingThreads = await this.getCardThreads(forumChannel, projectTag, groups.map((group) => group.latest));
                 groups = groups.filter((group) => canCreate || existingThreads.has(group.latest));
 
                 for (const group of groups) {
@@ -85,10 +90,6 @@ class DiscordService {
                     const prefix = `${latest.number}. `;
                     try {
                         // Validation
-                        const projectTag = forumChannel.availableTags.find((t) => t.name === project.short);
-                        if (!projectTag) {
-                            throw Error(`"${project.short}" tag is missing on Forum channel "${forumChannel.name}" for ${prefix}${latest.name}`);
-                        }
                         const factionTag = forumChannel.availableTags.find((t) => t.name === latest.faction);
                         if (!factionTag) {
                             throw Error(`"${latest.faction}" tag is missing on Forum channel "${forumChannel.name}" for ${prefix}${latest.name}`);
@@ -132,23 +133,29 @@ class DiscordService {
                     }
                 }
             } catch (err) {
-                logger.error(`Failed to sync card threads for forum "${guild.name}": ${err}`);
+                throw Error(`Failed to sync card threads for forum "${guild.name}"`, { cause: err });
             }
         }
 
         return { succeeded, failed };
     }
 
-    private getCardThreads(forumChannel: ForumChannel, cards: Card[]) {
+    private async getCardThreads(forumChannel: ForumChannel, projectTag: GuildForumTag, cards: Card[]) {
         const prefix = (card: Card) => `${card.number}. `;
-        const threadsCache = forumChannel.threads.cache;
+        // TODO: Filter archived by when project started. Currently not an issue, but will be if we have multiple historical projects.
+        let before = undefined;
+        do {
+            // Caches all fetched to be used later
+            const batch = await forumChannel.threads.fetch({ archived: { fetchAll: true, before } }, { cache: true });
+            before = batch.hasMore ? Math.min(...batch.threads.map(t => t.archivedAt.getTime())) : undefined;
+        } while (before);
 
-        return cards.reduce((threads, card) => {
-            const thread = threadsCache.find((t) => t.name.startsWith(prefix(card)));
+        return cards.reduce((map, card) => {
+            const thread = forumChannel.threads.cache.find((t) => t.appliedTags.includes(projectTag.id) && t.name.startsWith(prefix(card)));
             if (thread) {
-                threads.set(card, thread);
+                map.set(card, thread);
             }
-            return threads;
+            return map;
         }, new Map<Card, ThreadChannel<true>>());
     }
 

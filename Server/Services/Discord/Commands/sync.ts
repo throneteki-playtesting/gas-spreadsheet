@@ -24,14 +24,26 @@ const sync = {
                             .setRequired(false)
                             .setAutocomplete(true)
                     )
+            )
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName("cardforum")
+                    .setDescription("Sync discord card forum data for a project")
+                    .addStringOption(option =>
+                        option.setName("project")
+                            .setDescription("Project for card")
+                            .setRequired(true)
+                            .setAutocomplete(true)
+                    )
+                    .addStringOption(option =>
+                        option.setName("card")
+                            .setDescription("Card to push")
+                            .setRequired(false)
+                            .setAutocomplete(true)
+                    )
                     .addBooleanOption(option =>
                         option.setName("create")
                             .setDescription("Whether sync should create new threads if it does not already exist")
-                            .setRequired(false)
-                    )
-                    .addBooleanOption(option =>
-                        option.setName("hard")
-                            .setDescription("Whether sync should pull latest data from spreadsheet (will be slower)")
                             .setRequired(false)
                     )
             )
@@ -91,17 +103,19 @@ const sync = {
     async execute(interaction: ChatInputCommandInteraction) {
         await interaction.deferReply({ ephemeral: true });
         try {
-            const subcommand = interaction.options.getSubcommand() as "cards" | "issues" | "pullrequests" | "images";
+            const subcommand = interaction.options.getSubcommand() as "cards" | "cardforum" | "issues" | "pullrequests" | "images";
 
             switch (subcommand) {
                 case "cards":
-                    return await cardsCommand.execute(interaction);
+                    return await command.cards.execute(interaction);
+                case "cardforum":
+                    return await command.cardforum.execute(interaction);
                 case "issues":
-                    return await issuesCommand.execute(interaction);
+                    return await command.issues.execute(interaction);
                 case "pullrequests":
-                    return await pullRequestCommand.execute(interaction);
+                    return await command.pullRequests.execute(interaction);
                 case "images":
-                    return await imagesCommand.execute(interaction);
+                    return await command.images.execute(interaction);
             }
         } catch (err) {
             logger.error(err);
@@ -128,71 +142,80 @@ const sync = {
     }
 } as Command;
 
-const cardsCommand = {
-    async execute(interaction: ChatInputCommandInteraction) {
-        const guild = interaction.guild;
-        const project = parseInt(interaction.options.getString("project"));
-        const number = parseInt(interaction.options.getString("card")) || undefined;
-        const canCreate = interaction.options.getBoolean("create");
-        const hard = interaction.options.getBoolean("hard") || true;
+const command = {
+    cards: {
+        async execute(interaction: ChatInputCommandInteraction) {
+            const project = parseInt(interaction.options.getString("project"));
+            const number = parseInt(interaction.options.getString("card")) || undefined;
 
-        const cards = await dataService.cards.read({ matchers: [{ project, number }], hard });
-        const proj = (await dataService.projects.read({ codes: [project] }))[0];
-        await renderService.syncImages(cards, true);
-        const { succeeded, failed } = await discordService.syncCardThreads(proj, cards, [guild], canCreate);
+            const cards = await dataService.cards.read({ matchers: [{ project, number }], hard: true });
 
-        let content = succeeded.length === 1 ? `Successfully synced card: ${succeeded[0].url}` : `${succeeded.length} cards synced.`;
-        if (failed.length > 0) {
-            content += `\n:exclamation: Failed to process the following: ${failed.map((card) => card.toString()).join(", ")}`;
-        }
-        await FollowUpHelper.success(interaction, content);
-    }
-};
+            const content = `Successfully synced ${cards.length} card(s)`;
 
-const issuesCommand = {
-    async execute(interaction: ChatInputCommandInteraction) {
-        const project = parseInt(interaction.options.getString("project"));
-        const number = parseInt(interaction.options.getString("card")) || undefined;
-
-        const cards = await dataService.cards.read({ matchers: [{ project, number }] });
-        const proj = (await dataService.projects.read({ codes: [project] }))[0];
-        const issues = await githubService.syncIssues(proj, cards);
-
-        const content = issues.length === 1 ? `Successfully synced issue: [#${issues[0].number}](${issues[0].html_url})` : `${issues.length} issues synced.`;
-        await FollowUpHelper.success(interaction, content);
-    }
-};
-
-const pullRequestCommand = {
-    async execute(interaction: ChatInputCommandInteraction) {
-        const project = parseInt(interaction.options.getString("project"));
-
-        const cards = await dataService.cards.read({ matchers: [{ project }] });
-        const proj = (await dataService.projects.read({ codes: [project] }))[0];
-        await renderService.syncPDFs(proj, cards);
-        try {
-            const pullRequest = await githubService.syncPullRequest(proj, cards);
-            const content = `Successfully synced pull request: [#${pullRequest.number}](${pullRequest.html_url})`;
             await FollowUpHelper.success(interaction, content);
-        } catch (err) {
-            const content = `Failed to sync pull request: ${err.message}`;
-            await FollowUpHelper.error(interaction, content);
         }
-    }
-};
+    },
+    cardforum: {
+        async execute(interaction: ChatInputCommandInteraction) {
+            const guild = interaction.guild;
+            const project = parseInt(interaction.options.getString("project"));
+            const number = parseInt(interaction.options.getString("card")) || undefined;
+            const canCreate = interaction.options.getBoolean("create") || false;
 
-const imagesCommand = {
-    async execute(interaction: ChatInputCommandInteraction) {
-        const project = parseInt(interaction.options.getString("project"));
-        const number = parseInt(interaction.options.getString("card")) || undefined;
-        const override = interaction.options.getBoolean("override") || true;
+            const proj = (await dataService.projects.read({ codes: [project] }))[0];
+            const cards = await dataService.cards.read({ matchers: [{ project, number }] });
+            const { succeeded, failed } = await discordService.syncCardThreads(proj, cards, [guild], canCreate);
 
-        const cards = await dataService.cards.read({ matchers: [{ project, number }] });
+            let content = succeeded.length === 1 ? `Successfully synced card: ${succeeded[0].url}` : `${succeeded.length} cards synced.`;
+            if (failed.length > 0) {
+                content += `\n:exclamation: Failed to process the following: ${failed.map((card) => card.toString()).join(", ")}`;
+            }
+            await FollowUpHelper.success(interaction, content);
+        }
+    },
+    issues: {
+        async execute(interaction: ChatInputCommandInteraction) {
+            const project = parseInt(interaction.options.getString("project"));
+            const number = parseInt(interaction.options.getString("card")) || undefined;
 
-        await renderService.syncImages(cards, override);
+            const cards = await dataService.cards.read({ matchers: [{ project, number }] });
+            const proj = (await dataService.projects.read({ codes: [project] }))[0];
+            const issues = await githubService.syncIssues(proj, cards);
 
-        const content = `Successfully synced ${cards.length} card images`;
-        await FollowUpHelper.success(interaction, content);
+            const content = issues.length === 1 ? `Successfully synced issue: [#${issues[0].number}](${issues[0].html_url})` : `${issues.length} issues synced.`;
+            await FollowUpHelper.success(interaction, content);
+        }
+    },
+    pullRequests: {
+        async execute(interaction: ChatInputCommandInteraction) {
+            const project = parseInt(interaction.options.getString("project"));
+
+            const cards = await dataService.cards.read({ matchers: [{ project }] });
+            const proj = (await dataService.projects.read({ codes: [project] }))[0];
+            await renderService.syncPDFs(proj, cards);
+            try {
+                const pullRequest = await githubService.syncPullRequest(proj, cards);
+                const content = `Successfully synced pull request: [#${pullRequest.number}](${pullRequest.html_url})`;
+                await FollowUpHelper.success(interaction, content);
+            } catch (err) {
+                const content = `Failed to sync pull request: ${err.message}`;
+                await FollowUpHelper.error(interaction, content);
+            }
+        }
+    },
+    images: {
+        async execute(interaction: ChatInputCommandInteraction) {
+            const project = parseInt(interaction.options.getString("project"));
+            const number = parseInt(interaction.options.getString("card")) || undefined;
+            const override = interaction.options.getBoolean("override") || true;
+
+            const cards = await dataService.cards.read({ matchers: [{ project, number }] });
+
+            await renderService.syncImages(cards, override);
+
+            const content = `Successfully synced ${cards.length} card images`;
+            await FollowUpHelper.success(interaction, content);
+        }
     }
 };
 
