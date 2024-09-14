@@ -15,7 +15,7 @@ const JoiXDashNumber = Joi.alternatives().try(
 
 class Card implements CardModel {
     public _id: CardId;
-    public quantity: 3;
+    public quantity: 1 | 2 | 3;
     constructor(
         public project: number,
         public number: number,
@@ -59,6 +59,7 @@ class Card implements CardModel {
         }
     ) {
         this._id = `${number}@${version}`;
+        this.quantity = 3;
     }
 
     get id() {

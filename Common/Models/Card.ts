@@ -23,7 +23,7 @@ export interface CardModel {
     flavor?: string,
     designer?: string,
     deckLimit: number,
-    quantity: 3,
+    quantity: 1 | 2 | 3,
     cost?: number | "X" | "-",
     unique?: boolean,
     strength?: number | "X",
