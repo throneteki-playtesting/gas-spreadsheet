@@ -6,7 +6,7 @@ import cors from "cors";
 import { errors } from "celebrate";
 import api from "./Routes/API";
 import basicAuth from "express-basic-auth";
-import { logger } from "./Services/Services";
+import { logger } from "./Services";
 
 export const apiUrl = config.get("server.host") || `http://localhost:${config.get("server.ports.api")}`;
 function initialise(apiHost: string, serverPort: number, clientPort: number) {

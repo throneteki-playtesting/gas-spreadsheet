@@ -1,8 +1,8 @@
 import express from "express";
 import { celebrate, Joi, Segments } from "celebrate";
 import asyncHandler from "express-async-handler";
-import { dataService } from "@/Server/Services/Services";
-import { Pack } from "@/Server/Services/Data/Models/Pack";
+import { dataService } from "@/Server/Services";
+import { Pack } from "@/Server/Data/Models/Pack";
 
 const router = express.Router();
 

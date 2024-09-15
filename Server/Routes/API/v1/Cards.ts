@@ -1,10 +1,10 @@
 import express from "express";
 import { celebrate, Joi, Segments } from "celebrate";
 import asyncHandler from "express-async-handler";
-import Card from "@/Server/Services/Data/Models/Card";
+import Card from "@/Server/Data/Models/Card";
 import { inc } from "semver";
 import { CardModel, NoteType } from "@/Common/Models/Card";
-import { dataService, logger, renderService } from "@/Server/Services/Services";
+import { dataService, logger, renderService } from "@/Server/Services";
 import { SemanticVersion, Utils } from "@/Common/Utils";
 
 export type ResourceFormat = "JSON" | "HTML" | "TXT" | "PNG" | "PDF";

@@ -2,8 +2,8 @@ import express from "express";
 import { celebrate, Joi, Segments } from "celebrate";
 import asyncHandler from "express-async-handler";
 import { ProjectModel } from "@/Common/Models/Project";
-import Project from "@/Server/Services/Data/Models/Project";
-import { dataService } from "@/Server/Services/Services";
+import Project from "@/Server/Data/Models/Project";
+import { dataService } from "@/Server/Services";
 
 const router = express.Router();
 

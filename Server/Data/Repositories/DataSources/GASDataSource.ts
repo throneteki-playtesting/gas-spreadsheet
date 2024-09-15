@@ -1,5 +1,5 @@
 import { Controller } from "@/GoogleAppScript/Controllers/Controller";
-import { dataService } from "@/Server/Services/Services";
+import { dataService } from "@/Server/Services";
 import { JWT } from "google-auth-library";
 
 
