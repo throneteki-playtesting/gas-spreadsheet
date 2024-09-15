@@ -136,12 +136,20 @@ const sync = {
 
         const cards = await dataService.cards.database.read({ matchers: [{ project }] });
 
-        const choices = cards
-            .filter((card) => card.isDraft) // Get only the latest iterations
-            .filter((card, index, array) => array.indexOf(card) === index) // Remove duplicates
-            .map((card) => ({ name: `${card.number} - ${card.name}`, value: card.number.toString() }));
+        // Reverse to ensure the latest cards are added first
+        const choices = cards.reverse().reduce((chs, card) => {
+            const name = `${card.number} - ${card.name}`;
+            const value = card.number.toString();
+
+            // Only fetch if it matches the focused value, and wasn't already added (as a later version)
+            if (name.toLowerCase().includes(focusedValue.toLowerCase()) && !chs.some((c) => c.value === value)) {
+                chs.push({ name, value });
+            }
+            return chs;
+        }, [] as { name: string, value: string }[]).sort((a, b) => parseInt(a.value) - parseInt(b.value));
+
         // Only get first 25 (limit by discord)
-        const filtered = choices.filter((choice) => choice.name.toLowerCase().includes(focusedValue.toLowerCase())).slice(0, 25);
+        const filtered = choices.slice(0, 25);
         await interaction.respond(filtered).catch(logger.error);
     }
 } as Command;
