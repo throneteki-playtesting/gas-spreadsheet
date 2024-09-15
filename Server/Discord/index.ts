@@ -112,6 +112,7 @@ class DiscordService {
                             });
 
                             const starter = await newThread.fetchStarterMessage();
+                            await starter.pin();
 
                             // Check that previous thread has correct tags (eg. NOT "Latest")
                             if (previousThread.appliedTags.includes(latestTag.id)) {
@@ -132,7 +133,8 @@ class DiscordService {
                                 thread.setAppliedTags(latestTags),
                                 thread.setAutoArchiveDuration(autoArchiveDuration),
                                 thread.setName(title),
-                                starter.edit(message)
+                                starter.edit(message),
+                                ...(!starter.pinned ? [starter.pin()] : [])
                             ];
 
                             await Promise.all(promises);
