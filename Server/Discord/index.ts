@@ -1,15 +1,11 @@
-import { AttachmentBuilder, BaseMessageOptions, Client, EmbedBuilder, ForumChannel, Guild, GuildForumTag, Message, Role, ThreadChannel } from "discord.js";
 import { buildCommands, deployCommands } from "./DeployCommands";
 import { commands } from "./Commands";
 import Card from "../Data/Models/Card";
-import Utilities from "./Utilities";
-import ejs from "ejs";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
 import { groupCardHistory } from "../Data/Repositories/CardsRepository";
 import Project from "../Data/Models/Project";
 import { logger } from "../Services";
+import { Client, Guild, Message, ThreadChannel } from "discord.js";
+import CardThreads from "./CardThreads";
 
 class DiscordService {
     private client: Client;
@@ -57,80 +53,93 @@ class DiscordService {
     }
 
     public async syncCardThreads(project: Project, cards?: Card[], guilds?: Guild[], canCreate?: boolean) {
+        // TODO: Add option for historical updating? (eg. update threads that are not latest)
         const sendTo = guilds || Array.from(this.client.guilds.cache.values());
         const succeeded: Message<true>[] = [];
         const failed: Card[] = [];
+        const titleFunc = (card: Card) => `${card.number}. ${card.toString()}`;
 
         for (const guild of sendTo) {
             try {
-                const forumName = "card-forum";
-                const forumChannel = guild.channels.cache.find((channel) => channel instanceof ForumChannel && channel.name.endsWith(forumName)) as ForumChannel;
-                if (!forumChannel) {
-                    throw Error(`Forum channel "${forumName}" does not exist`);
-                }
+                const { channel, taggedRole, projectTag, factionTags, latestTag } = await CardThreads.validateGuild(guild, project);
 
-                const designTeamRole = guild.roles.cache.find((role) => role.name === "Design Team");
-                if (!designTeamRole) {
-                    throw Error("'Design Team' role does not exist");
-                }
+                // Collect all cards which should have threads on discord
+                const discordReady = cards.filter((card) => card.isPreview || card.isInitial || card.isChanged);
 
-                const projectTag = forumChannel.availableTags.find((t) => t.name === project.short);
-                if (!projectTag) {
-                    throw Error(`"${project.short}" tag is missing on Forum channel "${forumChannel.name}"`);
-                }
+                const existingThreads = await CardThreads.getExistingThreads(channel, projectTag);
 
-                const discordReady = cards.filter((card) => card.isPreRelease || card.isPlaytesting);
-                let groups = groupCardHistory(discordReady);
-                const existingThreads = await this.getCardThreads(forumChannel, projectTag, groups.map((group) => group.latest));
-                groups = groups.filter((group) => canCreate || existingThreads.has(group.latest));
-
+                const groups = groupCardHistory(discordReady);
                 for (const group of groups) {
                     const latest = group.latest;
-                    const previous = group.previous;
-                    const prefix = `${latest.number}. `;
+                    const previous = group.previous[0];
+
                     try {
-                        // Validation
-                        const factionTag = forumChannel.availableTags.find((t) => t.name === latest.faction);
-                        if (!factionTag) {
-                            throw Error(`"${latest.faction}" tag is missing on Forum channel "${forumChannel.name}" for ${prefix}${latest.name}`);
+                        const title = titleFunc(latest);
+                        const latestTags = [projectTag.id, factionTags[latest.faction].id, latestTag.id];
+                        const autoArchiveDuration = channel.defaultAutoArchiveDuration;
+
+                        // Handle logic for previous url
+                        let previousUrl: string = undefined;
+                        let previousThread: ThreadChannel<true> = undefined;
+                        if (!(latest.isPreview || latest.isInitial)) {
+                            if (!previous) {
+                                throw Error(`Previous card for ${latest.toString()} could not be found`);
+                            }
+                            const previousTitle = titleFunc(previous);
+                            previousThread = existingThreads.find((t) => t.name === previousTitle);
+                            if (!previousThread) {
+                                throw Error(`Failed to find previous thread for ${latest.toString()} named "${previousTitle}"`);
+                            }
+
+                            previousUrl = previousThread.url;
                         }
 
                         // Create new thread (if allowed), or update existing (either update starter msg, or send update msg)
-                        let thread = existingThreads.get(latest);
+                        const thread = existingThreads.find((t) => t.name === title || (latest.isInitial && t.name === `${latest.number}. ${latest.name}`/* Accounting for legacy names */));
                         if (!thread) {
-                            const name = `${prefix}${latest.name}`;
-                            const reason = `Design Team discussion for ${project.short} card #${latest.number}`;
-                            thread = await forumChannel.threads.create({
-                                name,
+                            if (!canCreate) {
+                                continue;
+                            }
+                            const reason = `Design Team discussion for ${project.short} #${latest.number}, ${latest.toString()}`;
+                            const message = CardThreads.generate(taggedRole, latest, previousUrl, project);
+
+                            const newThread = await channel.threads.create({
+                                name: title,
                                 reason,
-                                message: this.generatePrimaryMessage(designTeamRole, latest, previous, project),
-                                appliedTags: [projectTag.id, factionTag.id],
-                                autoArchiveDuration: forumChannel.defaultAutoArchiveDuration
+                                message,
+                                appliedTags: latestTags,
+                                autoArchiveDuration
                             });
-                            succeeded.push(await thread.fetchStarterMessage());
+
+                            const starter = await newThread.fetchStarterMessage();
+
+                            // Check that previous thread has correct tags (eg. NOT "Latest")
+                            if (previousThread.appliedTags.includes(latestTag.id)) {
+                                const previousTags = [projectTag.id, factionTags[previous.faction].id];
+                                await previousThread.setAppliedTags(previousTags);
+                            }
+
+                            succeeded.push(starter);
                         } else {
                             const wasArchived = thread.archived;
-
                             const starter = await thread.fetchStarterMessage();
-                            const requiresUpdateMessage = previous.length > 0 && !starter.attachments.some((attachment) => attachment.description === this.generateAttachment(latest).description);
-                            const promises = [
-                                // Unarchives thread, if applicable
-                                ...(wasArchived ? [await thread.setArchived(false)] : []),
-                                // Ensure correct tags are applied
-                                await thread.setAppliedTags([projectTag.id, factionTag.id]),
-                                // Ensure archive duration is respected
-                                await thread.setAutoArchiveDuration(forumChannel.defaultAutoArchiveDuration),
-                                // Ensure name is up to date
-                                await thread.setName(`${prefix}${latest.name}`),
-                                // Update starter message
-                                await starter.edit(this.generatePrimaryMessage(designTeamRole, latest, previous, project)),
-                                // Sends update message, if applicable
-                                ...(requiresUpdateMessage ? [await thread.send(this.generateUpdateMessage(designTeamRole, latest, previous[0], starter))] : []),
-                                // Re-archive thread (if no update message was sent)
-                                ...(wasArchived && !requiresUpdateMessage ? [await thread.setArchived(true)] : [])
+                            const message = CardThreads.generate(taggedRole, latest, previousUrl, project);
+
+                            if (wasArchived) {
+                                await thread.setArchived(false);
+                            }
+                            const promises: Promise<unknown>[] = [
+                                thread.setAppliedTags(latestTags),
+                                thread.setAutoArchiveDuration(autoArchiveDuration),
+                                thread.setName(title),
+                                starter.edit(message)
                             ];
-                            const responses = await Promise.all(promises);
-                            succeeded.push(responses[responses.length - 1] as Message<true>);
+
+                            await Promise.all(promises);
+                            if (wasArchived) {
+                                await thread.setArchived(true);
+                            }
+                            succeeded.push(starter);
                         }
                     } catch (err) {
                         logger.error(err);
@@ -144,141 +153,7 @@ class DiscordService {
 
         return { succeeded, failed };
     }
-
-    private async getCardThreads(forumChannel: ForumChannel, projectTag: GuildForumTag, cards: Card[]) {
-        const prefix = (card: Card) => `${card.number}. `;
-        // TODO: Filter archived by when project started. Currently not an issue, but will be if we have multiple historical projects.
-        let before = undefined;
-        do {
-            // Caches all fetched to be used later
-            const batch = await forumChannel.threads.fetch({ archived: { fetchAll: true, before } }, { cache: true });
-            before = batch.hasMore ? Math.min(...batch.threads.map(t => t.archivedAt.getTime())) : undefined;
-        } while (before);
-
-        return cards.reduce((map, card) => {
-            const thread = forumChannel.threads.cache.find((t) => t.appliedTags.includes(projectTag.id) && t.name.startsWith(prefix(card)));
-            if (thread) {
-                map.set(card, thread);
-            }
-            return map;
-        }, new Map<Card, ThreadChannel<true>>());
-    }
-
-    private generatePrimaryMessage(taggedRole: Role, latest: Card, previous: Card[], project: Project) {
-        const content = this.renderTemplate("CardThreadPrimary", { role: taggedRole, card: latest, project });
-        const files = [this.generateAttachment(latest)];
-        const allowedMentions = { parse: ["roles"] };
-
-        const embeds = previous.map((pCard) => {
-            const embedBuilder = new EmbedBuilder()
-                .setColor(Utilities.Color[pCard.faction as string])
-                .setTitle(pCard.toString())
-                .setURL(pCard.imageUrl)
-                .setThumbnail(pCard.imageUrl);
-            if (pCard.note) {
-                embedBuilder.addFields(
-                    { name: pCard.note.type, value: pCard.note.text }
-                );
-            }
-            return embedBuilder;
-        });
-
-        return {
-            content,
-            files,
-            allowedMentions,
-            embeds
-        } as BaseMessageOptions;
-    }
-
-    private generateUpdateMessage(taggedRole: Role, latest: Card, previous: Card, firstMessage: Message<true>) {
-        const content = this.renderTemplate("CardThreadUpdate", { role: taggedRole, card: latest, previous, firstMessage });
-        const files = [this.generateAttachment(previous), this.generateAttachment(latest)];
-        const allowedMentions = { parse: ["roles"] };
-
-        return {
-            content,
-            files,
-            allowedMentions
-        } as BaseMessageOptions;
-    }
-
-    private generateAttachment(card: Card) {
-        return new AttachmentBuilder(card.imageUrl)
-            .setName(path.basename(card.imageUrl))
-            .setDescription(`${card.toString()}`);
-    }
-
-    // public async pushCardUpdateThread(card: Card) {
-    //     try {
-    //         const prefix = `${card.development.number}. `;
-    //         const factionName = getEnumName(Faction, card.faction).toLowerCase();
-
-    //         const factionChannel = this.client.channels.cache.find((channel) => channel instanceof TextChannel && channel.name.includes(factionName)) as TextChannel;
-    //         if (!factionChannel) {
-    //             throw Error(`Faction channel for ${factionName} does not exist`);
-    //         }
-    //         const designTeamRole = factionChannel.guild.roles.cache.find((role) => role.name === "Design Team");
-    //         if (!designTeamRole) {
-    //             throw Error("'Design Team' role does not exist");
-    //         }
-
-    //         // Find thread, or create new thread
-    //         let thread = factionChannel.threads.cache.find((channel) => channel.name.startsWith(prefix) /*TODO: check first message for SoS && channel.messageCount > 0 && channel.messages.cache.first().content.includes(card.development.project.short)*/);
-    //         if (!thread) {
-    //             thread = await factionChannel.threads.create({
-    //                 name: `${prefix}${card.name}`,
-    //                 reason: `Design Team discussion for ${card.development.project.short} card #${card.development.number}`
-    //             });
-    //             const content = this.renderTemplate("CardThreadPrimary", { role: designTeamRole, card });
-    //             thread.send({
-    //                 content,
-    //                 files: [{
-    //                     attachment: "https://hcti.io/v1/image/276640f6-28f4-4b02-aca7-a1db8fab4709",
-    //                     name: `${card.development.project.short}_${card.development.number}_${card.development.versions.current.toString().replaceAll(".", "-")}.png`
-    //                 }],
-    //                 allowedMentions: { parse: ["roles"] }
-    //             });
-    //         } else {
-    //             // TODO:
-    //             // - When fetching cards from GAS API, if no version or "latest" is given, then it should fetch all versions of that card no/
-    //             // - Check if version in post is outdated (using the above list). If outdated, send new "card has been updated to..." message & update original message
-    //         }
-    //     } catch(err) {
-    //         throw Error(`Failed to push card update for ${card}`, { cause: err });
-    //     }
-    // }
-
-    private renderTemplate(fileName: string, data: ejs.Data) {
-        const __dirname = path.dirname(fileURLToPath(import.meta.url));
-        const filepath = `${__dirname}/Templates/${fileName}.ejs`;
-        const file = fs.readFileSync(filepath).toString();
-        return ejs.render(file, { filename: filepath, ...data });
-    }
 }
-
-// const forum = interaction.client.channels.cache.get("1224653993947693117") as ForumChannel;
-// const post = await forum.threads.create({
-//     name: "This is a test",
-//     message: {
-//         content: "This is also a test"
-//     }
-// });
-
-// const channel = interaction.client.channels.cache.get("1224600517469016125") as TextChannel;
-// const thread = await channel.threads.create({
-//     name: "This is a test",
-//     reason: "Discussions for SoS Card #25"
-// });
-
-// const role = channel.guild.roles.cache.get("1240862138793197588") as Role;
-
-// thread.send({
-//     content: `<@&${role.id}> This is a message on the thread!`,
-//     allowedMentions: { parse: ["roles"] }
-// });
-// await interaction.reply({ content: "ForumPostId: " + post.id + " | ThreadId: " + thread.id });
-
 
 // static sendReview(review: Review) {
 //     const webhook = PropertiesService.getScriptProperties().getProperty("discordReviewWebhook");

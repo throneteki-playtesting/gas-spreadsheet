@@ -157,8 +157,8 @@ class RenderingService {
         const filepath = `${__dirname}/Templates/Render.ejs`;
         const file = fs.readFileSync(filepath).toString();
         const { includeCSS, includeJS, ...restData } = data;
-        const css = includeCSS ? fs.readFileSync(path.resolve(__dirname, "../../../public/css/Render.css")).toString() : undefined;
-        const js = includeJS ? fs.readFileSync(path.resolve(__dirname, "../../../public/js/Render.js")).toString() : undefined;
+        const css = includeCSS ? fs.readFileSync(path.resolve(__dirname, "../../public/css/Render.css")).toString() : undefined;
+        const js = includeJS ? fs.readFileSync(path.resolve(__dirname, "../../public/js/Render.js")).toString() : undefined;
         return ejs.render(file, { filename: filepath, name: "Render", css, js, options: { ...restData } });
     }
 

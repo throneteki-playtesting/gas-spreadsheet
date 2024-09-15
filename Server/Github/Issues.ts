@@ -26,7 +26,7 @@ type NotePackage = { icons: string, title: string, text: string };
 export class Issue {
     static forCard(project: Project, card: Card) {
         const milestone = project.milestone;
-        const type = card.note?.type || (card.isPreRelease && !card.isImplemented ? "Implemented" : null);
+        const type = card.note?.type || (card.isInitial && !card.isImplemented ? "Implemented" : null);
         if (!type) {
             return null;
         }

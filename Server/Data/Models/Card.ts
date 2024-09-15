@@ -107,7 +107,10 @@ class Card implements CardModel {
     }
 
     toString() {
-        return this.name + " (v" + this.version + ")";
+        if (this.isPreview) {
+            return `${this.name} (Preview)`;
+        }
+        return `${this.name} (${this.version})`;
     }
 
     clone() {
@@ -183,16 +186,23 @@ class Card implements CardModel {
     }
 
     /**
+     * @returns True if this card is the preview "pre-1.0.0" version
+     */
+    get isPreview() {
+        return Ver.lt(this.version, "1.0.0") && !this.playtesting;
+    }
+
+    /**
      * @returns True if this card has not been pushed to playtesting yet at all
      */
-    get isPreRelease() {
-        return Ver.lte(this.version, "1.0.0") && !this.playtesting;
+    get isInitial() {
+        return Ver.eq(this.version, "1.0.0") && !this.playtesting;
     }
     /**
      * @returns True if the card is in a draft state (eg. it is currently being edited, but not pushed to playtesting yet)
      */
     get isDraft() {
-        return this.isPreRelease || this.isChanged;
+        return this.isPreview || this.isInitial || this.isChanged;
     }
     /**
      * @returns True if this card is currently the version being playtested
@@ -204,7 +214,7 @@ class Card implements CardModel {
      *  @returns True if this card is being or needs to be implemented online
      */
     get requiresImplementation() {
-        return this.github ? this.github.status !== "closed" : this.isPreRelease || this.isChanged;
+        return this.github ? this.github.status !== "closed" : this.isInitial || this.isChanged;
     }
     /**
      *  @returns True if this card has been implemented online
@@ -238,7 +248,7 @@ class Card implements CardModel {
     }
 
     get needsIssue() {
-        return !this.github && (this.isPreRelease || this.isChanged);
+        return !this.github && (this.isInitial || this.isChanged);
     }
 
     /***

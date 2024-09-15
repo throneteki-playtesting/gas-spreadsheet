@@ -16,8 +16,7 @@ export const emojis = {
 export function githubify(text: string) {
     // Html Converting
     return text
-        .replace(/<i>/g, "***")
-        .replace(/<\/i>/g, "***")
+        .replace(/<i>|<\/i>/g, "***")
         .replace(/<b>|<\/b>/g, "**")
         .replace(/<em>|<\/em>/g, "_")
         .replace(/<s>|<\/s>/g, "~~")

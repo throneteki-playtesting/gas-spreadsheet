@@ -1,8 +1,11 @@
 import { SemanticVersion } from "../Utils";
 
-export type Faction = "House Baratheon" | "House Greyjoy" | "House Lannister" | "House Martell" | "The Night's Watch" | "House Stark" | "House Targaryen" | "House Tyrell" | "Neutral";
-export type Type = "Character" | "Location" | "Attachment" | "Event" | "Plot" | "Agenda";
-export type NoteType = "Replaced" | "Reworked" | "Updated" | "Implemented" | "Not Implemented";
+export const factions = ["House Baratheon", "House Greyjoy", "House Lannister", "House Martell", "The Night's Watch", "House Stark", "House Targaryen", "House Tyrell", "Neutral"] as const;
+export const types = ["Character", "Location", "Attachment", "Event", "Plot", "Agenda"] as const;
+export const noteTypes = ["Replaced", "Reworked", "Updated", "Implemented", "Not Implemented"] as const;
+export type Faction = typeof factions[number];
+export type Type = typeof types[number];
+export type NoteType = typeof noteTypes[number];
 
 // number@version (ranging from 1@0.0.0 to 999@99.99.99)
 export type CardId = `${number}@${SemanticVersion}`

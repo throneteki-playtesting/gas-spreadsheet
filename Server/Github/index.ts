@@ -160,7 +160,7 @@ class GithubService {
 
     public async syncPullRequest(project: Project, cards?: Card[]): Promise<PullRequestDetail> {
         cards = cards || await dataService.cards.read({ matchers: [{ project: project.code }] });
-        const changes = cards.filter((card) => card.isChanged || card.isNewlyImplemented || card.isPreRelease);
+        const changes = cards.filter((card) => card.isChanged || card.isNewlyImplemented || card.isInitial);
         const prs = await this.getPullRequests(project);
 
         const generated = Issue.forUpdate(project, changes);

@@ -135,7 +135,11 @@ const sync = {
         const focusedValue = interaction.options.getFocused().trim();
 
         const cards = await dataService.cards.database.read({ matchers: [{ project }] });
-        const choices = cards.filter((card) => card.isPreRelease || card.isPlaytesting).map((card) => ({ name: `${card.number} - ${card.name}`, value: card.number.toString() }));
+
+        const choices = cards
+            .filter((card) => card.isDraft) // Get only the latest iterations
+            .filter((card, index, array) => array.indexOf(card) === index) // Remove duplicates
+            .map((card) => ({ name: `${card.number} - ${card.name}`, value: card.number.toString() }));
         // Only get first 25 (limit by discord)
         const filtered = choices.filter((choice) => choice.name.toLowerCase().includes(focusedValue.toLowerCase())).slice(0, 25);
         await interaction.respond(filtered).catch(logger.error);
