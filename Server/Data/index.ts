@@ -13,8 +13,8 @@ export interface IRepository<Model> {
 class DataService {
     private client: MongoClient;
 
-    public projects: ProjectsRepository;
-    public cards: CardsRepository;
+    private _projects: ProjectsRepository;
+    private _cards: CardsRepository;
 
     constructor(databaseUrl: string, googleClientEmail: string, googlePrivateKey: string) {
         this.client = new MongoClient(databaseUrl);
@@ -23,10 +23,24 @@ class DataService {
                 // Confirms that MongoDB is running
                 logger.info(`MongoDB connected to ${this.client.db().databaseName}`);
 
-                this.projects = new ProjectsRepository(this.client);
-                this.cards = new CardsRepository(this.client, googleClientEmail, googlePrivateKey);
+                this._projects = new ProjectsRepository(this.client);
+                this._cards = new CardsRepository(this.client, googleClientEmail, googlePrivateKey);
             })
             .catch(logger.error);
+    }
+
+    get projects() {
+        if (!this._projects) {
+            throw Error("Failed to connect to \"projects\" repository: MongoDB instance cannot be reached");
+        }
+        return this._projects;
+    }
+
+    get cards() {
+        if (!this._cards) {
+            throw Error("Failed to connect to \"cards\" repository: MongoDB instance cannot be reached");
+        }
+        return this._cards;
     }
 }
 
