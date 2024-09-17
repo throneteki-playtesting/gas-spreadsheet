@@ -17,7 +17,7 @@ class DataService {
     private _cards: CardsRepository;
 
     constructor(databaseUrl: string, googleClientEmail: string, googlePrivateKey: string) {
-        this.client = new MongoClient(databaseUrl);
+        this.client = new MongoClient(databaseUrl, { ignoreUndefined: true });
         this.client.db().command({ ping: 1 })
             .then(() => {
                 // Confirms that MongoDB is running
