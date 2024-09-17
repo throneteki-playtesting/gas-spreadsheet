@@ -160,6 +160,9 @@ const command = {
             const project = parseInt(interaction.options.getString("project"));
             const number = parseInt(interaction.options.getString("card")) || undefined;
 
+            if (number === undefined) {
+                await dataService.cards.destroy({ matchers: [{ project }] });
+            }
             const cards = await dataService.cards.read({ matchers: [{ project, number }], hard: true });
 
             const content = `Successfully synced ${cards.length} card(s)`;
