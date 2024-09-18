@@ -37,13 +37,12 @@ class RenderingService {
 
         await Promise.allSettled(promises);
     }
-    public async syncPDFs(project: Project, cards?: Card[]) {
+    public async syncPDFs(project: Project, cards?: Card[], override = false) {
         cards = cards || await dataService.cards.read({ matchers: [{ project: project.code }] });
         const all = groupCardHistory(cards).map((group) => group.latest);
         const updated = all.filter((card) => card.isChanged);
         const filePathFunc = (collection: "all"|"updated") => `./public/pdf/${project.code}/${project.releases + 1}_${collection}.pdf`;
 
-        const allPdfBuffer = await this.asPDF(all);
         const allFilePath = filePathFunc("all");
 
         const dirPath = path.dirname(allFilePath);
@@ -51,11 +50,17 @@ class RenderingService {
             await fs.promises.mkdir(dirPath, { recursive: true });
         }
 
-        await fs.promises.writeFile(allFilePath, allPdfBuffer);
+        if (override || !fs.existsSync(allFilePath)) {
+            const allPdfBuffer = await this.asPDF(all);
+            await fs.promises.writeFile(allFilePath, allPdfBuffer);
+        }
+
         if (updated.length > 0) {
-            const updatedPdfBuffer = await this.asPDF(updated);
             const updatedFilePath = filePathFunc("updated");
-            await fs.promises.writeFile(updatedFilePath, updatedPdfBuffer);
+            if (override || !fs.existsSync(updatedFilePath)) {
+                const updatedPdfBuffer = await this.asPDF(updated);
+                await fs.promises.writeFile(updatedFilePath, updatedPdfBuffer);
+            }
         }
     }
 

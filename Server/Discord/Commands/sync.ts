@@ -97,14 +97,29 @@ const sync = {
                             .setRequired(false)
                     )
             )
+            .addSubcommand(subcommand =>
+                subcommand
+                    .setName("pdfs")
+                    .setDescription("Sync pdf print files")
+                    .addStringOption(option =>
+                        option.setName("project")
+                            .setDescription("Project for pdf")
+                            .setRequired(true)
+                            .setAutocomplete(true)
+                    )
+                    .addBooleanOption(option =>
+                        option.setName("override")
+                            .setDescription("Whether to override existing pdfs")
+                            .setRequired(false)
+                    )
+            )
             .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
             .setDMPermission(false);
     },
     async execute(interaction: ChatInputCommandInteraction) {
         await interaction.deferReply({ ephemeral: true });
+        const subcommand = interaction.options.getSubcommand() as "cards" | "cardforum" | "issues" | "pullrequests" | "images" | "pdfs";
         try {
-            const subcommand = interaction.options.getSubcommand() as "cards" | "cardforum" | "issues" | "pullrequests" | "images";
-
             switch (subcommand) {
                 case "cards":
                     return await command.cards.execute(interaction);
@@ -116,10 +131,12 @@ const sync = {
                     return await command.pullRequests.execute(interaction);
                 case "images":
                     return await command.images.execute(interaction);
+                case "pdfs":
+                    return await command.pdfs.execute(interaction);
             }
         } catch (err) {
             logger.error(err);
-            await FollowUpHelper.error(interaction, "Failed to sync card(s). Error has been logged.");
+            await FollowUpHelper.error(interaction, `Failed to sync ${subcommand}. Error has been logged.`);
         }
     },
     async autocomplete(interaction: AutocompleteInteraction) {
@@ -161,7 +178,7 @@ const command = {
             const number = parseInt(interaction.options.getString("card")) || undefined;
 
             if (number === undefined) {
-                await dataService.cards.destroy({ matchers: [{ project }] });
+                await dataService.cards.database.destroy({ matchers: [{ project }] });
             }
             const cards = await dataService.cards.read({ matchers: [{ project, number }], hard: true });
 
@@ -207,7 +224,7 @@ const command = {
 
             const cards = await dataService.cards.read({ matchers: [{ project }] });
             const proj = (await dataService.projects.read({ codes: [project] }))[0];
-            await renderService.syncPDFs(proj, cards);
+            await renderService.syncPDFs(proj, cards, true);
             try {
                 const pullRequest = await githubService.syncPullRequest(proj, cards);
                 const content = `Successfully synced pull request: [#${pullRequest.number}](${pullRequest.html_url})`;
@@ -229,6 +246,20 @@ const command = {
             await renderService.syncImages(cards, override);
 
             const content = `Successfully synced ${cards.length} card images`;
+            await FollowUpHelper.success(interaction, content);
+        }
+    },
+    pdfs: {
+        async execute(interaction: ChatInputCommandInteraction) {
+            const project = parseInt(interaction.options.getString("project"));
+            const override = interaction.options.getBoolean("override") || true;
+
+            const proj = (await dataService.projects.read({ codes: [project] }))[0];
+            const cards = await dataService.cards.read({ matchers: [{ project }] });
+
+            await renderService.syncPDFs(proj, cards, override);
+
+            const content = "Successfully synced pdfs";
             await FollowUpHelper.success(interaction, content);
         }
     }
