@@ -49,7 +49,7 @@ export default class CardsRepository implements IRepository<Card> {
 
     public async destroy({ matchers }: { matchers: CardMatcher[] }) {
         await this.database.destroy({ matchers });
-        await this.database.destroy({ matchers });
+        await this.spreadsheet.destroy({ matchers });
     }
 
     // TODO: Refine this closer to playtesting release time

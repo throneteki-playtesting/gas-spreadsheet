@@ -9,6 +9,7 @@ type FilterFunc<Model> = (values: string[], index: number, model?: Model) => boo
 type DeserializeFunc<Model> = (values: string[], index: number) => Model;
 type SerializeFunc<Model> = (model: Model) => string[]
 export interface DataSerializer<Model> {
+    richTextColumns: number[],
     filter: FilterFunc<Model>,
     deserialize: DeserializeFunc<Model>,
     serialize: SerializeFunc<Model>
@@ -81,6 +82,7 @@ export class DataSheet<Model> {
     }
 
     public read(filter: FilterFunc<Model> = this.serializer.filter) {
+        const start = new Date();
         // TODO: Save current filter, unapply, then reapply when finished reading
         if (this.maxRows <= 0) {
             return [];
@@ -101,7 +103,7 @@ export class DataSheet<Model> {
                 const richTextValues = richTextValueMatrix[i];
                 for (let j = 0 ; j < values.length ; j++) {
                     const richTextValue = richTextValues[j];
-                    if (richTextValue === null || richTextValue.getText() === "") {
+                    if (!CardSerializer.instance.richTextColumns.includes(j) || richTextValue === null || richTextValue.getText() === "") {
                         const value = values[j];
                         rowValues.push(value);
                     } else {
@@ -113,7 +115,8 @@ export class DataSheet<Model> {
             }
         }
 
-        Log.information(`Read ${result.length} rows in ${this.sheet.getName()}`);
+        const end = new Date();
+        Log.information(`Read ${result.length} rows from ${this.sheet.getName()} in ${end.getTime() - start.getTime()}ms`);
         return result;
     }
 

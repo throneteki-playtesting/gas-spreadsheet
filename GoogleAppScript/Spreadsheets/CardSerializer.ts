@@ -4,6 +4,7 @@ import { GooglePropertiesType, Settings } from "../Settings";
 import { DataSerializer } from "./DataSheets";
 
 class CardSerializer implements DataSerializer<Model.CardModel> {
+    public richTextColumns: Column[] = [Column.Textbox, Column.Flavor, Column.NoteText, Column.GithubIssue];
     private static stripHTML(value: string) {
         return value.replace(/<[^>]*>/g, "");
     }
@@ -29,8 +30,6 @@ class CardSerializer implements DataSerializer<Model.CardModel> {
     }
 
     public deserialize(values: string[]): Model.CardModel {
-        const htmlColumns = [Column.Textbox, Column.Flavor, Column.NoteText];
-        values = values.map((value, index) => htmlColumns.includes(index) ? value.toString() : CardSerializer.stripHTML(value.toString()));
         const model = {
             _id: `${values[Column.Number]}@${values[Column.Version]}`,
             project: parseInt(Settings.getProperty(GooglePropertiesType.Script, "code")),
@@ -69,7 +68,7 @@ class CardSerializer implements DataSerializer<Model.CardModel> {
             case "Location":
                 model.unique = values[Column.Unique] === "Unique";
             case "Event":
-                model.cost = CardSerializer.deserializeTypedNumber(values[Column.Cost] ? values[Column.Cost] : "-");
+                model.cost = CardSerializer.deserializeTypedNumber(values[Column.Cost] !== undefined ? values[Column.Cost] : "-");
                 break;
             case "Plot":
                 model.plotStats = {
