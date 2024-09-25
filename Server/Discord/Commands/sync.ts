@@ -290,7 +290,7 @@ const command = {
                 await FollowUpHelper.error(interaction, "\"Playtesting Team\" role is missing");
                 throw Error("\"Playtesting Team\" role is missing");
             }
-            const reviewers = playtesterRole.members.map((member) => member.nickname || member.displayName).sort();
+            const reviewers = [...new Set(playtesterRole.members.map((member) => member.nickname || member.displayName).sort())];
 
             const [project] = await dataService.projects.read({ codes: [projectId] });
             const cards = await dataService.cards.read({ matchers: [{ projectId }] });
