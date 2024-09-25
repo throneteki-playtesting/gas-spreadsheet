@@ -9,7 +9,7 @@ class DiscordService {
     constructor(private token: string, private clientId: string, private developerGuildId: string) {
         this.isDevelopment = process.env.NODE_ENV !== "production";
         this.client = new Client({
-            intents: ["Guilds", "GuildMessages", "DirectMessages"],
+            intents: ["Guilds", "GuildMessages", "DirectMessages", "GuildPresences"],
             allowedMentions: { parse: ["users", "roles"], repliedUser: true }
         });
 

@@ -284,12 +284,17 @@ const command = {
         async execute(interaction: ChatInputCommandInteraction) {
             const projectId = parseInt(interaction.options.getString("project"));
 
+            const playtesterRoleId = interaction.guild.roles.cache.find((role) => role.name === "Playtesting Team").id;
+            const playtesterRole = await interaction.guild.roles.fetch(playtesterRoleId);
+            if (!playtesterRole) {
+                await FollowUpHelper.error(interaction, "\"Playtesting Team\" role is missing");
+                throw Error("\"Playtesting Team\" role is missing");
+            }
+            const reviewers = playtesterRole.members.map((member) => member.nickname || member.displayName).sort();
+
             const [project] = await dataService.projects.read({ codes: [projectId] });
             const cards = await dataService.cards.read({ matchers: [{ projectId }] });
             const cardNames = cards.map((card) => `${card.number} - ${card.toString()}`);
-            const playtesterRole = interaction.guild.roles.cache.find((role) => role.name === "Playtester");
-            const members = interaction.guild.members.cache.filter((member) => member.roles.cache.has(playtesterRole.id));
-            const reviewers = members.map((member) => member.nickname || member.displayName);
 
             const body = JSON.stringify({ reviewers, cards: cardNames });
             const response = await GASAPI.post<FormController.GASSetFormValuesResponse>(`${project.script}/form`, body);
