@@ -4,6 +4,7 @@ import MongoDataSource from "./Repositories/DataSources/MongoDataSource";
 import GASDataSource from "./Repositories/DataSources/GASDataSource";
 import ProjectsRepository from "./Repositories/ProjectsRepository";
 import { logger } from "../Services";
+import ReviewsRepository from "./Repositories/ReviewRepository";
 
 export interface IRepository<Model> {
     database?: MongoDataSource<Model>
@@ -15,8 +16,9 @@ class DataService {
 
     private _projects: ProjectsRepository;
     private _cards: CardsRepository;
+    private _reviews: ReviewsRepository;
 
-    constructor(databaseUrl: string, googleClientEmail: string, googlePrivateKey: string) {
+    constructor(databaseUrl: string) {
         this.client = new MongoClient(databaseUrl, { ignoreUndefined: true });
         this.client.db().command({ ping: 1 })
             .then(() => {
@@ -24,7 +26,8 @@ class DataService {
                 logger.info(`MongoDB connected to ${this.client.db().databaseName}`);
 
                 this._projects = new ProjectsRepository(this.client);
-                this._cards = new CardsRepository(this.client, googleClientEmail, googlePrivateKey);
+                this._cards = new CardsRepository(this.client);
+                this._reviews = new ReviewsRepository(this.client);
             })
             .catch(logger.error);
     }
@@ -41,6 +44,13 @@ class DataService {
             throw Error("Failed to connect to \"cards\" repository: MongoDB instance cannot be reached");
         }
         return this._cards;
+    }
+
+    get reviews() {
+        if (!this._reviews) {
+            throw Error("Failed to connect to \"reviews\" repository: MongoDB instance cannot be reached");
+        }
+        return this._reviews;
     }
 }
 

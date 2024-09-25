@@ -1,11 +1,24 @@
 import winston from "winston";
 
 export default class LoggerService {
+    private static serialize = (error: Error, isCause: boolean = false) => `${isCause ? "Caused by " : ""}${error.stack}\n${"cause" in error ? this.serialize(error.cause as Error, true) : ""}`;
+
+    private static formatError = winston.format((info) => {
+        if (info instanceof Error) {
+            return {
+                ...info,
+                message: LoggerService.serialize(info)
+            };
+        }
+
+        return info;
+    });
+
     public static initialise(verbose: boolean = false) {
         const baseFormat = [
-            winston.format.errors({ stack: true }),
             winston.format.timestamp({ format: "YYYY-MM-DD hh:mm:ss" }),
-            winston.format.printf(({ timestamp, level, message, stack }) => `${timestamp} ${level}: ${stack ? stack : message}`)
+            this.formatError(),
+            winston.format.printf(({ timestamp, level, message }) => `${timestamp} ${level}: ${message}`)
         ];
         return winston.createLogger({
             level: "info",

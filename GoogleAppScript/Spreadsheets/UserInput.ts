@@ -34,7 +34,7 @@ class UIHelper {
             CacheService.getUserCache().put(key, "AWAITING");
             ui.showModalDialog(html, title);
             while (CacheService.getUserCache().get(key) === "AWAITING" && !isTimeout(uuid)) {
-                // TODO?
+                // Empty
             }
 
             const rawResponse = CacheService.getUserCache().get(key);

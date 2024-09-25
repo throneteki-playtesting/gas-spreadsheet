@@ -1,8 +1,10 @@
 import * as Ver from "semver";
-import { CardModel, CardId, Faction, NoteType, Type } from "@/Common/Models/Card.js";
 import { SemanticVersion, Utils } from "@/Common/Utils.js";
 import { Joi } from "celebrate";
 import { apiUrl } from "@/Server";
+import Project from "./Project";
+import { dataService } from "@/Server/Services";
+import { Cards } from "@/Common/Models/Cards";
 
 const JoiXNumber = Joi.alternatives().try(
     Joi.number(),
@@ -13,20 +15,21 @@ const JoiXDashNumber = Joi.alternatives().try(
     Joi.string().valid("X", "-")
 );
 
-class Card implements CardModel {
-    public _id: CardId;
+class Card {
+    public _id: Cards.Id;
+    public code: Cards.Code;
     public quantity: 1 | 2 | 3;
     constructor(
-        public project: number,
+        public project: Project,
         public number: number,
         public version: SemanticVersion,
-        public faction: Faction,
+        public faction: Cards.Faction,
         public name: string,
-        public type: Type,
+        public type: Cards.Type,
         public traits: string[],
         public text: string,
         public illustrator: string,
-        public deckLimit: number = Utils.DefaultDeckLimit[type],
+        public deckLimit: number = Cards.DefaultDeckLimit[type],
         public loyal?: boolean,
         public flavor?: string,
         public designer?: string,
@@ -45,7 +48,7 @@ class Card implements CardModel {
             reserve: number | "X"
         },
         public note?: {
-            type: NoteType,
+            type: Cards.NoteType,
             text: string
         },
         public playtesting?: SemanticVersion,
@@ -58,22 +61,18 @@ class Card implements CardModel {
             number: number
         }
     ) {
-        this._id = `${number}@${version}`;
+        this._id = Cards.condenseId({ projectId: this.project.code, number, version });
+        this.code = this._id.split("@")[0] as Cards.Code;
         this.quantity = 3;
     }
 
     get id() {
         return this._id;
     }
-    get code() {
-        // Cycles require ranges 0-499 for "live" cards, and 500-999 for "development" cards
-        const codeString = this.project.toString() + (this.number + 500).toString().padStart(3, "0");
-        return parseInt(codeString);
-    }
 
     toJSON() {
         const obj = {
-            code: this.isReleasable ? this.project + this.release.number.toString().padStart(3, "0") : this.code.toString(),
+            code: this.isReleasable ? this.project.code + this.release.number.toString().padStart(3, "0") : this.code.toString(),
             ...(!this.isReleasable && { version: this.version }),
             type: this.type.toLowerCase(),
             name: this.name,
@@ -97,13 +96,45 @@ class Card implements CardModel {
         return obj;
     }
 
-    static fromModel(model: CardModel) {
-        return new Card(model.project, model.number, model.version, model.faction, model.name, model.type, model.traits, model.text, model.illustrator, model.deckLimit, model.loyal, model.flavor,
-            model.designer, model.cost, model.unique, model.strength, model.icons, model.plotStats, model.note, model.playtesting, model.github, model.release);
+    static async fromModels(...models: Cards.Model[]) {
+        if (models.length === 0) {
+            return [];
+        }
+        const projects = await dataService.projects.read({ codes: Utils.distinct(models.map((model) => model.projectId)) });
+        return models.map((model) => {
+            const project = projects.find((p) => p._id === model.projectId);
+            return new Card(project, model.number, model.version, model.faction, model.name, model.type, model.traits, model.text, model.illustrator, model.deckLimit, model.loyal, model.flavor,
+                model.designer, model.cost, model.unique, model.strength, model.icons, model.plotStats, model.note, model.playtesting, model.github, model.release);
+        });
     }
 
-    static toModel(card: Card) {
-        return { ...card } as CardModel;
+    static async toModels(...cards: Card[]) {
+        return cards.map((card) => ({
+            _id: card._id,
+            projectId: card.project._id,
+            number: card.number,
+            version: card.version,
+            faction: card.faction,
+            name: card.name,
+            type: card.type,
+            local: card.loyal,
+            traits: card.traits,
+            text: card.text,
+            illustrator: card.illustrator,
+            flavor: card.flavor,
+            designer: card.designer,
+            deckLimit: card.deckLimit,
+            quantity: card.quantity,
+            cost: card.cost,
+            unique: card.unique,
+            strength: card.strength,
+            icons: card.icons,
+            plotStats: card.plotStats,
+            note: card.note,
+            playtesting: card.playtesting,
+            github: card.github,
+            release: card.release
+        }) as Cards.Model);
     }
 
     toString() {
@@ -114,7 +145,7 @@ class Card implements CardModel {
     }
 
     clone() {
-        const project = this.project;
+        const project = this.project.clone();
         const number = this.number;
         const version = this.version;
         const faction = this.faction;
@@ -166,7 +197,7 @@ class Card implements CardModel {
 
     get imageUrl() {
         if (!this.isReleasable) {
-            return Card.generateDevImageUrl(this.project, this.number, this.version);
+            return Card.generateDevImageUrl(this.project.code, this.number, this.version);
         }
         const pack = this.release.short;
         const number = this.release.number;
@@ -179,7 +210,7 @@ class Card implements CardModel {
             return null;
         }
         return Card.generateDevImageUrl(
-            this.project,
+            this.project.code,
             this.number,
             this.playtesting
         );
@@ -259,13 +290,13 @@ class Card implements CardModel {
     }
 
     public static schema = {
-        _id: Joi.string().required().regex(Utils.Regex.Card.id.full),
-        project: Joi.number().required(),
+        _id: Joi.string().regex(Utils.Regex.Card.id.full),
+        projectId: Joi.number().required(),
         number: Joi.number().required(),
         version: Joi.string().required().regex(Utils.Regex.SemanticVersion),
-        faction: Joi.string().required().valid("House Baratheon", "House Greyjoy", "House Lannister", "House Martell", "The Night's Watch", "House Stark", "House Targaryen", "House Tyrell", "Neutral"),
+        faction: Joi.string().required().valid(...Cards.factions),
         name: Joi.string().required(),
-        type: Joi.string().required().valid("Character", "Location", "Attachment", "Event", "Plot", "Agenda"),
+        type: Joi.string().required().valid(...Cards.types),
         loyal: Joi.boolean(),
         traits: Joi.array().items(Joi.string()),
         text: Joi.string().required(),
@@ -289,7 +320,7 @@ class Card implements CardModel {
             reserve: JoiXNumber.required()
         }),
         note: Joi.object({
-            type: Joi.string().required().valid("Replaced", "Reworked", "Updated", "Implemented", "Not Implemented"),
+            type: Joi.string().required().valid(...Cards.noteTypes),
             text: Joi.string().required()
         }),
         playtesting: Joi.string().regex(Utils.Regex.SemanticVersion),

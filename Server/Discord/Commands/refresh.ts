@@ -29,13 +29,13 @@ const refresh = {
     async execute(interaction: ChatInputCommandInteraction) {
         await interaction.deferReply({ ephemeral: true });
         try {
-            const project = parseInt(interaction.options.getString("project"));
+            const projectId = parseInt(interaction.options.getString("project"));
             const type = interaction.options.getString("type") as "card" | "review";
 
             switch (type) {
                 case "card":
-                    await dataService.cards.database.destroy({ matchers: [{ project }] });
-                    await dataService.cards.read({ matchers: [{ project }], hard: true });
+                    await dataService.cards.database.destroy({ matchers: [{ projectId }] });
+                    await dataService.cards.read({ matchers: [{ projectId }], hard: true });
                     break;
                 case "review":
                     throw Error("Review clear not implemented yet!");

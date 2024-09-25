@@ -83,10 +83,32 @@ function onEditTest() {
     Trigger.edit(e);
 }
 
+function updateReviewsTest() {
+    const contents = "[{\"reviewer\":\"Deathlysteve\",\"projectId\":27,\"number\":1,\"version\":\"1.0.0\",\"faction\":\"House Baratheon\",\"name\":\"Melisandre\",\"epoch\":1727062520571,\"decks\":[\"https://thronesdb.com/test1\",\"https://thronesdb.com/test2\",\"https://thronesdb.com/test3\",\"https://thronesdb.com/test4\",\"https://thronesdb.com/test5\",\"https://thronesdb.com/test6\",\"https://thronesdb.com/test7\"],\"games\":\"3 or less\",\"rating\":5,\"releasable\":\"Unsure\",\"reasoning\":\"This is my reason!!!\"}]";
+    const e = {
+        ...defaultDoPost,
+        contentLength: contents.length,
+        ...{
+            pathInfo: "reviews/update",
+            parameter: {
+                upsert: "true"
+            },
+            postData: {
+                name: "",
+                type: "application/json",
+                length: contents.length,
+                contents
+            }
+        }
+    } as GoogleAppsScript.Events.DoPost;
+    this.doPost(e);
+}
+
 export {
     createCardsTest,
     readCardsTest,
     updateCardsTest,
     destroyCardsTest,
-    onEditTest
+    onEditTest,
+    updateReviewsTest
 };

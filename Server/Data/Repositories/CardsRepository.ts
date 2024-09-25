@@ -1,27 +1,27 @@
 import MongoDataSource from "./DataSources/MongoDataSource";
 import GASDataSource from "./DataSources/GASDataSource";
 import { compareBuild } from "semver";
-import { MongoClient } from "mongodb";
+import { Collection, MongoClient } from "mongodb";
 import Card from "../Models/Card";
 import { IRepository } from "..";
-import { CardId, CardMatcher, CardModel } from "@/Common/Models/Card";
 import { CardsController } from "@/GoogleAppScript/Controllers/CardsController";
-import { logger, renderService } from "../../Services";
+import { GASAPI, logger, renderService } from "../../Services";
 import { Utils } from "@/Common/Utils";
+import { Cards } from "@/Common/Models/Cards";
 
 export default class CardsRepository implements IRepository<Card> {
     public database: CardMongoDataSource;
     public spreadsheet: CardGASDataSource;
-    constructor(mongoClient: MongoClient, googleClientEmail: string, googlePrivateKey: string) {
-        this.database = new CardMongoDataSource(mongoClient.db().collection<Card>("cards"));
-        this.spreadsheet = new CardGASDataSource(googleClientEmail, googlePrivateKey);
+    constructor(mongoClient: MongoClient) {
+        this.database = new CardMongoDataSource(mongoClient);
+        this.spreadsheet = new CardGASDataSource();
     }
     public async create({ cards }: { cards: Card[] }) {
         await this.database.create({ cards });
         await this.spreadsheet.create({ cards });
     }
 
-    public async read({ matchers, hard }: { matchers: CardMatcher[], hard?: boolean }) {
+    public async read({ matchers, hard }: { matchers: Cards.Matcher[], hard?: boolean }) {
         let cards: Card[];
         // Force hard refresh from spreadsheet (slow)
         if (hard) {
@@ -31,7 +31,7 @@ export default class CardsRepository implements IRepository<Card> {
         } else {
             // Otherwise, use database (fast)...
             cards = await this.database.read({ matchers });
-            const missing = matchers?.filter((matcher) => !cards.some((card) => card.project === matcher.project && (!matcher.number || card.number === matcher.number) && (!matcher.version || (card.version === matcher.version)))) || [];
+            const missing = matchers?.filter((matcher) => !cards.some((card) => card.project._id === matcher.projectId && (!matcher.number || card.number === matcher.number) && (!matcher.version || (card.version === matcher.version)))) || [];
             // ... but fetch any which are missing (unlikely)
             if (missing.length > 0) {
                 const fetched = await this.spreadsheet.read({ matchers: missing });
@@ -41,13 +41,12 @@ export default class CardsRepository implements IRepository<Card> {
         }
         return cards.sort((a, b) => a.number - b.number || compareBuild(a.version, b.version));
     }
-
-    public async update({ cards }: { cards: Card[] }) {
-        await this.database.update({ cards });
-        await this.spreadsheet.update({ cards });
+    public async update({ cards, upsert }: { cards: Card[], upsert?: boolean }) {
+        await this.database.update({ cards, upsert });
+        await this.spreadsheet.update({ cards, upsert });
     }
 
-    public async destroy({ matchers }: { matchers: CardMatcher[] }) {
+    public async destroy({ matchers }: { matchers: Cards.Matcher[] }) {
         await this.database.destroy({ matchers });
         await this.spreadsheet.destroy({ matchers });
     }
@@ -88,109 +87,121 @@ export default class CardsRepository implements IRepository<Card> {
     // }
 }
 
-class CardMongoDataSource extends MongoDataSource<Card> {
+class CardMongoDataSource implements MongoDataSource<Card> {
+    private name = "cards";
+    private collection: Collection<Cards.Model>;
+    constructor(client: MongoClient) {
+        this.collection = client.db().collection<Cards.Model>(this.name);
+    }
+
     public async create({ cards }: { cards: Card[] }) {
         if (cards.length === 0) {
-            return 0;
+            return [];
         }
         await renderService.syncImages(cards);
-        const results = await this.collection.insertMany(cards);
+        const models = await Card.toModels(...cards);
+        const results = await this.collection.insertMany(models);
 
-        logger.verbose(`Inserted ${results.insertedCount} values into card collection`);
-        return results.insertedCount;
-    }
-    public async read({ matchers }: { matchers: CardMatcher[] }) {
-        const query = { "$or": matchers.map(Utils.cleanObject) };
-        const result = await this.collection.find(query, { projection: { _id: 0 } }).toArray();
-
-        logger.verbose(`Read ${result.length} values from card collection`);
-        return result.map(Card.fromModel);
+        logger.verbose(`Inserted ${results.insertedCount} values into ${this.name} collection`);
+        const insertedIds = Object.values(results.insertedIds);
+        return cards.filter((card) => insertedIds.includes(card._id));
     }
 
-    public async update({ cards }: { cards: Card[] }) {
+    public async read({ matchers }: { matchers: Cards.Matcher[] }) {
+        const query = { ...(matchers?.length > 0 && { "$or": matchers.map(Utils.cleanObject) }) };
+        const result = await this.collection.find(query).toArray();
+
+        logger.verbose(`Read ${result.length} values from ${this.name} collection`);
+        return await Card.fromModels(...result);
+    }
+
+    public async update({ cards, upsert = true }: { cards: Card[], upsert?: boolean }) {
         if (cards.length === 0) {
-            return 0;
+            return [];
         }
         await renderService.syncImages(cards, true);
-        const results = await this.collection.bulkWrite(cards.map((card) => ({
+        const models = await Card.toModels(...cards);
+        const results = await this.collection.bulkWrite(models.map((model) => ({
             replaceOne: {
-                filter: { "_id": card._id },
-                replacement: card,
-                upsert: true
+                filter: { "_id": model._id },
+                replacement: model,
+                upsert
             }
         })));
 
-        logger.verbose(`Modified ${results.modifiedCount} & Inserted ${results.insertedCount} values into card collection`);
-        return results.modifiedCount + results.upsertedCount;
+        logger.verbose(`${upsert ? "Upserted" : "Updated"} ${results.modifiedCount + results.upsertedCount} values into ${this.name} collection`);
+        const updatedIds = Object.values(results.insertedIds).concat(Object.values(results.upsertedIds));
+        return cards.filter((card) => updatedIds.includes(card._id));
     }
 
-    public async destroy({ matchers }: { matchers?: CardMatcher[] }) {
-        const query = { "$or": matchers.map(Utils.cleanObject) };
+    public async destroy({ matchers }: { matchers?: Cards.Matcher[] }) {
+        const query = { ...(matchers?.length > 0 && { "$or": matchers.map(Utils.cleanObject) }) };
+        // Collect all which are to be deleted
+        const deleting = await Card.fromModels(...(await this.collection.find(query).toArray()));
         const results = await this.collection.deleteMany(query);
 
-        logger.verbose(`Deleted ${results.deletedCount} values from card collection`);
-        return results.deletedCount;
+        logger.verbose(`Deleted ${results.deletedCount} values from ${this.name} collection`);
+        return deleting;
     }
 }
 
-class CardGASDataSource extends GASDataSource<Card> {
+class CardGASDataSource implements GASDataSource<Card> {
     public async create({ cards }: { cards: Card[] }) {
         const groups = Map.groupBy(cards, (card) => card.project);
         const created: Card[] = [];
-        for (const [p, c] of groups.entries()) {
-            const project = await this.getProject(p);
+        for (const [project, pCards] of groups.entries()) {
             const url = `${project.script}/cards/create`;
-            const body = JSON.stringify(c as CardModel[]);
+            const models = await Card.toModels(...pCards);
+            const body = JSON.stringify(models);
 
-            const response = await this.post<CardsController.GASCreateCardsResponse>(url, body);
-            created.push(...response.created.map(Card.fromModel));
+            const response = await GASAPI.post<CardsController.GASCreateCardsResponse>(url, body);
+            created.push(...await Card.fromModels(...response.created));
             logger.verbose(`${created.length} card(s) created in Google App Script (${project.name})`);
         }
         return created;
     }
 
-    public async read({ matchers }: { matchers: CardMatcher[] }) {
-        const groups = Map.groupBy(matchers.map(Utils.cleanObject), (matcher) => matcher.project);
+    public async read({ matchers }: { matchers: Cards.Matcher[] }) {
+        const groups = Map.groupBy(matchers.map(Utils.cleanObject), (matcher) => matcher.projectId);
         const read: Card[] = [];
-        for (const [p, m] of groups.entries()) {
-            const project = await this.getProject(p);
-            const ids = m.filter((m1) => m1.number).map((m2) => !m2.version ? `${m2.number}` : `${m2.number}@${m2.version}` as CardId);
+        for (const [projectId, pModels] of groups.entries()) {
+            const project = await GASAPI.getProject(projectId);
+            const ids = pModels.filter((has) => has.number).map((pm) => !pm.version ? `${pm.number}` : `${pm.number}@${pm.version}` as Cards.Id);
             const url = `${project.script}/cards${ids.length > 0 ? `?ids=${ids.join(",")}` : ""}`;
 
-            const response = await this.get<CardsController.GASReadCardsResponse>(url);
-            read.push(...response.cards.map(Card.fromModel));
+            const response = await GASAPI.get<CardsController.GASReadCardsResponse>(url);
+            read.push(...await Card.fromModels(...response.cards));
             logger.verbose(`${read.length} card(s) read from Google App Script (${project.name})`);
         }
         return read;
     }
 
-    public async update({ cards }: { cards: Card[] }) {
+    public async update({ cards, upsert = true }: { cards: Card[], upsert?: boolean }) {
         const groups = Map.groupBy(cards, (card) => card.project);
         const updated: Card[] = [];
-        for (const [p, c] of groups.entries()) {
-            const project = await this.getProject(p);
-            const url = `${project.script}/cards/update`;
-            const models = c.map(Card.toModel);
+        for (const [project, pCards] of groups.entries()) {
+            const url = `${project.script}/cards/update?upsert=${upsert ? "true" : "false"}`;
+            const models = await Card.toModels(...pCards);
             const body = JSON.stringify(models);
 
-            const response = await this.post<CardsController.GASUpdateCardsResponse>(url, body);
-            updated.push(...response.updated.map(Card.fromModel));
+            const response = await GASAPI.post<CardsController.GASUpdateCardsResponse>(url, body);
+            updated.push(...await Card.fromModels(...response.updated));
             logger.verbose(`${updated.length} card(s) updated in Google App Script (${project.name})`);
         }
         return updated;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    public async destroy({ matchers }: { matchers: CardMatcher[] }) {
-        const groups = Map.groupBy(matchers.map(Utils.cleanObject), (matcher) => matcher.project);
+    public async destroy({ matchers }: { matchers: Cards.Matcher[] }) {
+        const groups = Map.groupBy(matchers.map(Utils.cleanObject), (matcher) => matcher.projectId);
         const destroyed: Card[] = [];
-        for (const [p, m] of groups.entries()) {
-            const project = await this.getProject(p);
-            const ids = m.filter((m1) => m1.number).map((m2) => !m2.version ? `${m2.number}` : `${m2.number}@${m2.version}` as CardId);
+        for (const [projectId, pModels] of groups.entries()) {
+            const project = await GASAPI.getProject(projectId);
+            // TODO: Alter parameters to allow for any CardModel values to be provided & filtered
+            const ids = pModels.filter((has) => has.number).map((pm) => !pm.version ? `${pm.number}` : `${pm.number}@${pm.version}` as Cards.Id);
             const url = `${project.script}/cards/destroy${ids ? `?ids=${ids.join(",")}` : ""}`;
 
-            const response = await this.get<CardsController.GASDestroyCardsResponse>(url);
-            destroyed.push(...response.destroyed.map(Card.fromModel));
+            const response = await GASAPI.get<CardsController.GASDestroyCardsResponse>(url);
+            destroyed.push(...await Card.fromModels(...response.destroyed));
             logger.verbose(`${destroyed.length} card(s) deleted in Google App Script (${project.name})`);
         }
         return destroyed;

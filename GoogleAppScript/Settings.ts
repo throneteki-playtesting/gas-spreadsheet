@@ -1,4 +1,4 @@
-import { ProjectModel } from "@/Common/Models/Project.js";
+import { Projects } from "@/Common/Models/Projects.js";
 import { UIHelper } from "./Spreadsheets/UserInput.js";
 
 enum GooglePropertiesType {
@@ -64,6 +64,7 @@ class Settings {
 namespace Project {
     export function get() {
         const releases = Settings.getProperty(GooglePropertiesType.Script, "releases");
+        const emoji = Settings.getProperty(GooglePropertiesType.Script, "emoji");
         const project = {
             active: Settings.getProperty(GooglePropertiesType.Script, "active") === "true",
             script: Settings.getProperty(GooglePropertiesType.Script, "script"),
@@ -74,12 +75,14 @@ namespace Project {
             perFaction: parseInt(Settings.getProperty(GooglePropertiesType.Script, "perFaction")),
             neutral: parseInt(Settings.getProperty(GooglePropertiesType.Script, "neutral")),
             releases: releases ? parseInt(releases) : 0,
-            milestone: parseInt(Settings.getProperty(GooglePropertiesType.Script, "milestone"))
-        } as ProjectModel;
+            milestone: parseInt(Settings.getProperty(GooglePropertiesType.Script, "milestone")),
+            formUrl: Settings.getProperty(GooglePropertiesType.Script, "formUrl"),
+            emoji: emoji || undefined
+        } as Projects.Model;
         return project;
     }
 
-    export function set(project: ProjectModel) {
+    export function set(project: Projects.Model) {
         Settings.setProperty(GooglePropertiesType.Script, "active", `${project.active}`);
         Settings.setProperty(GooglePropertiesType.Script, "script", project.script);
         Settings.setProperty(GooglePropertiesType.Script, "name", project.name);
@@ -88,8 +91,14 @@ namespace Project {
         Settings.setProperty(GooglePropertiesType.Script, "type", project.type);
         Settings.setProperty(GooglePropertiesType.Script, "perFaction", `${project.perFaction}`);
         Settings.setProperty(GooglePropertiesType.Script, "neutral", `${project.neutral}`);
-        Settings.setProperty(GooglePropertiesType.Script, "releases", `${project.releases}`);
+        if (project.releases) {
+            Settings.setProperty(GooglePropertiesType.Script, "releases", `${project.releases}`);
+        }
         Settings.setProperty(GooglePropertiesType.Script, "milestone", `${project.milestone}`);
+        Settings.setProperty(GooglePropertiesType.Script, "formUrl", `${project.formUrl}`);
+        if (project.emoji) {
+            Settings.setProperty(GooglePropertiesType.Script, "emoji", `${project.emoji}`);
+        }
     }
 }
 

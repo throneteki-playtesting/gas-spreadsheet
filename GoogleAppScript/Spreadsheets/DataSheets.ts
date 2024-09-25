@@ -1,28 +1,20 @@
 import { Log } from "../CloudLogger.js";
-import { CardModel } from "@/Common/Models/Card.js";
 import { API } from "../API.js";
-import { CardSerializer } from "./CardSerializer.js";
+import { CardSerializer } from "./Serializers/CardSerializer.js";
 import { Utils } from "@/Common/Utils.js";
 import { GooglePropertiesType, Settings } from "../Settings.js";
+import { ReviewSerializer } from "./Serializers/ReviewSerializer.js";
+import { DataSerializer } from "./Serializers/DataSerializer.js";
 
-type FilterFunc<Model> = (values: string[], index: number, model?: Model) => boolean;
-type DeserializeFunc<Model> = (values: string[], index: number) => Model;
-type SerializeFunc<Model> = (model: Model) => string[]
-export interface DataSerializer<Model> {
-    richTextColumns: number[],
-    filter: FilterFunc<Model>,
-    deserialize: DeserializeFunc<Model>,
-    serialize: SerializeFunc<Model>
-}
 export type CardSheet = "archive" | "latest";
 export type Sheet = CardSheet | "review";
 
 export class DataSheet<Model> {
-    public static sheets = new Map<Sheet, DataSheet<CardModel>>([
-        ["latest", new DataSheet("Latest Cards", "cards", "static", CardSerializer.instance)],
-        ["archive", new DataSheet("Archived Cards", "cards", "dynamic", CardSerializer.instance)]//,
-        //TODO Add Reviews
-    ]);
+    public static sheets = {
+        latest: new DataSheet("Latest Cards", "cards", "static", CardSerializer.instance),
+        archive: new DataSheet("Archived Cards", "cards", "dynamic", CardSerializer.instance),
+        review: new DataSheet("Archived Reviews", "reviews", "dynamic", ReviewSerializer.instance)
+    };
 
     public sheet: GoogleAppsScript.Spreadsheet.Sheet;
     private firstRow: number;
@@ -81,7 +73,7 @@ export class DataSheet<Model> {
         return models;
     }
 
-    public read(filter: FilterFunc<Model> = this.serializer.filter) {
+    public read(filter: (values: string[], index: number, model?: Model) => boolean = this.serializer.filter) {
         const start = new Date();
         // TODO: Save current filter, unapply, then reapply when finished reading
         if (this.maxRows <= 0) {
@@ -103,7 +95,7 @@ export class DataSheet<Model> {
                 const richTextValues = richTextValueMatrix[i];
                 for (let j = 0 ; j < values.length ; j++) {
                     const richTextValue = richTextValues[j];
-                    if (!CardSerializer.instance.richTextColumns.includes(j) || richTextValue === null || richTextValue.getText() === "") {
+                    if (!this.serializer.richTextColumns.includes(j) || richTextValue === null || richTextValue.getText() === "") {
                         const value = values[j];
                         rowValues.push(value);
                     } else {
@@ -120,44 +112,51 @@ export class DataSheet<Model> {
         return result;
     }
 
-    public update(models: Model[], firstOnly = false) {
+    public update(models: Model[], firstOnly = false, upsert = false) {
         // TODO: Save current filter, unapply, then reapply when finished reading
-        if (this.maxRows <= 0 || models.length === 0) {
+        if (models.length === 0) {
             return [];
         }
-
-        // Fetch all rows (as needs to be filtered)
-        const range = this.sheet.getRange(this.firstRow, this.firstColumn, this.maxRows, this.maxColumns);
-        const valueMatrix = range.getValues().map((row) => row.map((col) => col as string));
-
         const updated: Model[] = [];
-        const setMap = new Map<number, string[][]>();
-        for (let i = 0 ; i < valueMatrix.length ; i++) {
-            const values = valueMatrix[i];
 
-            let startRow: number;
-            const matched = models.find((model) => this.serializer.filter(values, i, model));
-            if (matched && (!firstOnly || !updated.includes(matched))) {
-                startRow = startRow || (this.firstRow + i);
-                const group: string[][] = setMap[startRow] || [];
-                const rowValues = this.serializer.serialize(matched);
-                group.push(rowValues);
-                setMap.set(startRow, group);
+        if (this.maxRows > 0) {
+            // Fetch all rows (as needs to be filtered)
+            const range = this.sheet.getRange(this.firstRow, this.firstColumn, this.maxRows, this.maxColumns);
+            const valueMatrix = range.getValues().map((row) => row.map((col) => col as string));
 
-                updated.push(matched);
-            } else if (startRow !== undefined) {
-                startRow = undefined;
+            const setMap = new Map<number, string[][]>();
+            for (let i = 0 ; i < valueMatrix.length ; i++) {
+                const values = valueMatrix[i];
+
+                let startRow: number;
+                const matched = models.find((model) => this.serializer.filter(values, i, model));
+                if (matched && (!firstOnly || !updated.includes(matched))) {
+                    startRow = startRow || (this.firstRow + i);
+                    const group: string[][] = setMap[startRow] || [];
+                    const rowValues = this.serializer.serialize(matched);
+                    group.push(rowValues);
+                    setMap.set(startRow, group);
+
+                    updated.push(matched);
+                } else if (startRow !== undefined) {
+                    startRow = undefined;
+                }
             }
+
+            let totalGroups = 0;
+            for (const [startRow, values] of Array.from(setMap.entries())) {
+                totalGroups++;
+                const richTextValues = values.map((row) => DataParser.toRichTextValues(row));
+                this.sheet.getRange(startRow, this.firstColumn, values.length, this.maxColumns).setRichTextValues(richTextValues);
+            }
+
+            Log.information(`Updated ${updated.length} rows (${totalGroups} groups) in ${this.sheet.getName()}`);
         }
 
-        let totalGroups = 0;
-        for (const [startRow, values] of Array.from(setMap.entries())) {
-            totalGroups++;
-            const richTextValues = values.map((row) => DataParser.toRichTextValues(row));
-            this.sheet.getRange(startRow, this.firstColumn, values.length, this.maxColumns).setRichTextValues(richTextValues);
+        if (upsert) {
+            const missing = models.filter((model) => !updated.includes(model));
+            updated.push(...this.create(missing));
         }
-
-        Log.information(`Updated ${updated.length} rows (${totalGroups} groups) in ${this.sheet.getName()}`);
         return updated;
     }
 

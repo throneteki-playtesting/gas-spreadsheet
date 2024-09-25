@@ -6,6 +6,7 @@ class Pack {
     }
 
     validate() {
+        // TODO: Validation
         // - Check number of cards is even?
         // - Check all imageUrl's reach an endpoint
         return true;

@@ -1,11 +1,8 @@
-import { Collection } from "mongodb";
+interface MongoDataSource<Model> {
+    create(model?: object): Promise<Model[]>
+    read(model?: object): Promise<Model[]>
+    update(model?: object): Promise<Model[]>
+    destroy(model?: object): Promise<Model[]>
+};
 
-export default abstract class MongoDataSource<Model> {
-    constructor(protected collection: Collection<Model>) {
-        // Empty
-    }
-    abstract create(model?: object): Promise<number>
-    abstract read(model?: object): Promise<Model[]>
-    abstract update(model?: object): Promise<number>
-    abstract destroy(model?: object): Promise<number>
-}
+export default MongoDataSource;

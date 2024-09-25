@@ -1,8 +1,9 @@
 {
     "scriptId": "1R1IXJ2GwGKjc38VseHVJ2WVE0Y2Z_GE2LL0Ak-rJgcyHbIHFtS8keAvk",
     "filePushOrder": [
-        "Common/Models/Project.ts",
-        "Common/Models/Card.ts",
+        "Common/Models/Projects.ts",
+        "Common/Models/Cards.ts",
+        "Common/Models/Reviews.ts",
         "Common/Utils.ts",
         "GoogleAppScript/CloudLogger.ts",
         "GoogleAppScript/Settings.ts",
@@ -11,11 +12,15 @@
         "GoogleAppScript/Spreadsheets/Listeners.ts",
         "GoogleAppScript/Spreadsheets/Templates/Clipboard Popup.html",
         "GoogleAppScript/Spreadsheets/Templates/Multiform.html",
-        "GoogleAppScript/Spreadsheets/CardSerializer.ts",
+        "GoogleAppScript/Spreadsheets/Serializers/DataSerializer.ts",
+        "GoogleAppScript/Spreadsheets/Serializers/CardSerializer.ts",
+        "GoogleAppScript/Spreadsheets/Serializers/ReviewSerializer.ts",
         "GoogleAppScript/Spreadsheets/DataSheets.ts",
         "GoogleAppScript/Spreadsheets/UserInput.ts",
         "GoogleAppScript/Controllers/CardsController.ts",
         "GoogleAppScript/Controllers/ProjectController.ts",
+        "GoogleAppScript/Controllers/FormController.ts",
+        "GoogleAppScript/Controllers/ReviewsController.ts",
         "GoogleAppScript/Controllers/Controller.ts",
         "GoogleAppScript/Tests/Tester.ts"
     ]

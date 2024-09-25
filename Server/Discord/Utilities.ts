@@ -1,4 +1,6 @@
-import { ColorResolvable } from "discord.js";
+import { AttachmentBuilder, ColorResolvable } from "discord.js";
+import path from "path";
+import Card from "../Data/Models/Card";
 
 export const emojis = {
     unique: "<:unique:701045474332770385>",
@@ -26,15 +28,11 @@ export const emojis = {
     Updated: ":arrow_double_up:",
     Bugfixed: ":wrench:",
     Other: ":eight_spoked_asterisk:",
-    1: ":one:",
-    2: ":two:",
-    3: ":three:",
-    4: ":four:",
-    5: ":five:",
-    6: ":six:",
-    7: ":seven:",
-    8: ":eight:",
-    9: ":nine:",
+    "Strongly agree": ":thumbsup::thumbsup:",
+    "Somewhat agree": ":thumbsup:",
+    "Neither": ":fist:",
+    "Somewhat disagree": ":thumbsdown:",
+    "Strongly disagree": ":thumbsdown::thumbsdown:",
     white_check_mark: "\u2705"
 } as { [emoji: string]: string };
 
@@ -66,4 +64,10 @@ export function discordify(text: string) {
         .replace(/<\/cite>/g, "")
         .replace(/<nl>/g, "")
         .replace(/ {2}/g, " &nbsp;");
+}
+
+export function cardAsAttachment(card: Card) {
+    return new AttachmentBuilder(card.imageUrl)
+        .setName(path.basename(card.imageUrl))
+        .setDescription(`${card.toString()}`);
 }

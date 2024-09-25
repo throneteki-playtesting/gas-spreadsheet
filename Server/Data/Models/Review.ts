@@ -1,109 +1,74 @@
-// import { FormQuestion, maxEnum } from "../../Common/Enums";
-// import { Card } from "./Card";
-// import { Data, DataRow } from "../Data";
-// import { ReviewColumn } from "../Columns";
-// import { DataObject } from "./DataObject";
-// import { Log } from "../Logger";
-// import { SemVer } from "semver";
+import Card from "./Card";
+import { Joi } from "celebrate";
+import { Utils } from "@/Common/Utils";
+import { dataService } from "@/Server/Services";
+import { Reviews } from "@/Common/Models/Reviews";
+import { Cards } from "@/Common/Models/Cards";
 
-// class Review extends DataObject {
-//     constructor(data: DataRow, public id: string, public card: Card, public date: Date, public reviewer: string, public deck: string, public count: number,
-//         public rating: number, public release: ReleaseReady, public reason?: string, public additional?: string, public spreadheetUrl?: string) {
-//         super(data);
-//     }
+class Review {
+    public _id: Reviews.Id;
+    constructor(
+        public reviewer: string,
+        public card: Card,
+        public decks: string[],
+        public played: Reviews.PlayedRange,
+        public statements: Reviews.Statements,
+        public additional: string,
+        public date: Date
+    ) {
+        this._id = Reviews.condenseId({ reviewer, projectId: card.project._id, number: card.number, version: card.version });
+    }
 
-//     static fromData(data: DataRow) {
-//         const number = data.getNumber(ReviewColumn.Number);
-//         const version = new SemVer(data.getString(ReviewColumn.Version));
+    static async fromModels(...models: Reviews.Model[]) {
+        if (models.length === 0) {
+            return [];
+        }
+        const matchers = models.map((model) => ({ projectId: model.projectId, number: model.number, version: model.version }));
+        const cards = await dataService.cards.read({ matchers });
+        return models.map((model) => {
+            const card = cards.find((c) => c.project._id === model.projectId && c.number === model.number && c.version === model.version);
+            const date = new Date(model.epoch);
+            return new Review(model.reviewer, card, model.decks, model.played, model.statements, model.additional, date);
+        });
+    }
 
-//         const card = Data.instance.getCard(number, version);
+    static async toModels(...reviews: Review[]) {
+        return reviews.map((review) => ({
+            _id: review._id,
+            reviewer: review.reviewer,
+            projectId: review.card.project._id,
+            number: review.card.number,
+            version: review.card.version,
+            faction: review.card.faction,
+            name: review.card.name,
+            decks: review.decks,
+            played: review.played,
+            statements: review.statements,
+            additional: review.additional,
+            epoch: review.date.getTime()
+        }) as Reviews.Model);
+    }
 
-//         const id = data.getString(ReviewColumn.ResponseId);
-//         const date = new Date(data.getString(ReviewColumn.Date));
-//         const reviewer = data.getString(ReviewColumn.Reviewer);
-//         const deck = data.getRichTextValue(ReviewColumn.Deck).getLinkUrl() || "";
-//         const count = data.getNumber(ReviewColumn.Count);
-//         const rating = data.getNumber(ReviewColumn.Rating);
-//         const release = ReleaseReady[data.getString(ReviewColumn.Release)];
-//         const reason = data.hasValue(ReviewColumn.Reason) ? data.getString(ReviewColumn.Reason) : undefined;
-//         const additional = data.hasValue(ReviewColumn.Additional) ? data.getString(ReviewColumn.Additional) : undefined;
+    public static schema = {
+        _id: Joi.string().regex(Utils.Regex.Review.id.full),
+        reviewer: Joi.string().required(),
+        projectId: Joi.number().required(),
+        number: Joi.number().required(),
+        version: Joi.string().required().regex(Utils.Regex.SemanticVersion),
+        faction: Joi.string().valid(...Cards.factions),
+        name: Joi.string(),
+        decks: Joi.array().items(Joi.string()),
+        played: Joi.string().required().valid(...Reviews.playedRange),
+        statements: Joi.object({
+            boring: Joi.string().required().valid(...Reviews.statementAnswer),
+            competitive: Joi.string().required().valid(...Reviews.statementAnswer),
+            creative: Joi.string().required().valid(...Reviews.statementAnswer),
+            balanced: Joi.string().required().valid(...Reviews.statementAnswer),
+            releasable: Joi.string().required().valid(...Reviews.statementAnswer)
+        }).required(),
+        additional: Joi.string(),
+        epoch: Joi.number().required()
+    };
+}
 
-//         return new Review(data, id, card, date, reviewer, deck, count, rating, release, reason, additional);
-//     }
-
-//     static fromResponse(response: GoogleAppsScript.Forms.FormResponse): Review {
-
-//         const cardString = response.getItemResponses()[FormQuestion.ReviewingCard].getResponse() as string;
-//         const card = Data.instance.latestCards.concat(Data.instance.archivedCards).find(card => card.toString() === cardString);
-//         if (!card) {
-//             throw Error("Attempted to build form response review for card which does not exist (" + cardString + ")");
-//         }
-//         const id = response.getId();
-//         const date = new Date(response.getTimestamp().toUTCString());
-//         const reviewer = response.getItemResponses()[FormQuestion.DiscordName].getResponse() as string;
-//         const deck = response.getItemResponses()[FormQuestion.DeckLink].getResponse() as string;
-//         const count = parseInt(response.getItemResponses()[FormQuestion.GamesPlayed].getResponse() as string);
-//         const rating = parseInt(response.getItemResponses()[FormQuestion.Rating].getResponse() as string);
-//         const release = ReleaseReady[response.getItemResponses()[FormQuestion.ReleaseReady].getResponse() as string];
-//         const reasonString = response.getItemResponses()[FormQuestion.Reason].getResponse() as string;
-//         const reason = reasonString ? reasonString : undefined;
-//         const additionalString = response.getItemResponses()[FormQuestion.Additional].getResponse() as string;
-//         const additional = additionalString ? additionalString : undefined;
-
-//         const review = new Review(DataRow.new(maxEnum(ReviewColumn)), id, card, date, reviewer, deck, count, rating, release, reason, additional);
-//         review.syncData();
-//         return review;
-//     }
-
-//     syncData() {
-//         const newData = DataRow.new(maxEnum(ReviewColumn));
-
-//         try {
-//             newData.setString(ReviewColumn.ResponseId, this.id);
-//             newData.setString(ReviewColumn.Number, this.card.development.number);
-//             newData.setString(ReviewColumn.Version, this.card.development.versions.current.toString());
-//             newData.setString(ReviewColumn.Faction, this.card.faction);
-//             newData.setString(ReviewColumn.Name, this.card.name);
-//             newData.setString(ReviewColumn.Date, this.date.toDateString());
-//             newData.setString(ReviewColumn.Reviewer, this.reviewer);
-//             newData.setRichTextValue(ReviewColumn.Deck, SpreadsheetApp.newRichTextValue().setText("ThronesDB").setLinkUrl(this.deck).build());
-//             newData.setString(ReviewColumn.Count, this.count);
-//             newData.setString(ReviewColumn.Rating, this.rating);
-//             newData.setString(ReviewColumn.Release, ReleaseReady[this.release]);
-//             if (this.reason) {
-//                 newData.setString(ReviewColumn.Reason, this.reason);
-//             }
-//             if (this.additional) {
-//                 newData.setString(ReviewColumn.Additional, this.additional);
-//             }
-
-//             // Update DataRow to newly created data
-//             this.data = newData;
-
-//             return true;
-//         } catch (e) {
-//             Log.error("Failed to create RowData for review '" + this.id + "'. JSON dump of review values:\n" + JSON.stringify(this));
-//             Log.error("Caused by the following error: " + e);
-//             // DataRow will not be updated (original values retained)
-//             return false;
-//         }
-//     }
-
-//     toString() {
-//         return "Review for '" + this.card.toString() + "' by " + this.reviewer;
-//     }
-
-//     clone() {
-//         // TODO Make this more efficient, but ensure all values are new, not same memory reference
-//         this.syncData();
-//         return Review.fromData(this.data);
-//     }
-// }
-
-// enum ReleaseReady {
-//     Yes,
-//     No,
-//     Unsure
-// }
-
-// export { Review, ReleaseReady }
+export default Review;

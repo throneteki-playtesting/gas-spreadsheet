@@ -5,8 +5,8 @@ import { emojis, githubify } from "./Utils";
 import path from "path";
 import { fileURLToPath } from "url";
 import Project from "../Data/Models/Project";
-import { NoteType } from "@/Common/Models/Card";
 import { apiUrl } from "@/Server";
+import { Cards } from "@/Common/Models/Cards";
 
 export type GeneratedIssue = {
     title: string,
@@ -86,7 +86,7 @@ export class Issue {
             return null;
         }
         const milestone = project.milestone;
-        const noteTypeOrdered = ["Replaced", "Reworked", "Updated", "Implemented"] as NoteType[];
+        const noteTypeOrdered = ["Replaced", "Reworked", "Updated", "Implemented"] as Cards.NoteType[];
         const notesMap = cards.reduce((map, card) => {
             const noteType = card.note?.type;
             if (noteType && noteTypeOrdered.includes(noteType)) {
@@ -102,7 +102,7 @@ export class Issue {
                 map.set(noteType, current);
             }
             return map;
-        }, new Map<NoteType, NotePackage[]>());
+        }, new Map<Cards.NoteType, NotePackage[]>());
 
         const notesLegend = noteTypeOrdered.filter((nt) => notesMap.has(nt)).map((nt) => `${emojis[nt]} ${nt}`).join(" | ");
         const notes = Array.from(notesMap.values());

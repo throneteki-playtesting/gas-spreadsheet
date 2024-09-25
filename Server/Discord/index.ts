@@ -1,15 +1,13 @@
 import { buildCommands, deployCommands } from "./DeployCommands";
 import { commands } from "./Commands";
-import Card from "../Data/Models/Card";
-import { groupCardHistory } from "../Data/Repositories/CardsRepository";
-import Project from "../Data/Models/Project";
 import { logger } from "../Services";
-import { Client, Guild, Message, ThreadChannel } from "discord.js";
-import CardThreads from "./CardThreads";
+import { Client, ForumChannel, Guild } from "discord.js";
 
 class DiscordService {
     private client: Client;
-    constructor(private token: string, private clientId: string) {
+    private isDevelopment: boolean;
+    constructor(private token: string, private clientId: string, private developerGuildId: string) {
+        this.isDevelopment = process.env.NODE_ENV !== "production";
         this.client = new Client({
             intents: ["Guilds", "GuildMessages", "DirectMessages"],
             allowedMentions: { parse: ["users", "roles"], repliedUser: true }
@@ -21,139 +19,74 @@ class DiscordService {
 
         buildCommands().then((available) => {
             const deployOptions = { token: this.token, clientId: this.clientId };
-            this.client.on("guildCreate", async (guild) => {
-                await deployCommands(available, { ...deployOptions, guild });
-            });
-
-            if (process.env.NODE_ENV !== "production") {
-                this.client.on("guildAvailable", async (guild) => {
-                    await deployCommands(available, { ...deployOptions, guild });
-                });
+            if (this.isDevelopment && !developerGuildId) {
+                throw Error("Missing \"developerGuildId\" in config for development discord integration");
             }
+            this.client.on("guildCreate", async (guild) => {
+                if (this.isValidGuild(guild)) {
+                    await deployCommands(available, { ...deployOptions, guild });
+                }
+            });
+            this.client.on("guildAvailable", async (guild) => {
+                if (this.isValidGuild(guild)) {
+                    await deployCommands(available, { ...deployOptions, guild });
+                }
+            });
         });
 
         this.client.on("interactionCreate", async (interaction) => {
             try {
-                if (!(interaction.isCommand() || interaction.isAutocomplete())) {
-                    return;
-                }
-                const command = commands[interaction.commandName as keyof typeof commands];
-
-                if (interaction.isChatInputCommand()) {
-                    command.execute(interaction);
-                } else if (interaction.isAutocomplete() && command.autocomplete) {
-                    command.autocomplete(interaction);
+                if (interaction.isCommand() || interaction.isAutocomplete()) {
+                    const command = commands[interaction.commandName as keyof typeof commands];
+                    if (interaction.isChatInputCommand()) {
+                        await command.execute(interaction);
+                    } else if (interaction.isAutocomplete() && command.autocomplete) {
+                        await command.autocomplete(interaction);
+                    }
                 }
             } catch (err) {
                 logger.error(err);
             }
         });
 
+        this.client.on("guildMemberUpdate", (oldMember, newMember) => {
+            const playtesterRole = newMember.guild.roles.cache.find((role) => role.name === "Playtester");
+            const oldHas = oldMember.roles.cache.has(playtesterRole.id);
+            const newHas = newMember.roles.cache.has(playtesterRole.id);
+            // If user lost or gained role
+            if ((oldHas && !newHas) || (!oldHas && newHas)) {
+                // Get all projects
+                // Get cards for each projectr
+                // Get all playtesters
+                // Post all relevant project cards & playtesters to that script
+            }
+        });
+
         this.client.login(token);
     }
 
-    public async syncCardThreads(project: Project, cards?: Card[], guilds?: Guild[], canCreate?: boolean) {
-        // TODO: Add option for historical updating? (eg. update threads that are not latest)
-        const sendTo = guilds || Array.from(this.client.guilds.cache.values());
-        const succeeded: Message<true>[] = [];
-        const failed: Card[] = [];
-        const titleFunc = (card: Card) => `${card.number}. ${card.toString()}`;
+    private isValidGuild(guild: Guild) {
+        return this.isDevelopment ? guild.id === this.developerGuildId : guild.id !== this.developerGuildId;
+    }
 
-        for (const guild of sendTo) {
-            try {
-                const { channel, taggedRole, projectTag, factionTags, latestTag } = await CardThreads.validateGuild(guild, project);
+    public async getGuilds() {
+        return this.client.guilds.cache.filter((guild) => this.isValidGuild(guild));
+    }
+    /**
+     * Gets existing threads
+     * @param channel Forum channel to check
+     * @param withTags Tags to filer by
+     * @returns List of ThreadChannel's for that Channel & Tags
+     */
+    public async fetchThreads(channel: ForumChannel) {
+        let before = undefined;
+        do {
+            // Caches all fetched to be used later
+            const batch = await channel.threads.fetch({ archived: { fetchAll: true, before } }, { cache: true });
+            before = batch.hasMore ? Math.min(...batch.threads.map(t => t.archivedAt.getTime())) : undefined;
+        } while (before);
 
-                // Collect all cards which should have threads on discord
-                const discordReady = cards.filter((card) => card.isPreview || card.isInitial || card.isChanged);
-
-                const existingThreads = await CardThreads.getExistingThreads(channel, projectTag);
-
-                const groups = groupCardHistory(discordReady);
-                for (const group of groups) {
-                    const latest = group.latest;
-                    const previous = group.previous[0];
-
-                    try {
-                        const title = titleFunc(latest);
-                        const latestTags = [projectTag.id, factionTags[latest.faction].id, latestTag.id];
-                        const autoArchiveDuration = channel.defaultAutoArchiveDuration;
-
-                        // Handle logic for previous url
-                        let previousUrl: string = undefined;
-                        let previousThread: ThreadChannel<true> = undefined;
-                        if (!(latest.isPreview || latest.isInitial)) {
-                            if (!previous) {
-                                throw Error(`Previous card for ${latest.toString()} could not be found`);
-                            }
-                            const previousTitle = titleFunc(previous);
-                            previousThread = existingThreads.find((t) => t.name === previousTitle);
-                            if (!previousThread) {
-                                throw Error(`Failed to find previous thread for ${latest.toString()} named "${previousTitle}"`);
-                            }
-
-                            previousUrl = previousThread.url;
-                        }
-
-                        // Create new thread (if allowed), or update existing (either update starter msg, or send update msg)
-                        const thread = existingThreads.find((t) => t.name === title || (latest.isInitial && t.name === `${latest.number}. ${latest.name}`/* Accounting for legacy names */));
-                        if (!thread) {
-                            if (!canCreate) {
-                                continue;
-                            }
-                            const reason = `Design Team discussion for ${project.short} #${latest.number}, ${latest.toString()}`;
-                            const message = CardThreads.generate(taggedRole, latest, previousUrl, project);
-
-                            const newThread = await channel.threads.create({
-                                name: title,
-                                reason,
-                                message,
-                                appliedTags: latestTags,
-                                autoArchiveDuration
-                            });
-
-                            const starter = await newThread.fetchStarterMessage();
-                            await starter.pin();
-
-                            // Check that previous thread has correct tags (eg. NOT "Latest")
-                            if (previousThread.appliedTags.includes(latestTag.id)) {
-                                const previousTags = [projectTag.id, factionTags[previous.faction].id];
-                                await previousThread.setAppliedTags(previousTags);
-                            }
-
-                            succeeded.push(starter);
-                        } else {
-                            const wasArchived = thread.archived;
-                            const starter = await thread.fetchStarterMessage();
-                            const message = CardThreads.generate(taggedRole, latest, previousUrl, project);
-
-                            if (wasArchived) {
-                                await thread.setArchived(false);
-                            }
-                            const promises: Promise<unknown>[] = [
-                                thread.setAppliedTags(latestTags),
-                                thread.setAutoArchiveDuration(autoArchiveDuration),
-                                thread.setName(title),
-                                starter.edit(message),
-                                ...(!starter.pinned ? [starter.pin()] : [])
-                            ];
-
-                            await Promise.all(promises);
-                            if (wasArchived) {
-                                await thread.setArchived(true);
-                            }
-                            succeeded.push(starter);
-                        }
-                    } catch (err) {
-                        logger.error(err);
-                        failed.push(latest);
-                    }
-                }
-            } catch (err) {
-                throw Error(`Failed to sync card threads for forum "${guild.name}"`, { cause: err });
-            }
-        }
-
-        return { succeeded, failed };
+        return channel.threads.cache;
     }
 }
 

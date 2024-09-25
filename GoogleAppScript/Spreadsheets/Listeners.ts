@@ -1,17 +1,38 @@
 import { API } from "../API";
+import { Forms } from "../Forms/Form";
+import { GooglePropertiesType, Settings } from "../Settings";
 import { DataSheet } from "./DataSheets";
 import { UIHelper } from "./UserInput";
 
-// Listeners for Triggers to pick up
-function onEdited(e: GoogleAppsScript.Events.SheetsOnEdit) {
-    return Trigger.edit(e);
-}
+// Simple Triggers (does not need additional setup)
 function onOpen(e: GoogleAppsScript.Events.SheetsOnOpen) {
     return Trigger.open(e);
 }
 
+// Complex Triggers (requires setup on Apps Script end)
+function onEdited(e: GoogleAppsScript.Events.SheetsOnEdit) {
+    return Trigger.edit(e);
+}
+function onFormSubmit(e: GoogleAppsScript.Events.FormsOnFormSubmit) {
+    return Trigger.submit(e);
+}
+
 // Other listeners
-function postProjectDetails() {
+function initialiseProject() {
+    // Setup complex triggers (only if not already existing)
+    const existing = ScriptApp.getProjectTriggers();
+    if (!existing.some((trigger) => trigger.getHandlerFunction() === "onFormSubmit")) {
+        ScriptApp.newTrigger("onFormSubmit")
+            .forForm(Settings.getProperty(GooglePropertiesType.Script, "formId"))
+            .onFormSubmit()
+            .create();
+    }
+    if (!existing.some((trigger) => trigger.getHandlerFunction() === "onEdited") && SpreadsheetApp.getActiveSpreadsheet()) {
+        ScriptApp.newTrigger("onEdited")
+            .forSpreadsheet(SpreadsheetApp.getActiveSpreadsheet())
+            .onEdit()
+            .create();
+    }
     return API.postProjectDetails();
 }
 function setAPIKey() {
@@ -22,7 +43,7 @@ function setAPIKey() {
 namespace Trigger {
     export function edit(e: GoogleAppsScript.Events.SheetsOnEdit) {
         const sheet = e.range.getSheet();
-        const dataSheet = Array.from(DataSheet.sheets.values()).find((ds) => ds.isFor(sheet));
+        const dataSheet = Array.from(Object.values(DataSheet.sheets)).find((ds) => ds.isFor(sheet));
         if (dataSheet) {
             dataSheet.onEdit(e);
         }
@@ -34,7 +55,7 @@ namespace Trigger {
         if (ui) {
             ui.createMenu("Admin Tools")
                 .addItem("Set API key", "setAPIKey")
-                .addItem("Initialise/Sync Project", "postProjectDetails")
+                .addItem("Initialise/Sync Project", "initialiseProject")
             //     // .addSubMenu(
             //     //     ui.createMenu("Development")
             //     //         .addSubMenu(
@@ -81,12 +102,17 @@ namespace Trigger {
                 .addToUi();
         }
     }
+
+    export function submit(e: GoogleAppsScript.Events.FormsOnFormSubmit) {
+        Forms.submit(e.response);
+    }
 }
 
 export {
     Trigger,
-    onEdited,
     onOpen,
-    postProjectDetails,
+    onEdited,
+    onFormSubmit,
+    initialiseProject,
     setAPIKey
 };

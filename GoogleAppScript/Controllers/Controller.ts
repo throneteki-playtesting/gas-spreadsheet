@@ -1,12 +1,15 @@
 import { Log } from "../CloudLogger.js";
 import { CardsController } from "./CardsController.js";
+import { FormController } from "./FormController.js";
 import { ProjectController } from "./ProjectController.js";
+import { ReviewsController } from "./ReviewsController.js";
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 namespace Controller {
     const getActions = {
         cards: CardsController.doGet,
-        project: ProjectController.doGet
+        project: ProjectController.doGet,
+        reviews: ReviewsController.doGet
     };
     export function get(e: GoogleAppsScript.Events.DoGet) {
         try {
@@ -36,7 +39,9 @@ namespace Controller {
 
     const postActions = {
         cards: CardsController.doPost,
-        project: ProjectController.doPost
+        project: ProjectController.doPost,
+        reviews: ReviewsController.doPost,
+        form: FormController.doPost
     };
     export function post(e: GoogleAppsScript.Events.DoPost) {
         try {

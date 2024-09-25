@@ -9,6 +9,7 @@ import Project from "../Data/Models/Project";
 import { dataService, logger } from "../Services";
 import { Utils } from "@/Common/Utils";
 import { groupCardHistory } from "../Data/Repositories/CardsRepository";
+import { Cards } from "@/Common/Models/Cards";
 
 export type RenderType = "Single" | "Batch";
 
@@ -38,7 +39,7 @@ class RenderingService {
         await Promise.allSettled(promises);
     }
     public async syncPDFs(project: Project, cards?: Card[], override = false) {
-        cards = cards || await dataService.cards.read({ matchers: [{ project: project.code }] });
+        cards = cards || await dataService.cards.read({ matchers: [{ projectId: project.code }] });
         const all = groupCardHistory(cards).map((group) => group.latest);
         const updated = all.filter((card) => card.isChanged);
         const filePathFunc = (collection: "all"|"updated") => `./public/pdf/${project.code}/${project.releases + 1}_${collection}.pdf`;
@@ -114,21 +115,19 @@ class RenderingService {
     }
 
     public async asHtml(mode: RenderType, cards: Card | Card[], options?: { copies?: number, perPage?: number, includeCSS?: boolean, includeJS?: boolean }) {
-        const projects = await dataService.projects.read();
         switch (mode) {
             case "Single":
                 const single = Array.isArray(cards) ? cards[0] : cards as Card;
                 options = { ...{ includeCSS: false, includeJS: false }, ...options };
-                return RenderingService.renderTemplate({ type: mode, card: this.prepareCard(projects, single), ...options });
+                return RenderingService.renderTemplate({ type: mode, card: this.prepareCard(single), ...options });
             case "Batch":
                 const batch = Array.isArray(cards) ? cards : [cards];
                 options = { ... { includeCSS: false, includeJS: false, copies: 3, perPage: 9 }, ...options };
-                return RenderingService.renderTemplate({ type: mode, cards: batch.map((card) => this.prepareCard(projects, card)), ...options });
+                return RenderingService.renderTemplate({ type: mode, cards: batch.map((card) => this.prepareCard(card)), ...options });
         }
     }
 
-    private prepareCard(projects: Project[], card: Card) {
-        const project = projects.find((p) => p.code === card.project);
+    private prepareCard(card: Card) {
         const jCard = card.toJSON();
         return {
             ...jCard,
@@ -146,12 +145,12 @@ class RenderingService {
                     .replace(/(<br>-\s*.*\.)/g, "<ul>$1</ul>")
                     // ... and wrap each line in li
                     .replace(/<br>-\s*(.*?\.)(?=<br>|<\/ul>)/g, "<li>$1</li>"),
-                deckLimit: jCard.deckLimit !== Utils.DefaultDeckLimit[jCard.type] ? `Deck Limit: ${jCard.deckLimit}` : ""
+                deckLimit: jCard.deckLimit !== Cards.DefaultDeckLimit[jCard.type] ? `Deck Limit: ${jCard.deckLimit}` : ""
             },
             ...{
                 project: {
-                    short: project?.short || "?",
-                    code: project?.code || "?"
+                    short: card.project.short || "?",
+                    code: card.project.code || "?"
                 }
             }
         } as ejs.Data;

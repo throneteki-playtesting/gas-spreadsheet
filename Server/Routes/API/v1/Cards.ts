@@ -3,9 +3,9 @@ import { celebrate, Joi, Segments } from "celebrate";
 import asyncHandler from "express-async-handler";
 import Card from "@/Server/Data/Models/Card";
 import { inc } from "semver";
-import { CardModel, NoteType } from "@/Common/Models/Card";
 import { dataService, logger, renderService } from "@/Server/Services";
 import { SemanticVersion, Utils } from "@/Common/Utils";
+import { Cards } from "@/Common/Models/Cards";
 
 export type ResourceFormat = "JSON" | "HTML" | "TXT" | "PNG" | "PDF";
 
@@ -29,7 +29,7 @@ router.get("/:project", celebrate({
         perPage: Joi.number().default(9)
     }
 }), asyncHandler(async (req, res) => {
-    const project = req.params.project as unknown as number;
+    const projectId = req.params.project as unknown as number;
     const format = req.query.format as ResourceFormat;
     const hard = req.query.hard as unknown as boolean;
     const ids = !req.query.id ? undefined : (Array.isArray(req.query.id) ? req.query.id as string[] : [req.query.id as string]);
@@ -38,8 +38,8 @@ router.get("/:project", celebrate({
 
     const matchers = ids ? ids.map((id) => {
         const [number, version] = id.split("@");
-        return { project, number: parseInt(number), ...(version && { version: version as SemanticVersion }) };
-    }) : [{ project }];
+        return { projectId, number: parseInt(number), ...(version && { version: version as SemanticVersion }) };
+    }) : [{ projectId }];
     const cards = await dataService.cards.read({ matchers, hard });
 
     switch (format) {
@@ -75,14 +75,13 @@ router.get("/:project/:number", celebrate({
         version: Joi.string().regex(/^\d+.\d+.\d+$/)
     }
 }), asyncHandler(async (req, res) => {
-    const project = req.params.project as unknown as number;
+    const projectId = req.params.project as unknown as number;
     const number = req.params.number as unknown as number;
     const format = req.query.format as ResourceFormat;
     const hard = req.query.hard as unknown as boolean;
     const version = req.query.version ? req.query.version as SemanticVersion : undefined;
 
-    const cards = await dataService.cards.read({ matchers: [{ project, number, ...(version && { version }) }], hard });
-    const card = cards.shift(); // Always get latest version
+    const [card] = await dataService.cards.read({ matchers: [{ projectId, number, ...(version && { version }) }], hard });
 
     switch (format) {
         case "JSON":
@@ -106,9 +105,9 @@ router.get("/:project/:number", celebrate({
 router.post("/", celebrate({
     [Segments.BODY]: Joi.array().items(Card.schema)
 }), asyncHandler(async (req, res) => {
-    const cards = (req.body as CardModel[]).map(Card.fromModel);
+    const cards = await Card.fromModels(...req.body as Cards.Model[]);
 
-    const incType = (type: NoteType) => {
+    const incType = (type: Cards.NoteType) => {
         switch (type) {
             case "Replaced": return "major";
             case "Reworked": return "minor";
@@ -125,7 +124,7 @@ router.post("/", celebrate({
                 const draft = card.clone();
                 card.version = draft.version = inc(card.playtesting, incType(card.note.type)) as SemanticVersion;
                 // Increment the id only for database insert (draft sent to spreadsheet needs old ID to update)
-                card._id = `${card.number}@${card.version}`;
+                card._id = `${card.code}@${card.version}`;
 
                 data.spreadsheet.push(draft);
             }

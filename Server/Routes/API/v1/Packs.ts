@@ -11,11 +11,11 @@ router.get("/:project/development", celebrate({
         project: Joi.number().required()
     }
 }), asyncHandler(async (req, res) => {
-    const project = req.params.project as unknown as number;
+    const projectId = req.params.project as unknown as number;
 
-    const proj = (await dataService.projects.read({ codes: [project] }))[0];
-    const cards = (await dataService.cards.read({ matchers: [{ project }] })).filter((card) => !card.isReleasable);
-    const developmentPack = new Pack(proj.short, proj.name, cards);
+    const [project] = await dataService.projects.read({ codes: [projectId] });
+    const cards = (await dataService.cards.read({ matchers: [{ projectId }] })).filter((card) => !card.isReleasable);
+    const developmentPack = new Pack(project.short, project.name, cards);
 
     res.json(developmentPack.toJSON());
 }));
@@ -30,12 +30,12 @@ router.get("/:project/release", celebrate({
         release: Joi.date().required()
     }
 }), asyncHandler(async (req, res) => {
-    const project = req.params.project as unknown as number;
+    const projectId = req.params.project as unknown as number;
     const short = req.query.short as unknown as string;
     const name = req.query.name as unknown as string;
     const release = req.query.release as unknown as Date;
 
-    const cards = (await dataService.cards.read({ matchers: [{ project }] })).filter((card) => card.release?.short === short);
+    const cards = (await dataService.cards.read({ matchers: [{ projectId }] })).filter((card) => card.release?.short === short);
     const releasePack = new Pack(short, name, cards, release);
 
     res.json(releasePack.toJSON());
