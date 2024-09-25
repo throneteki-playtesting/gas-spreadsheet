@@ -1,26 +1,31 @@
 {
+    "verbose": true,
     "server": {
         "host": null,
         "ports": {
             "api": 8080,
             "client": 4000
+        },
+        "auth": {
+            "username": "password"
         }
     },
     "discord": {
         "token": "",
-        "clientId": ""
+        "clientId": "",
+        "developmentGuildId": ""
     },
     "google": {
         "privateKey": "",
         "clientEmail": ""
     },
+    "github": {
+        "owner": "",
+        "repository": "",
+        "appId": "",
+        "privateKey": ""
+    },
     "database": {
         "url": ""
-    },
-    "projects": {
-        "?": {
-            "active": false,
-            "script": ""
-        }
     }
 }
