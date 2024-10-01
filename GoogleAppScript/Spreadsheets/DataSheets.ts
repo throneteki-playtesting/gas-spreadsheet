@@ -146,7 +146,18 @@ export class DataSheet<Model> {
             let totalGroups = 0;
             for (const [startRow, values] of Array.from(setMap.entries())) {
                 totalGroups++;
-                const richTextValues = values.map((row) => DataParser.toRichTextValues(row));
+                const richTextValues = values.map((row) => {
+                    const rowRichTextValues: GoogleAppsScript.Spreadsheet.RichTextValue[] = [];
+                    for (let j = 0 ; j < row.length ; j++) {
+                        const value = row[j];
+                        if (!this.serializer.richTextColumns.includes(j) || value === null || value === "") {
+                            rowRichTextValues.push(SpreadsheetApp.newRichTextValue().setText(value || "").build());
+                        } else {
+                            rowRichTextValues.push(DataParser.toRichTextValue(value));
+                        }
+                    }
+                    return rowRichTextValues;
+                });
                 this.sheet.getRange(startRow, this.firstColumn, values.length, this.maxColumns).setRichTextValues(richTextValues);
             }
 
