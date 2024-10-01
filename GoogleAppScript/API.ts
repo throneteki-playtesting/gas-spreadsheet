@@ -36,7 +36,7 @@ namespace API {
     }
 
     export function postProjectDetails() {
-        API.post("projects", Project.get());
+        API.post("projects", [Project.get()]);
         Log.information("Successfully sent project info to API");
     }
 }

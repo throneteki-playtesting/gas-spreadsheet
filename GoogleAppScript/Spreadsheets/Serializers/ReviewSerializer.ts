@@ -54,9 +54,11 @@ class ReviewSerializer extends DataSerializer<Reviews.Model> {
         if (!model) {
             return true;
         }
-        return (!model.reviewer || values[ReviewColumn.Reviewer] === model.reviewer)
-        && (!model.number || values[ReviewColumn.Number].toString() === model.number.toString())
-        && (!model.version || values[ReviewColumn.Version] === model.version);
+
+        const { reviewer, number, version } = model._id ? Reviews.expandId(model._id) : { reviewer: model.reviewer, number: model.number, version: model.version };
+        return (!reviewer || values[ReviewColumn.Reviewer] === model.reviewer)
+            && (!number || values[ReviewColumn.Number].toString() === model.number.toString())
+            && (!version || values[ReviewColumn.Version] === model.version);
     }
 }
 

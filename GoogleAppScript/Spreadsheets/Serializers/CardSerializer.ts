@@ -127,8 +127,8 @@ class CardSerializer extends DataSerializer<Cards.Model> {
         if (!model) {
             return true;
         }
-        const [number, version] = model._id?.split("@") || [model.number.toString(), model.version];
-        return parseInt(values[CardColumn.Number]) === parseInt(number) && (!version || values[CardColumn.Version] === version);
+        const { number, version } = model._id ? Cards.expandId(model._id) : { number: model.number, version: model.version };
+        return parseInt(values[CardColumn.Number]).toString() === number.toString() && (!version || values[CardColumn.Version] === version);
     }
 }
 

@@ -39,6 +39,7 @@ function initialise(apiHost: string, serverPort: number, clientPort: number) {
 
     app.listen(serverPort, () => {
         logger.info(`Server running on port ${serverPort}: ${apiUrl}`);
+        logger.info(`Environment configured as "${process.env.NODE_ENV || "development"}"`);
     });
 
     return app;

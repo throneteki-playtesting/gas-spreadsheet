@@ -91,9 +91,7 @@ namespace Project {
         Settings.setProperty(GooglePropertiesType.Script, "type", project.type);
         Settings.setProperty(GooglePropertiesType.Script, "perFaction", `${project.perFaction}`);
         Settings.setProperty(GooglePropertiesType.Script, "neutral", `${project.neutral}`);
-        if (project.releases) {
-            Settings.setProperty(GooglePropertiesType.Script, "releases", `${project.releases}`);
-        }
+        Settings.setProperty(GooglePropertiesType.Script, "releases", `${project.releases}`);
         Settings.setProperty(GooglePropertiesType.Script, "milestone", `${project.milestone}`);
         Settings.setProperty(GooglePropertiesType.Script, "formUrl", `${project.formUrl}`);
         if (project.emoji) {

@@ -5,6 +5,7 @@ import { apiUrl } from "@/Server";
 import Project from "./Project";
 import { dataService } from "@/Server/Services";
 import { Cards } from "@/Common/Models/Cards";
+import { Projects } from "@/Common/Models/Projects";
 
 const JoiXNumber = Joi.alternatives().try(
     Joi.number(),
@@ -117,7 +118,7 @@ class Card {
             faction: card.faction,
             name: card.name,
             type: card.type,
-            local: card.loyal,
+            loyal: card.loyal,
             traits: card.traits,
             text: card.text,
             illustrator: card.illustrator,
@@ -191,13 +192,13 @@ class Card {
         return clone;
     }
 
-    static generateDevImageUrl(project: number, number: number, version: string) {
-        return encodeURI(`${apiUrl}/img/${project}/${number}@${version}.png`);
+    static generateDevImageUrl(projectId: Projects.Id, number: number, version: string) {
+        return encodeURI(`${apiUrl}/img/${projectId}/${number}@${version}.png`);
     }
 
     get imageUrl() {
         if (!this.isReleasable) {
-            return Card.generateDevImageUrl(this.project.code, this.number, this.version);
+            return Card.generateDevImageUrl(this.project._id, this.number, this.version);
         }
         const pack = this.release.short;
         const number = this.release.number;
@@ -210,7 +211,7 @@ class Card {
             return null;
         }
         return Card.generateDevImageUrl(
-            this.project.code,
+            this.project._id,
             this.number,
             this.playtesting
         );
