@@ -153,7 +153,7 @@ class GithubService {
             });
             results.push(...response.data.items);
             page++;
-        } while (response.data.incomplete_results);
+        } while (results.length < response.data.total_count);
 
         return results;
     }
