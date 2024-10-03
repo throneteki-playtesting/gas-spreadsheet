@@ -36,6 +36,9 @@ class DiscordService {
 
         this.client.on("interactionCreate", async (interaction) => {
             try {
+                if (!this.isValidGuild(interaction.guild)) {
+                    return;
+                }
                 if (interaction.isCommand() || interaction.isAutocomplete()) {
                     const command = commands[interaction.commandName as keyof typeof commands];
                     if (interaction.isChatInputCommand()) {
@@ -50,13 +53,16 @@ class DiscordService {
         });
 
         this.client.on("guildMemberUpdate", (oldMember, newMember) => {
+            if (!this.isValidGuild(newMember.guild)) {
+                return;
+            }
             const playtesterRole = newMember.guild.roles.cache.find((role) => role.name === "Playtester");
             const oldHas = oldMember.roles.cache.has(playtesterRole.id);
             const newHas = newMember.roles.cache.has(playtesterRole.id);
             // If user lost or gained role
             if ((oldHas && !newHas) || (!oldHas && newHas)) {
                 // Get all projects
-                // Get cards for each projectr
+                // Get cards for each project
                 // Get all playtesters
                 // Post all relevant project cards & playtesters to that script
             }

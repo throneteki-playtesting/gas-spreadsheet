@@ -189,6 +189,7 @@ const sync = {
     }
 } as Command;
 
+// TODO: Add a new FollowUpHelper to send incremental updates to user on what's currently happening (eg. Reading from spreadsheet...; Saving to database...)
 const command = {
     cards: {
         async execute(interaction: ChatInputCommandInteraction) {
