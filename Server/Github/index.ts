@@ -122,7 +122,10 @@ class GithubService {
 
             // Unimplemented card has been implemented? Mark as implemented!
             if (card.isImplemented && !card.note && response.state === "closed") {
-                card.note.type = "Implemented";
+                card.note = {
+                    type: "Implemented",
+                    text: ""
+                };
                 updated = true;
             }
 
