@@ -11,10 +11,10 @@ These changes should also be reflected on the online Playtesting instance of The
 <h2><%= emojis.ChangeNotes %> Card Change Notes</h2>
 <%= notesLegend %>
 <% for(const note of notes) { %>
-    - <b><%= note.icons %> <%= note.title %></b>
-    <% if(note.text) { %>
-        <br><%= note.text %>
-    <% }
+- <b><%= note.icons %> <%= note.title %></b>
+<% if(note.text) { %>
+<br><%= note.text %>
+<% }
 } %>
 ---
 <nl>

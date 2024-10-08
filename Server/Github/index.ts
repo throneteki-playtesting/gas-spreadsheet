@@ -163,7 +163,7 @@ class GithubService {
 
     public async syncPullRequest(project: Project, cards?: Card[]): Promise<PullRequestDetail> {
         cards = cards || await dataService.cards.read({ matchers: [{ projectId: project.code }] });
-        const changes = cards.filter((card) => card.isChanged || card.isNewlyImplemented || card.isInitial);
+        const changes = cards.filter((card) => card.isChanged || card.isNewlyImplemented);
         const prs = await this.getPullRequests(project);
 
         const generated = Issue.forUpdate(project, changes);
@@ -176,10 +176,10 @@ class GithubService {
             const { number, state, html_url, body } = found;
             if (state === "open" && generated.body !== body) {
                 try {
-                    const { data } = await this.client.rest.pulls.update({
+                    const { data } = await this.client.rest.issues.update({
                         ...this.repoDetails,
-                        pull_number: number,
-                        body: generated.body
+                        issue_number: number,
+                        ...generated
                     });
                     logger.info(`Successfully updated pull request #${data.number} for ${project.name}`);
                     return { number: data.number, state: data.state, html_url: data.html_url, body: data.body };
@@ -197,11 +197,17 @@ class GithubService {
             }
         } else {
             try {
-                const { data } = await this.client.rest.pulls.create({
+                const created = (await this.client.rest.pulls.create({
                     ...this.repoDetails,
                     ...generated,
                     base: "playtesting",
                     head: "development"
+                })).data;
+                const { data } = await this.client.rest.issues.update({
+                    ...this.repoDetails,
+                    issue_number: created.number,
+                    milestone: generated.milestone,
+                    labels: generated.labels
                 });
                 logger.info(`Successfully created pull request #${data.number} for ${project.name}`);
                 return { number: data.number, state: data.state, html_url: data.html_url, body: data.body };
@@ -219,7 +225,7 @@ class GithubService {
 
     private async getPullRequests(project: Project) {
         const results: components["schemas"]["issue-search-result-item"][] = [];
-        const query = `repo:${this.repoDetails.owner}/${this.repoDetails.repo} is:pr label: automated milestone:"${project.name} Development"`;
+        const query = `repo:${this.repoDetails.owner}/${this.repoDetails.repo} is:pr label:automated milestone:"${project.name} Development"`;
 
         const perPage = 100;
         let page = 1;

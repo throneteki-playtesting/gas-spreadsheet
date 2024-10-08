@@ -91,7 +91,7 @@ export class Issue {
             const noteType = card.note?.type;
             if (noteType && noteTypeOrdered.includes(noteType)) {
                 const icons = [emojis[noteType]];
-                if (card.isNewlyImplemented) {
+                if (card.isNewlyImplemented && noteType !== "Implemented") {
                     icons.unshift(emojis["Implemented"]);
                 }
                 const title = `${card.number} | ${card.name} v${card.version}`;
@@ -105,7 +105,7 @@ export class Issue {
         }, new Map<Cards.NoteType, NotePackage[]>());
 
         const notesLegend = noteTypeOrdered.filter((nt) => notesMap.has(nt)).map((nt) => `${emojis[nt]} ${nt}`).join(" | ");
-        const notes = Array.from(notesMap.values());
+        const notes = Array.from(notesMap.values()).flat();
         const number = project.releases + 1;
         const pdf = {
             all: encodeURI(`${apiUrl}/pdf/${project.code}/${number}_all.png`),
@@ -117,7 +117,7 @@ export class Issue {
         const title = `${project.short} | Playtesting Update ${number}`;
         const labels = ["automated", "playtest-update"];
 
-        return { title, body, labels, milestone }as GeneratedPullRequest;
+        return { title, body, labels, milestone } as GeneratedPullRequest;
     }
 
     private static renderTemplate(data: ejs.Data) {
