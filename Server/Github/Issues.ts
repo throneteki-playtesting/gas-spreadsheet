@@ -108,7 +108,7 @@ export class Issue {
         const notes = Array.from(notesMap.values()).flat();
         const number = project.releases + 1;
         const pdf = {
-            all: encodeURI(`${apiUrl}/pdf/${project.code}/${number}_all.png`),
+            all: encodeURI(`${apiUrl}/pdf/${project.code}/${number}_all.pdf`),
             updated: cards.some((card) => card.isChanged) ? encodeURI(`${apiUrl}/pdf/${project.code}/${number}_updated.pdf`) : undefined
         };
         const date = new Date().toDateString();
