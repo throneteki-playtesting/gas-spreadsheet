@@ -22,7 +22,7 @@ export function githubify(text: string) {
         .replace(/<s>|<\/s>/g, "~~")
         .replace(/<cite>/g, "-")
         .replace(/<\/cite>/g, "")
-        .replace(/<nl>/g, "")
+        .replace(/<br>/g, "\n")
         .replace(/<h1>/g, "# ")
         .replace(/<\/h1>/g, "")
         .replace(/<h2>/g, "## ")

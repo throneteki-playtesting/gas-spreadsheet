@@ -94,8 +94,8 @@ export class Issue {
                 if (card.isNewlyImplemented && noteType !== "Implemented") {
                     icons.unshift(emojis["Implemented"]);
                 }
-                const title = `${card.number} | ${card.name} v${card.version}`;
-                const text = card.note?.text;
+                const title = `${card.code} | ${card.name} v${card.version}`;
+                const text = card.note?.text || null;
 
                 const current = map.get(noteType) || [];
                 current.push({ icons: icons.join(), title, text });
@@ -104,7 +104,7 @@ export class Issue {
             return map;
         }, new Map<Cards.NoteType, NotePackage[]>());
 
-        const notesLegend = noteTypeOrdered.filter((nt) => notesMap.has(nt)).map((nt) => `${emojis[nt]} ${nt}`).join(" | ");
+        const notesLegend = noteTypeOrdered.filter((nt) => notesMap.has(nt)).map((nt) => `${nt} = ${emojis[nt]}`).join(" | ");
         const notes = Array.from(notesMap.values()).flat();
         const number = project.releases + 1;
         const pdf = {

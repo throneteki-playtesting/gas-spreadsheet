@@ -3,19 +3,20 @@ This contains information for the latest playtesting update for the <b><%= proje
 <h3><%= emojis.PhysicalPlaytesting %> Physical Playtesting</h3>
 [➥ All Cards](<%= pdf.all %>)<% if(pdf.updated) { %> | [➥ Changed Cards Only](<%= pdf.updated %>)<% } %>
 These PDF documents should help you print & play files at home; simply print them locally, and slip them over existing cards!
-<nl>
+
 <h3><%= emojis.DigitalPlaytesting %> Digital Playtesting</h3>
 [➥ Playtesting Website](https://playtesting.theironthrone.net)
 These changes should also be reflected on the online Playtesting instance of The Iron Throne. Please report any bugs you find by either [Creating a Github Issue](https://docs.github.com/en/issues/tracking-your-work-with-issues/creating-an-issue#creating-an-issue-from-a-repository) <em>(preferred)</em>, or posting in the [Bugs Channel](https://discord.com/channels/698308957822779462/1002176317007089697) on the Design & Playtesting discord.
-<nl>
+
 <h2><%= emojis.ChangeNotes %> Card Change Notes</h2>
 <%= notesLegend %>
-<% for(const note of notes) { %>
-- <b><%= note.icons %> <%= note.title %></b>
-<% if(note.text) { %>
-<br><%= note.text %>
+<% for(const note of notes) { -%>
+<b><%= note.icons %> <%= note.title -%></b>
+<% if(note.text) { -%>
+<%= note.text -%>
 <% }
-} %>
+} -%>
+
 ---
-<nl>
+
 <em>Last Updated: <%= date %></em>
