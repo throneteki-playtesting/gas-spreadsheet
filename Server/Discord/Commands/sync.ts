@@ -130,7 +130,7 @@ const sync = {
             )
             .addSubcommand(subcommand =>
                 subcommand
-                    .setName("review")
+                    .setName("reviews")
                     .setDescription("Sync reviews from form")
                     .addStringOption(option =>
                         option.setName("project")
@@ -161,7 +161,7 @@ const sync = {
     },
     async execute(interaction: ChatInputCommandInteraction) {
         await interaction.deferReply({ ephemeral: true });
-        const subcommand = interaction.options.getSubcommand() as "cards" | "cardforum" | "issues" | "pullrequests" | "images" | "pdfs" | "form";
+        const subcommand = interaction.options.getSubcommand() as "cards" | "cardforum" | "issues" | "pullrequests" | "images" | "pdfs" | "form" | "reviews";
         try {
             switch (subcommand) {
                 case "cards":
@@ -178,6 +178,10 @@ const sync = {
                     return await command.pdfs.execute(interaction);
                 case "form":
                     return await command.form.execute(interaction);
+                case "reviews":
+                    return await command.reviews.execute(interaction);
+                default:
+                    throw Error(`Unknown Command "${subcommand}"`);
             }
         } catch (err) {
             logger.error(err);
@@ -323,13 +327,14 @@ const command = {
             ];
 
             const [project] = await dataService.projects.read({ codes: [projectId] });
-            const response = await GASAPI.get(`${project.script}/reviews${params.length > 0 ? `?${params.join("&")}` : ""}`) as FormController.GASReadFormReviews;
+            // Get reviews from the form, not from the spreadsheet (as it contains all responses)
+            const response = await GASAPI.get(`${project.script}/form${params.length > 0 ? `?${params.join("&")}` : ""}`) as FormController.GASReadFormReviews;
             const reviews = await Review.fromModels(...response.reviews);
 
             await dataService.reviews.update({ reviews, upsert: true });
 
-            let allSucceeded: number;
-            let allFailed: number;
+            let allSucceeded: number = 0;
+            let allFailed: number = 0;
 
             const guilds = await discordService.getGuilds();
             for (const [, guild] of guilds) {

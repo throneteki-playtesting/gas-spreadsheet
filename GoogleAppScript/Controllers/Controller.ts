@@ -9,7 +9,8 @@ namespace Controller {
     const getActions = {
         cards: CardsController.doGet,
         project: ProjectController.doGet,
-        reviews: ReviewsController.doGet
+        reviews: ReviewsController.doGet,
+        form: FormController.doGet
     };
     export function get(e: GoogleAppsScript.Events.DoGet) {
         try {

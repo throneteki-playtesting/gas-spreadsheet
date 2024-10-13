@@ -19,9 +19,9 @@ class Forms {
             // Collect the number, name & version from ReviewingCard in regex groups
             const cardRegex = /(\d+) - (.+) \((.+)\)/gm;
             const groups = cardRegex.exec(items[Question.ReviewingCard].getResponse() as string);
-            const number = parseInt(groups[0].trim());
-            const name = groups[1].trim();
-            const version = groups[2].trim() as SemanticVersion;
+            const number = parseInt(groups[1].trim());
+            const name = groups[2].trim();
+            const version = groups[3].trim() as SemanticVersion;
 
             const date = new Date(formResponse.getTimestamp().toUTCString());
             const statements = items[Question.Statements].getResponse() as string[];

@@ -20,6 +20,7 @@ namespace API {
 
         const url = `${apiUrl}/${subUrl}`;
         const options = {
+            muteHttpExceptions: true,
             method: "post",
             headers: {
                 Authorization: `Basic ${apiKey}`
@@ -31,7 +32,10 @@ namespace API {
         const response = UrlFetchApp.fetch(url, options);
 
         const json = JSON.parse(response.getContentText());
-
+        if (json.statusCode == 400) {
+            Log.error(response.getContentText());
+            throw Error("Request failed: Refer to previously logged error(r)");
+        }
         return json;
     }
 

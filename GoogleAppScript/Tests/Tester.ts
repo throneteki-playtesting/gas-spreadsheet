@@ -1,3 +1,4 @@
+import { Forms } from "../Forms/Form";
 import { Trigger } from "../Spreadsheets/Listeners";
 
 const defaultDoGet = {
@@ -104,11 +105,17 @@ function updateReviewsTest() {
     this.doPost(e);
 }
 
+function submitReviewTest() {
+    const response = Forms.get().getResponses()[0];
+    Forms.submit(response);
+}
+
 export {
     createCardsTest,
     readCardsTest,
     updateCardsTest,
     destroyCardsTest,
     onEditTest,
-    updateReviewsTest
+    updateReviewsTest,
+    submitReviewTest
 };
