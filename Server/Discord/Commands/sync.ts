@@ -321,9 +321,9 @@ const command = {
             const version = interaction.options.getString("version") || undefined;
 
             const params = [
-                ...(reviewer ? [reviewer] : []),
-                ...(number ? [number] : []),
-                ...(version ? [version] : [])
+                ...(reviewer ? [`reviewer=${reviewer}`] : []),
+                ...(number ? [`number=${number}`] : []),
+                ...(version ? [`version=${version}`] : [])
             ];
 
             const [project] = await dataService.projects.read({ codes: [projectId] });

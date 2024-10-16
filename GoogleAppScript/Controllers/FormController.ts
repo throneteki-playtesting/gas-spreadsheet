@@ -6,8 +6,8 @@ import { Controller } from "./Controller";
 namespace FormController {
     export interface GASReadFormReviews { reviews: Reviews.Model[] }
     export function doGet(path: string[], e: GoogleAppsScript.Events.DoGet) {
-        const { reviewer, name, version } = e.parameter;
-        const reviews = Forms.toReviews(...Forms.get().getResponses()).filter((review) => (!reviewer || reviewer === review.reviewer) && (!name || name === review.name) && (!version || version === review.version));
+        const { reviewer, number, version } = e.parameter;
+        const reviews = Forms.toReviews(...Forms.get().getResponses()).filter((review) => (!reviewer || reviewer === review.reviewer) && (!number || parseInt(number) === review.number) && (!version || version === review.version));
 
         return Controller.sendResponse({
             request: e,

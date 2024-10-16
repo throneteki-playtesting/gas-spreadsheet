@@ -136,47 +136,65 @@ export default class ReviewThreads {
     }
 
     private static generate(project: Project, review: Review, template: "Initial"|"Updated", member?: GuildMember) {
-        const content = ReviewThreads.renderTemplate({ review, project, member, template });
-        const image = cardAsAttachment(review.card);
-        const allowedMentions = { parse: ["users"] };
-        // Segments the decks string into rows of 3, separated by ", "
-        const decksString = review.decks.map((deck, index, decks) => `[Deck ${index + 1}](${deck})${(index + 1) === decks.length ? "" : ((index + 1) % 3 ? ", " : "\n")}`).join("");
-        const embed = new EmbedBuilder()
-            .setAuthor({ name: `Review by ${review.reviewer} (click to submit your own)`, iconURL: icons.reviewer, url: project.formUrl })
-            .setColor(colors.Review)
-            .setFields([
-                {
-                    name: "✦ ThronesDB Deck(s)",
-                    value: decksString,
-                    inline: true
-                },
-                {
-                    name: "✦ Date of Review",
-                    value: review.date.toLocaleDateString("en-GB"),
-                    inline: true
-                },
-                {
-                    name: "✦ Games played",
-                    value: review.played.toString(),
-                    inline: true
-                },
-                {
-                    name: "✦ Statements (agree/disagree)",
-                    value: discordify(Object.entries(review.statements).map(([statement, answer]) => `- <b>${Reviews.StatementQuestions[statement]}</b>: <i>${answer}</i> ${emojis[answer]}`).join("\n")),
-                    inline: true
-                },
-                {
+        try {
+            const content = ReviewThreads.renderTemplate({ review, project, member, template });
+            const image = cardAsAttachment(review.card);
+            const allowedMentions = { parse: ["users"] };
+            // Segments the decks string into rows of 3, separated by ", "
+            const decksString = review.decks.map((deck, index, decks) => `[Deck ${index + 1}](${deck})${(index + 1) === decks.length ? "" : ((index + 1) % 3 ? ", " : "\n")}`).join("");
+            const embeds = [
+                new EmbedBuilder()
+                    .setAuthor({ name: `Review by ${review.reviewer}`, iconURL: icons.reviewer })
+                    .setColor(colors.Review)
+                    .setFields([
+                        {
+                            name: "✦ ThronesDB Deck(s)",
+                            value: decksString,
+                            inline: true
+                        },
+                        {
+                            name: "✦ Games played",
+                            value: review.played.toString(),
+                            inline: true
+                        },
+                        {
+                            name: "✦ Submit your own!",
+                            value: `[Click here](${project.formUrl})`,
+                            inline: true
+                        },
+                        {
+                            name: "✦ Statements (agree/disagree)",
+                            value: discordify(Object.entries(review.statements).map(([statement, answer]) => `- <b>${Reviews.StatementQuestions[statement]}</b>: <i>${answer}</i> ${emojis[answer]}`).join("\n")),
+                            inline: true
+                        }
+                    ])
+            ];
+
+            if (review.additional && review.additional.length > 1024) {
+                embeds.push(new EmbedBuilder()
+                    .setAuthor({ name: "✦ Additional Comments (extended)" })
+                    .setColor(colors.Review)
+                    .setDescription(review.additional));
+            } else {
+                embeds[0].addFields([{
                     name: "✦ Additional Comments",
                     value: review.additional || discordify("<i>None provided</i>")
-                }
-            ]);
+                }]);
+            }
 
-        return {
-            content,
-            files: [image],
-            allowedMentions,
-            embeds: [embed]
-        } as BaseMessageOptions;
+            // Put timestamp on last embed
+            embeds[embeds.length - 1].setTimestamp(review.date);
+
+            return {
+                content,
+                files: [image],
+                allowedMentions,
+                embeds
+            } as BaseMessageOptions;
+        } catch (err) {
+            const error = JSON.stringify(err);
+            throw new Error(`Failed to generate review message for discord: ${error}`);
+        }
     }
 
     private static renderTemplate(data: ejs.Data) {
