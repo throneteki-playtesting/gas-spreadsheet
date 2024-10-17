@@ -329,7 +329,11 @@ const command = {
             const [project] = await dataService.projects.read({ codes: [projectId] });
             // Get reviews from the form, not from the spreadsheet (as it contains all responses)
             const response = await GASAPI.get(`${project.script}/form${params.length > 0 ? `?${params.join("&")}` : ""}`) as FormController.GASReadFormReviews;
-            const reviews = await Review.fromModels(...response.reviews);
+
+            // Sort reviews by date (latest first), then distinct the list (keeping first reviews, thus the "latest")
+            // This ensures that only the latest version of that review (by _id) is being saved
+            const distinct = response.reviews.sort((r1, r2) => r2.epoch - r1.epoch).filter((r, i, a) => a.findIndex((rv) => rv._id === r._id) === i);
+            const reviews = await Review.fromModels(...distinct);
 
             await dataService.reviews.update({ reviews, upsert: true });
 
