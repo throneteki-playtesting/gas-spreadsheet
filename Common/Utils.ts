@@ -9,16 +9,16 @@ namespace Utils {
     export const Regex = {
         Card: {
             id: {
-                full: /^\d+@\d+.\d+.\d+$/,
-                optional: /^\d+(?:@\d+.\d+.\d+)?$/
+                full: /^\d+@\d+\.\d+\.\d+$/,
+                optional: /^\d+(?:@\d+\.\d+\.\d+)?$/
             }
         },
         Review: {
             id: {
-                full: /^\w+@\d+@\d+.\d+.\d+$/
+                full: /^\w+@\d+@\d+\.\d+\.\d+$/
             }
         },
-        SemanticVersion: /^\d+.\d+.\d+$/
+        SemanticVersion: /^\d+\.\d+\.\d+$/
     };
 
     export function titleCase(value: string) {

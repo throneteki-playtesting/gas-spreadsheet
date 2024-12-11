@@ -8,68 +8,50 @@ namespace CardsController {
     export interface GASReadCardsResponse { cards: Cards.Model[] }
     export function doGet(path: string[], e: GoogleAppsScript.Events.DoGet) {
         // TODO: Allow lists of any Cards.Model value, then & them all in the get query to GAS
-        const { filter, ids } = e.parameter;
+        const { latest, ids } = e.parameter;
 
-        const types = filter?.split(",").map((f) => f.trim() as CardSheet);
-        const models = ids?.split(",").map((id) => {
-            const [number, version] = id.split("@");
-            return { number: parseInt(number), version } as Cards.Model;
-        });
-
-        const cards: Cards.Model[] = [];
+        // Reads content from archive, or latest if specified
+        const models = ids?.split(",").map((id: Cards.Id) => Cards.expandId(id) as Cards.Model);
         const readFunc = models ? (values: string[], index: number) => models.some((model) => CardSerializer.instance.filter(values, index, model)) : undefined;
-        doForEachSheet(types, (sheet) => {
-            const reads = sheet.read(readFunc);
-            for (const read of reads) {
-                cards.push(read);
-            };
-        });
-
-        return Controller.sendResponse({
-            request: e,
-            data: { cards } as GASReadCardsResponse
-        });
+        const sheet = latest ? "latest" : "archive";
+        const cards = DataSheet.sheets[sheet].read(readFunc);
+        const response = { request: e, data: { cards } } as Controller.GASResponse<GASReadCardsResponse>;
+        return Controller.sendResponse(response);
     }
 
     export interface GASCreateCardsResponse { created: Cards.Model[] }
     export interface GASUpdateCardsResponse { updated: Cards.Model[] }
     export interface GASDestroyCardsResponse { destroyed: Cards.Model[] }
     export function doPost(path: string[], e: GoogleAppsScript.Events.DoPost) {
-        const cards = JSON.parse(e.postData.contents) as Cards.Model[];
+        const { latest, upsert, ids } = e.parameter;
+        const cards: Cards.Model[] = e.postData ? JSON.parse(e.postData.contents) : undefined;
 
         const action = path.shift();
-        const latest = DataSheet.sheets.latest;
-        const archive = DataSheet.sheets.archive;
         switch (action) {
-            case "create":
-                // Card Create will add a card to archive
-                const c = { request: e, data: { created: [] } } as Controller.GASResponse<GASCreateCardsResponse>;
-                c.data.created.push(...archive.create(cards));
-                return Controller.sendResponse(c);
-            case "update":
-                // Card Update will update the first card it finds, "latest" first
-                const u = { request: e, data: { updated: [] } } as Controller.GASResponse<GASUpdateCardsResponse>;
-                u.data.updated.push(...latest.update(cards, true));
-                const remaining = cards.filter((card) => u.data.updated.some((updated) => card._id !== updated._id));
-                u.data.updated.push(...archive.update(remaining, true));
-                return Controller.sendResponse(u);
-            case "destroy":
-                // Card Destroy will delete a card from archive
-                const d = { request: e, data: { destroyed: [] } } as Controller.GASResponse<GASDestroyCardsResponse>;
-                d.data.destroyed.push(...archive.delete(cards));
-                return Controller.sendResponse(d);
+            case "create": {
+                // Creates cards in archive
+                const created = DataSheet.sheets.archive.create(cards);
+                const response = { request: e, data: { created } } as Controller.GASResponse<GASCreateCardsResponse>;
+                return Controller.sendResponse(response);
+            }
+            case "update": {
+                // Updates cards from archive, or latest if specified
+                const sheet = latest === "true" ? "latest" : "archive" as CardSheet;
+                const isUpsert = upsert === "true";
+                const updated = DataSheet.sheets[sheet].update(cards, false, isUpsert);
+                const response = { request: e, data: { updated } } as Controller.GASResponse<GASUpdateCardsResponse>;
+                return Controller.sendResponse(response);
+            }
+            case "destroy": {
+                // Destroys cards from archive
+                const models = ids?.split(",").map((id: Cards.Id) => Cards.expandId(id) as Cards.Model);
+                const deleteFunc = models ? (values: string[], index: number) => models.some((model) => CardSerializer.instance.filter(values, index, model)) : undefined;
+                const destroyed = DataSheet.sheets.archive.delete(deleteFunc);
+                const response = { request: e, data: { destroyed } } as Controller.GASResponse<GASDestroyCardsResponse>;
+                return Controller.sendResponse(response);
+            }
             default:
                 throw Error(`"${action}" is not a valid card post action`);
-        }
-    }
-
-    function doForEachSheet(types: CardSheet[] = ["archive", "latest"], func: (sheet: DataSheet<Cards.Model>) => void) {
-        // Loop through archive first, so that latest card overrides any identical cards from archive.
-        // This is relevant for the latest non-initial version of each card, where it is saved in both latest & archive
-        for (const type of ["archive", "latest"] as CardSheet[]) {
-            if (types.includes(type)) {
-                func(DataSheet.sheets[type]);
-            }
         }
     }
 }

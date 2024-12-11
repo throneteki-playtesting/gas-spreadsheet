@@ -252,7 +252,7 @@ class Card {
      *  @returns True if this card has been implemented online
      */
     get isImplemented() {
-        return this.github ? this.github.status === "closed" : this.isPlaytesting;
+        return this.isNewlyImplemented || this.isPlaytesting;
     }
     /**
      * @returns True if this card has been implemented online after the previous playtesting update
@@ -276,7 +276,7 @@ class Card {
      *  @returns True if this card has been changed (eg. not in its initial or currently playtested state)
      */
     get isChanged() {
-        return this.note && this.note.type !== "Implemented";
+        return !!this.note && this.note.type !== "Implemented";
     }
 
     get needsIssue() {
@@ -287,7 +287,7 @@ class Card {
      * @returns True if this card has all data ready to be released
      */
     get isReleasable() {
-        return this.release && this.release && this.release;
+        return !!this.release;
     }
 
     public static schema = {

@@ -143,14 +143,20 @@ class GithubService {
 
     private async getIssues(project: Project) {
         const results: components["schemas"]["issue-search-result-item"][] = [];
-        const query = `repo:${this.repoDetails.owner}/${this.repoDetails.repo} is:issue label:automated ${project.short} in:title milestone:"${project.name} Development"`;
+        const queryList = [
+            `repo:${this.repoDetails.owner}/${this.repoDetails.repo}`,
+            "is:issue",
+            "label:automated",
+            `milestone:"${project.name} Development"`,
+            `${project.short} in:title`
+        ];
 
         const perPage = 100;
         let page = 1;
         let response: OctokitResponse<{ total_count: number; incomplete_results: boolean; items: components["schemas"]["issue-search-result-item"][]; }, 200>;
         do {
             response = await this.client.rest.search.issuesAndPullRequests({
-                q: query,
+                q: queryList.join(" "),
                 per_page: perPage,
                 page
             });
@@ -223,16 +229,25 @@ class GithubService {
         return null;
     }
 
-    private async getPullRequests(project: Project) {
+    private async getPullRequests(project: Project, includeTitle: boolean = false) {
         const results: components["schemas"]["issue-search-result-item"][] = [];
-        const query = `repo:${this.repoDetails.owner}/${this.repoDetails.repo} is:pr label:automated milestone:"${project.name} Development"`;
+        const queryList = [
+            `repo:${this.repoDetails.owner}/${this.repoDetails.repo}`,
+            "is:pr",
+            "label:automated",
+            `milestone:"${project.name} Development"`
+        ];
+
+        if (includeTitle) {
+            queryList.push(`${project.short} | Playtesting Update ${project.releases + 1}`);
+        }
 
         const perPage = 100;
         let page = 1;
         let response: OctokitResponse<{ total_count: number; incomplete_results: boolean; items: components["schemas"]["issue-search-result-item"][]; }, 200>;
         do {
             response = await this.client.rest.search.issuesAndPullRequests({
-                q: query,
+                q: queryList.join(" "),
                 per_page: perPage,
                 page
             });
@@ -241,6 +256,11 @@ class GithubService {
         } while (response.data.incomplete_results);
 
         return results;
+    }
+
+    public async isLatestPRMerged(project: Project) {
+        const prs = await this.getPullRequests(project, true);
+        return prs.some((pr) => pr.state === "closed");
     }
 }
 

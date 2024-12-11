@@ -5,7 +5,7 @@ import { Collection, MongoClient } from "mongodb";
 import Card from "../Models/Card";
 import { IRepository } from "..";
 import { CardsController } from "@/GoogleAppScript/Controllers/CardsController";
-import { GASAPI, logger, renderService } from "../../Services";
+import { dataService, GASAPI, githubService, logger, renderService } from "../../Services";
 import { Utils } from "@/Common/Utils";
 import { Cards } from "@/Common/Models/Cards";
 
@@ -46,45 +46,56 @@ export default class CardsRepository implements IRepository<Card> {
         await this.spreadsheet.update({ cards, upsert });
     }
 
+    // TODO: Clean up logic here so that "matchers" is ALWAYS required to delete anything (eg. no more "empty matchers = delete all"... thats dangerous!)
     public async destroy({ matchers }: { matchers: Cards.Matcher[] }) {
         await this.database.destroy({ matchers });
         await this.spreadsheet.destroy({ matchers });
     }
 
-    // TODO: Refine this closer to playtesting release time
-    // public async publishCards(projectShort: string, numbers: number[] = []) {
-    //     const toUpdate = new Set<Card>();
-    //     const toArchive = new Set<Card>();
-    //     const implemented = new Set<Card>();
+    /**
+     * Finalises cards and projects from a recent playtesting release
+     * @param projectId: Id for project which needs it's latest update finalised
+     * @returns An object?
+     */
+    public async finalise(projectId: number) {
+        const toUpdate: Card[] = [];
+        const toArchive: Card[] = [];
 
-    //     const cards = await this.readCards({ projectShort, ids: numbers.map((number) => ({ number })), refresh: true });
-    //     const groups = this.groupCardHistory(cards);
-    //     for (const group of groups) {
-    //         // If card has a marked change
-    //         if (group.latest.isChanged) {
-    //             if (group.latest.development.versions.current !== group.latest.development.versions.playtesting) {
-    //                 toArchive.add(group.latest.clone());
-    //                 group.latest.development.versions.playtesting = group.latest.development.versions.current;
-    //             }
+        const [project] = await dataService.projects.read({ codes: [projectId] });
+        if (!await githubService.isLatestPRMerged(project)) {
+            throw Error(`Playtesting Update ${project.releases + 1} PR either does not exist, or is not merged into playtesting branch`);
+        }
+        const cards = await this.read({ matchers: [{ projectId }] });
+        const latestCards = groupCardHistory(cards).map((group) => group.latest);
+        for (const latest of latestCards) {
+            // If card has any sort of change, it must be marked to update and/or archive
+            if (latest.isChanged || latest.isNewlyImplemented) {
+                if (latest.version !== latest.playtesting) {
+                    const cloned = latest.clone();
+                    toArchive.push(cloned);
+                    latest.playtesting = latest.version;
+                }
 
-    //             delete group.latest.development.note;
-    //             toUpdate.add(group.latest);
-    //         }
+                // If card has been implemented, remove the github issue details
+                if (latest.isNewlyImplemented) {
+                    delete latest.github;
+                }
 
-    //         if (group.latest.isImplemented) {
-    //             delete group.latest.development.github;
-    //             implemented.add(group.latest);
-    //         }
-    //     }
+                delete latest.note;
+                toUpdate.push(latest);
+            }
+        }
 
-    //     dataService.updateCards({ cards: Array.from(toUpdate) });
-    //     dataService.createCards({ projectShort, cards: Array.from(toArchive), filter: ["archive"] });
-    //     // TODO: Something with "Implemented"?
-    //     return {
-    //         archived: Array.from(toArchive),
-    //         updated: Array.from(toUpdate)
-    //     };
-    // }
+        if (toUpdate.length > 0) {
+            await dataService.cards.update({ cards: Array.from(toUpdate) });
+
+            project.releases++;
+            await dataService.projects.update({ projects: [project] });
+        }
+        return {
+            updated: Array.from(toUpdate)
+        };
+    }
 }
 
 class CardMongoDataSource implements MongoDataSource<Card> {
@@ -176,11 +187,11 @@ class CardGASDataSource implements GASDataSource<Card> {
         return read;
     }
 
-    public async update({ cards, upsert = true }: { cards: Card[], upsert?: boolean }) {
+    public async update({ cards, upsert = false, latest = false }: { cards: Card[], upsert?: boolean, latest?: boolean }) {
         const groups = Map.groupBy(cards, (card) => card.project);
         const updated: Card[] = [];
         for (const [project, pCards] of groups.entries()) {
-            const url = `${project.script}/cards/update?upsert=${upsert ? "true" : "false"}`;
+            const url = `${project.script}/cards/update?upsert=${upsert ? "true" : "false"}&latest=${latest ? "true" : "false"}`;
             const models = await Card.toModels(...pCards);
             const body = JSON.stringify(models);
 
@@ -200,8 +211,10 @@ class CardGASDataSource implements GASDataSource<Card> {
             const ids = pModels.filter((has) => has.number).map((pm) => !pm.version ? `${pm.number}` : `${pm.number}@${pm.version}` as Cards.Id);
             const url = `${project.script}/cards/destroy${ids ? `?ids=${ids.join(",")}` : ""}`;
 
-            const response = await GASAPI.get<CardsController.GASDestroyCardsResponse>(url);
-            destroyed.push(...await Card.fromModels(...response.destroyed));
+            const response = await GASAPI.post<CardsController.GASDestroyCardsResponse>(url);
+            if (response.destroyed.length > 0) {
+                destroyed.push(...await Card.fromModels(...response.destroyed));
+            }
             logger.verbose(`${destroyed.length} card(s) deleted in Google App Script (${project.name})`);
         }
         return destroyed;

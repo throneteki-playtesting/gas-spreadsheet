@@ -51,8 +51,8 @@ export default class GoogleAppsScriptAPI {
         return await this.fetch<T>(url, { method: "GET" });
     }
 
-    public async post<T>(url: string, body: BodyInit) {
-        return await this.fetch<T>(url, { method: "POST", body });
+    public async post<T>(url: string, body?: BodyInit) {
+        return await this.fetch<T>(url, { method: "POST", ...(body && { body }) });
     }
 
     public async getProject(projectId: Projects.Id) {

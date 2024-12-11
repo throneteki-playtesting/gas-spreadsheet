@@ -1,4 +1,5 @@
 import { API } from "../API";
+import { Log } from "../CloudLogger";
 import { Forms } from "../Forms/Form";
 import { GooglePropertiesType, Settings } from "../Settings";
 import { DataSheet } from "./DataSheets";
@@ -39,6 +40,13 @@ function setAPIKey() {
     return API.setAPIKey();
 }
 
+function processPendingEdits() {
+    for (const sheet of Object.values(DataSheet.sheets)) {
+        Log.information(`Manually processing pending edits for ${sheet.sheet.getName()}...`);
+        sheet.processPendingEdits();
+    }
+}
+
 // eslint-disable-next-line @typescript-eslint/no-namespace
 namespace Trigger {
     export function edit(e: GoogleAppsScript.Events.SheetsOnEdit) {
@@ -56,6 +64,7 @@ namespace Trigger {
             ui.createMenu("Admin Tools")
                 .addItem("Set API key", "setAPIKey")
                 .addItem("Initialise/Sync Project", "initialiseProject")
+                .addItem("Push spreadsheet changes", "processPendingEdits")
             //     // .addSubMenu(
             //     //     ui.createMenu("Development")
             //     //         .addSubMenu(
@@ -114,5 +123,6 @@ export {
     onEdited,
     onFormSubmit,
     initialiseProject,
-    setAPIKey
+    setAPIKey,
+    processPendingEdits
 };

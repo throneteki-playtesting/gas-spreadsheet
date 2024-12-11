@@ -2,10 +2,12 @@ import { AutocompleteInteraction, ChatInputCommandInteraction } from "discord.js
 import { dataService, logger } from "../../Services";
 import refresh from "./refresh";
 import sync from "./sync";
+import finalise from "./finalise";
 
 export const commands = {
     sync,
-    refresh
+    refresh,
+    finalise
 };
 
 export class FollowUpHelper {

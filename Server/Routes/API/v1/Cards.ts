@@ -115,40 +115,49 @@ router.post("/", celebrate({
         }
     };
     logger.verbose(`Recieved ${cards.length} card update(s) from sheets`);
-    const { database, spreadsheet } = cards.reduce((data, card) => {
-        // If a card is in a draft state, we do not want to update it on server.
-        // We DO however want to ensure the version is being updated appropriately on spreadsheet...
-        if (!!card.playtesting && card.isDraft) {
-            const expectedVersion = inc(card.playtesting, incType(card.note.type));
-            if (card.version !== expectedVersion) {
-                const draft = card.clone();
-                card.version = draft.version = inc(card.playtesting, incType(card.note.type)) as SemanticVersion;
-                // Increment the id only for database insert (draft sent to spreadsheet needs old ID to update)
-                card._id = `${card.code}@${card.version}`;
+    const latest: Card[] = [];
+    const upsert: Card[] = [];
+    const destroy: Cards.Matcher[] = [];
 
-                data.spreadsheet.push(draft);
-            }
-        } else if (!!card.playtesting && card.version !== card.playtesting) {
-            card.version = card.playtesting;
-            data.spreadsheet.push(card);
-        } else {
-            data.database.push(card);
+    for (const card of cards) {
+        // If card is not in playtesting, push updates
+        if (!card.playtesting) {
+            upsert.push(card);
         }
-        return data;
-    }, { database: [], spreadsheet: [] } as { database: Card[], spreadsheet: Card[] });
 
-    const result = await dataService.cards.database.update({ cards: database });
-    if (spreadsheet.length > 0) {
-        const sheetResult = await dataService.cards.spreadsheet.update({ cards: spreadsheet });
-        for (const card of sheetResult) {
-            const previous = spreadsheet.find((p) => card.id === `${p.number}@${p.version}`);
-            if (previous) {
-                logger.info(`Adjusted draft version: ${previous.id} -> ${card.id}`);
+        // If card is currently being drafted (eg. edited)
+        if (card.isDraft) {
+            const expectedVersion = inc(card.playtesting, incType(card.note.type));
+            // If it's version has not been incremented, increment it, and push new id card to database/archive
+            if (card.version !== expectedVersion) {
+                const newCard = card.clone();
+                // Latest needs old "_id" to properly update, whilst archive & database need new "_id" to properly insert
+                card.version = newCard.version = inc(card.playtesting, incType(card.note.type)) as SemanticVersion;
+                newCard._id = `${newCard.code}@${newCard.version}`;
+                upsert.push(newCard);
+            } else {
+                upsert.push(card);
             }
+            // Either way, push changes to latest to properly sync
+            latest.push(card);
+        }
+        // If versions do not match (and is not in draft), then a draft has been reverted, and thus should be deleted in database/archive, and version reverted in latest
+        else if (card.version !== card.playtesting) {
+            destroy.push({ projectId: card.project._id, number: card.number, version: card.version });
+            card.version = card.playtesting;
+            latest.push(card);
         }
     }
+
+    await dataService.cards.update({ cards: upsert, upsert: true });
+    if (destroy.length > 0) {
+        await dataService.cards.destroy({ matchers: destroy });
+    }
+    await dataService.cards.spreadsheet.update({ cards: latest, latest: true });
+
     res.send({
-        updated: result
+        updated: upsert.length + latest.length,
+        deleted: destroy.length
     });
 }));
 

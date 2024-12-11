@@ -171,13 +171,14 @@ export class DataSheet<Model> {
         return updated;
     }
 
-    public delete(models: Model[]) {
-        if (this.maxRows <= 0 || models.length === 0) {
+    public delete(filter: (values: string[], index: number, model?: Model) => boolean = this.serializer.filter) {
+        if (this.maxRows <= 0) {
             return [];
         }
 
         // Fetch all rows (as needs to be filtered)
         const range = this.sheet.getRange(this.firstRow, this.firstColumn, this.maxRows, this.maxColumns);
+        const richTextValueMatrix = range.getRichTextValues();
         const valueMatrix = range.getValues();
 
         const deleted: Model[] = [];
@@ -186,8 +187,7 @@ export class DataSheet<Model> {
         for (let i = 0 ; i < valueMatrix.length ; i++) {
             const values = valueMatrix[i];
 
-            const matched = models.find((model) => this.serializer.filter(values, i, model));
-            if (matched) {
+            if (filter(values, i)) {
                 if (this.type === "static") {
                     throw Error(`You cannot delete rows on static data sheet "${this.sheet.getName()}"`);
                 }
@@ -196,7 +196,19 @@ export class DataSheet<Model> {
                 group.push(values);
                 setMap.set(startGroupRow, group);
 
-                deleted.push(matched);
+                // Build deleting row to send back as result
+                const rowValues: string[] = [];
+                const richTextValues = richTextValueMatrix[i];
+                for (let j = 0 ; j < values.length ; j++) {
+                    const richTextValue = richTextValues[j];
+                    if (!this.serializer.richTextColumns.includes(j) || richTextValue === null || richTextValue.getText() === "") {
+                        const value = values[j];
+                        rowValues.push(value);
+                    } else {
+                        rowValues.push(DataParser.toString(richTextValue));
+                    }
+                }
+                deleted.push(this.serializer.deserialize(rowValues, i));
             } else if (startGroupRow !== undefined) {
                 startGroupRow = undefined;
             }
@@ -252,15 +264,25 @@ export class DataSheet<Model> {
 
         // Then check if edits should be pushed
         const latestBatchEdit = cache.get(cacheKey);
-        const [lastEditDate, rangesString] = latestBatchEdit?.split("|") || [];
+        const [lastEditDate] = latestBatchEdit?.split("|") || [];
         // If this edit's date is the current batch date, then it is the most recent change
-        if (lastEditDate === editDate) {
+        if (lastEditDate && lastEditDate === editDate) {
+            Log.information(`Automatically processing pending edits for ${this.sheet.getName()}...`);
+            this.processPendingEdits();
+        }
+    }
+
+    public processPendingEdits() {
+        const cache = CacheService.getDocumentCache();
+        const cacheKey = `editBatch_${this.sheet.getName()}`;
+        const latestBatchEdit = cache.get(cacheKey);
+        const [lastEditDate, rangesString] = latestBatchEdit?.split("|") || [];
+        if (lastEditDate) {
             cache.remove(cacheKey);
             const editRanges = rangesString.split(",").map((str) => {
                 const [from, to] = str.split(":");
                 return { from: parseInt(from), to: parseInt(to) };
             });
-            Log.information(`Batch edit triggered with ${editRanges.length} ranges`);
             const edited = this.read((values: unknown[], index: number) => editRanges.some(({ from, to }) => (index + 1) >= from && (index + 1) <= to));
             if (edited.length > 0) {
                 const subUrl = this.resource;

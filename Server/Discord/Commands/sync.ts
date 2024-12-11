@@ -304,8 +304,8 @@ const command = {
             const body = JSON.stringify({ reviewers, cards: cardNames });
             const response = await GASAPI.post<FormController.GASSetFormValuesResponse>(`${project.script}/form`, body);
 
-            if (response.success) {
-                const content = `Successfully synced ${reviewers.length} reviewers & ${cardNames.length} cards with form`;
+            if (response.cards > 0 || response.reviewers > 0) {
+                const content = `Successfully synced ${response.reviewers} reviewers & ${response.cards} cards with form`;
                 await FollowUpHelper.success(interaction, content);
             } else {
                 const content = "Failed to sync form values";
