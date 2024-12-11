@@ -322,7 +322,10 @@ class Card {
         }),
         note: Joi.object({
             type: Joi.string().required().valid(...Cards.noteTypes),
-            text: Joi.string().required()
+            text: Joi.string().when("type", {
+                is: Joi.not("Implemented"),
+                then: Joi.required()
+            })
         }),
         playtesting: Joi.string().regex(Utils.Regex.SemanticVersion),
         github: Joi.object({
