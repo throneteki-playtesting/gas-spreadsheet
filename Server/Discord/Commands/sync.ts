@@ -1,6 +1,6 @@
 import { AutocompleteInteraction, ChatInputCommandInteraction, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
 import { Command } from "../DeployCommands";
-import { dataService, discordService, GASAPI, githubService, logger, renderService } from "../../Services";
+import { dataService, GASAPI, githubService, logger, renderService } from "../../Services";
 import { AutoCompleteHelper, FollowUpHelper } from ".";
 import { FormController } from "@/GoogleAppScript/Controllers/FormController";
 import CardThreads from "../CardThreads";
@@ -218,13 +218,19 @@ const command = {
             const canCreate = interaction.options.getBoolean("create") || false;
 
             const cards = await dataService.cards.read({ matchers: [{ projectId, number }] });
-            const { succeeded, failed } = await CardThreads.sync(guild, canCreate, ...cards);
+            const { created, updated, failed } = await CardThreads.sync(guild, canCreate, ...cards);
 
-            let content = succeeded.length === 1 ? `Successfully synced card: ${succeeded[0].url}` : `${succeeded.length} cards synced.`;
-            if (failed.length > 0) {
-                content += `\n:exclamation: Failed to process the following: ${failed.map((card) => card.toString()).join(", ")}`;
+            const results = [];
+            if (created.length > 0) {
+                results.push(`:asterisk: Created: ${created.map((card) => card._id).join(", ")}`);
             }
-            await FollowUpHelper.success(interaction, content);
+            if (updated.length > 0) {
+                results.push(`:arrow_double_up: Updated: ${updated.map((card) => card._id).join(", ")}`);
+            }
+            if (failed.length > 0) {
+                results.push(`:exclamation: Failed: ${failed.map((card) => card._id).join(", ")}`);
+            }
+            await FollowUpHelper.information(interaction, results.join("\n") || "No actions made");
         }
     },
     issues: {
@@ -315,6 +321,7 @@ const command = {
     },
     reviews: {
         async execute(interaction: ChatInputCommandInteraction) {
+            const guild = interaction.guild;
             const projectId = parseInt(interaction.options.getString("project"));
             const reviewer = interaction.options.getMember("reviewer") || undefined;
             const number = parseInt(interaction.options.getString("card")) || undefined;
@@ -337,17 +344,19 @@ const command = {
 
             await dataService.reviews.update({ reviews, upsert: true });
 
-            let allSucceeded: number = 0;
-            let allFailed: number = 0;
+            const { created, updated, failed } = await ReviewThreads.sync(guild, true, ...reviews);
 
-            const guilds = await discordService.getGuilds();
-            for (const [, guild] of guilds) {
-                const { succeeded, failed } = await ReviewThreads.sync(guild, true, ...reviews);
-                allSucceeded += succeeded.length;
-                allFailed += failed.length;
+            const results = [];
+            if (created.length > 0) {
+                results.push(`:asterisk: Created: ${created.map((card) => card._id).join(", ")}`);
             }
-
-            await FollowUpHelper.information(interaction, `Successfully synced ${allSucceeded}, failed ${allFailed}`);
+            if (updated.length > 0) {
+                results.push(`:arrow_double_up: Updated: ${updated.map((card) => card._id).join(", ")}`);
+            }
+            if (failed.length > 0) {
+                results.push(`:exclamation: Failed: ${failed.map((card) => card._id).join(", ")}`);
+            }
+            await FollowUpHelper.information(interaction, results.join("\n"));
         }
     }
 };

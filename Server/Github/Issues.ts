@@ -26,7 +26,7 @@ type NotePackage = { icons: string, title: string, text: string };
 export class Issue {
     static forCard(project: Project, card: Card) {
         const milestone = project.milestone;
-        const type = card.note?.type || (card.isInitial && !card.isImplemented ? "Implemented" : null);
+        const type = card.note?.type || (card.isPreTesting && !card.isImplemented ? "Implemented" : null);
         if (!type) {
             return null;
         }
@@ -37,7 +37,7 @@ export class Issue {
             note: card.note?.text
         };
         const previousSlimCard = () => {
-            if (card.playtesting) {
+            if (!card.playtesting) {
                 throw Error("Playtesting version is missing or invalid");
             }
             const version = card.playtesting;
@@ -89,8 +89,11 @@ export class Issue {
         const noteTypeOrdered = ["Replaced", "Reworked", "Updated", "Implemented"] as Cards.NoteType[];
         const notesMap = cards.reduce((map, card) => {
             const noteType = card.note?.type;
+            // Only collate cards which have notes on them
             if (noteType && noteTypeOrdered.includes(noteType)) {
                 const icons = [emojis[noteType]];
+                // Some cards can be updated, and can also be implemented in the same update
+                // For these, we need both that note type emoji for that update, plus an "implemented" emoji
                 if (card.isNewlyImplemented && noteType !== "Implemented") {
                     icons.unshift(emojis["Implemented"]);
                 }
@@ -98,14 +101,14 @@ export class Issue {
                 const text = card.note?.text || null;
 
                 const current = map.get(noteType) || [];
-                current.push({ icons: icons.join(), title, text });
+                current.push({ icons: icons.join(""), title, text });
                 map.set(noteType, current);
             }
             return map;
         }, new Map<Cards.NoteType, NotePackage[]>());
 
         const notesLegend = noteTypeOrdered.filter((nt) => notesMap.has(nt)).map((nt) => `${nt} = ${emojis[nt]}`).join(" | ");
-        const notes = Array.from(notesMap.values()).flat();
+        const notes = noteTypeOrdered.map((nt) => notesMap.get(nt)).flat().filter((n) => n);
         const number = project.releases + 1;
         const pdf = {
             all: encodeURI(`${apiUrl}/pdf/${project.code}/${number}_all.pdf`),

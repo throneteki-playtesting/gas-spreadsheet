@@ -1,4 +1,4 @@
-import { BaseMessageOptions, EmbedBuilder, ForumChannel, Guild, GuildForumTag, GuildMember, Message } from "discord.js";
+import { BaseMessageOptions, EmbedBuilder, ForumChannel, Guild, GuildForumTag, GuildMember } from "discord.js";
 import Review from "../Data/Models/Review";
 import Project from "../Data/Models/Project";
 import { Cards } from "@/Common/Models/Cards";
@@ -12,78 +12,114 @@ import { Reviews } from "@/Common/Models/Reviews";
 
 export default class ReviewThreads {
     public static async sync(guild: Guild, canCreate: boolean, ...reviews: Review[]) {
-        const succeeded: Message<true>[] = [];
+        const created: Review[] = [];
+        const updated: Review[] = [];
         const failed: Review[] = [];
         const titleFunc = (review: Review) => `${review.card.number} | ${review.card.toString()} - ${review.reviewer}`;
         try {
             const { channel, projectTags, factionTags } = await ReviewThreads.validateGuild(guild, ...reviews.map((review) => review.card.project));
 
-            const ptArray = Object.values(projectTags);
-            const existingThreads = (await discordService.fetchThreads(channel)).filter((thread) => thread.appliedTags.some((tag) => ptArray.some((pt) => pt.id === tag)));
+            const findReviewThreadFor = async (review: Review) => await discordService.findForumThread(channel, (thread) => thread.appliedTags.some((tag) => projectTags[review.card.project._id].id === tag) && thread.name === titleFunc(review));
+            const autoArchiveDuration = channel.defaultAutoArchiveDuration;
 
             for (const review of reviews) {
                 const project = review.card.project;
 
                 try {
-                    const title = titleFunc(review);
+                    let thread = await findReviewThreadFor(review);
+                    const threadTitle = titleFunc(review);
                     const tags = [projectTags[project._id].id, factionTags[review.card.faction].id];
-                    const member = (await guild.members.fetch({ query: review.reviewer, limit: 1 })).first();
-                    const autoArchiveDuration = channel.defaultAutoArchiveDuration;
-                    const message = ReviewThreads.generate(project, review, "Initial", member);
+                    const member = await discordService.findMemberByName(guild, review.reviewer);
 
-                    // Create new thread (if allowed), or update existing (either update starter msg, or send update msg)
-                    const thread = existingThreads.find((t) => t.name === title);
                     if (!thread) {
+                        // Prevent review thread from being created, but warn it was attempted
                         if (!canCreate) {
+                            logger.warning(`Review thread missing for ${review._id}, but thread creation not allowed`);
                             continue;
                         }
-                        const reason = `Playtesting Review by ${review.reviewer} for ${review.card.toString()}`;
 
-                        const newThread = await channel.threads.create({
-                            name: title,
+                        const reason = `Playtesting Review by ${review.reviewer} for ${review.card.toString()}`;
+                        const message = ReviewThreads.generateInitial(review, member);
+                        thread = await channel.threads.create({
+                            name: threadTitle,
                             reason,
                             message,
                             appliedTags: tags,
                             autoArchiveDuration
                         });
 
-                        const starter = await newThread.fetchStarterMessage();
-                        await starter.pin();
+                        // Pin the first message of the newly-created thread
+                        const starterMessage = await thread.fetchStarterMessage();
+                        await starterMessage.pin();
 
-                        succeeded.push(starter);
+                        created.push(review);
                     } else {
                         const wasArchived = thread.archived;
-                        const starter = await thread.fetchStarterMessage();
-                        const oldContent = starter.content;
-                        const oldEmbeds = starter.embeds;
+                        let starter = await thread.fetchStarterMessage();
+                        const message = ReviewThreads.generateInitial(review, member);
 
-                        if (wasArchived) {
-                            await thread.setArchived(false);
+                        const promises: Promise<unknown>[] = [];
+                        // Edit message regardless, as we must compare the resulting embeds for changes
+                        // This comparison cannot be done on a BaseMessageOptions (eg. "message" object),
+                        // but can be done on discord Messages
+                        promises.push(starter.edit(message));
+                        // Update Title
+                        if (thread.name !== threadTitle) {
+                            promises.push(thread.setName(threadTitle));
                         }
-                        const promises: Promise<unknown>[] = [
-                            thread.setAppliedTags(tags),
-                            thread.setAutoArchiveDuration(autoArchiveDuration),
-                            thread.setName(title),
-                            starter.edit(message),
-                            ...(!starter.pinned ? [starter.pin()] : [])
-                        ];
-
-                        await Promise.all(promises);
-                        if (wasArchived) {
-                            await thread.setArchived(true);
+                        // Update pinned-ness
+                        if (!starter.pinned && starter.pinnable) {
+                            promises.push(starter.pin());
+                        }
+                        // Update tags
+                        if (thread.appliedTags.length !== tags.length || tags.some((lt) => !thread.appliedTags.includes(lt))) {
+                            promises.push(thread.setAppliedTags(tags));
+                        }
+                        // Update auto archive duration
+                        if (thread.autoArchiveDuration !== autoArchiveDuration) {
+                            promises.push(thread.setAutoArchiveDuration(autoArchiveDuration));
                         }
 
-                        const newStarter = await thread.fetchStarterMessage();
-                        const newContent = newStarter.content;
-                        const newEmbeds = newStarter.embeds;
+                        if (promises.length > 0) {
+                            if (wasArchived) {
+                                await thread.setArchived(false);
+                            }
+                            await Promise.all(promises);
+                            if (wasArchived) {
+                                await thread.setArchived(true);
+                            }
+                            const oldStarter = starter;
+                            starter = await thread.fetchStarterMessage();
 
-                        // If the content has changed, or the embed fields have changed, send an update message
-                        if (oldContent !== newContent || oldEmbeds.some((embed, ei) => embed.fields.some((field, fi) => field.value !== newEmbeds[ei].fields[fi].value))) {
-                            // TODO: Collect what changed & present on update message; may need previous review
-                            const content = ReviewThreads.renderTemplate({ review, project, member, template: "Updated" });
-                            await thread.send({ content });
+                            const changed: string[] = [];
+                            // IMPORTANT: If the structure of a review is to change, this needs to be updated!!!
+                            const decks1 = oldStarter.embeds[0].fields[0].value;
+                            const decks2 = starter.embeds[0].fields[0].value;
+                            if (decks1 !== decks2) {
+                                changed.push(`ThronesDB Deck(s): <i>${decks1} -> ${decks2}</i>`);
+                            }
+                            const played1 = oldStarter.embeds[0].fields[1].value;
+                            const played2 = starter.embeds[0].fields[1].value;
+                            if (played1 !== played2) {
+                                changed.push(`Games Played: <i>${played1} -> ${played2}</i>`);
+                            }
+                            const statements1 = oldStarter.embeds[0].fields[3].value;
+                            const statements2 = starter.embeds[0].fields[3].value;
+                            if (statements1 !== statements2) {
+                                changed.push("Statements (agree/disagree): <i>Changed</i>");
+                            }
+                            const additional1 = oldStarter.embeds[0].fields.length > 4 ? oldStarter.embeds[0].fields[4].value : oldStarter.embeds[1].fields[0].value;
+                            const additional2 = starter.embeds[0].fields.length > 4 ? starter.embeds[0].fields[4].value : starter.embeds[1].fields[0].value;
+                            if (additional1 !== additional2) {
+                                changed.push("Additional Comments: <i>Changed</i>");
+                            }
+
+                            if (changed.length > 0) {
+                                const updatedMessage = ReviewThreads.generateUpdated(review, changed, member);
+                                await thread.send(updatedMessage);
+                            }
+                            updated.push(review);
                         }
-                        succeeded.push(starter);
                     }
                 } catch (err) {
                     logger.error(err);
@@ -94,7 +130,7 @@ export default class ReviewThreads {
             throw Error(`Failed to sync card threads for forum "${guild.name}"`, { cause: err });
         }
 
-        return { succeeded, failed };
+        return { created, updated, failed };
     }
 
     private static async validateGuild(guild: Guild, ...projects: Project[]) {
@@ -135,13 +171,14 @@ export default class ReviewThreads {
         return { channel, projectTags, factionTags };
     }
 
-    private static generate(project: Project, review: Review, template: "Initial"|"Updated", member?: GuildMember) {
+    private static generateInitial(review: Review, member?: GuildMember) {
         try {
-            const content = ReviewThreads.renderTemplate({ review, project, member, template });
-            const image = cardAsAttachment(review.card);
+            const content = ReviewThreads.renderTemplate({ review, project: review.card.project, member, template: "Initial" });
             const allowedMentions = { parse: ["users"] };
+            const image = cardAsAttachment(review.card);
             // Segments the decks string into rows of 3, separated by ", "
             const decksString = review.decks.map((deck, index, decks) => `[Deck ${index + 1}](${deck})${(index + 1) === decks.length ? "" : ((index + 1) % 3 ? ", " : "\n")}`).join("");
+            // IMPORTANT: If the structure of these embeds is to change, review/update "getDetails" function
             const embeds = [
                 new EmbedBuilder()
                     .setAuthor({ name: `Review by ${review.reviewer}`, iconURL: icons.reviewer })
@@ -159,7 +196,7 @@ export default class ReviewThreads {
                         },
                         {
                             name: "✦ Submit your own!",
-                            value: `[Click here](${project.formUrl})`,
+                            value: `[Click here](${review.card.project.formUrl})`,
                             inline: true
                         },
                         {
@@ -192,8 +229,21 @@ export default class ReviewThreads {
                 embeds
             } as BaseMessageOptions;
         } catch (err) {
-            const error = JSON.stringify(err);
-            throw new Error(`Failed to generate review message for discord: ${error}`);
+            throw new Error(`Failed to generate initial discord review message for ${review._id}`, { cause: err });
+        }
+    }
+
+    private static generateUpdated(review: Review, changed: string[], member: GuildMember) {
+
+        try {
+            const content = ReviewThreads.renderTemplate({ review, project: review.card.project, member, changed, template: "Updated" });
+            const allowedMentions = { parse: ["users"] };
+            return {
+                content,
+                allowedMentions
+            } as BaseMessageOptions;
+        } catch (err) {
+            throw new Error(`Failed to generate update discord review message for ${review._id}`, { cause: err });
         }
     }
 

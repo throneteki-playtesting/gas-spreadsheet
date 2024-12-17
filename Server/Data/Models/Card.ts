@@ -223,18 +223,23 @@ class Card {
     get isPreview() {
         return Ver.lt(this.version, "1.0.0") && !this.playtesting;
     }
-
     /**
-     * @returns True if this card has not been pushed to playtesting yet at all
+     * @returns True if this card is the initial "1.0.0" version, and has not been playtested yet
+     */
+    get isPreTesting() {
+        return this.isInitial && !this.playtesting;
+    }
+    /**
+     * @returns True if this card is the inital "1.0.0" version
      */
     get isInitial() {
-        return Ver.eq(this.version, "1.0.0") && !this.playtesting;
+        return Ver.eq(this.version, "1.0.0");
     }
     /**
      * @returns True if the card is in a draft state (eg. it is currently being edited, but not pushed to playtesting yet)
      */
     get isDraft() {
-        return this.isPreview || this.isInitial || this.isChanged;
+        return this.isPreview || this.isPreTesting || this.isChanged;
     }
     /**
      * @returns True if this card is currently the version being playtested
@@ -246,7 +251,7 @@ class Card {
      *  @returns True if this card is being or needs to be implemented online
      */
     get requiresImplementation() {
-        return this.github ? this.github.status !== "closed" : this.isInitial || this.isChanged;
+        return this.github ? this.github.status !== "closed" : this.isPreTesting || this.isChanged;
     }
     /**
      *  @returns True if this card has been implemented online
@@ -260,18 +265,6 @@ class Card {
     get isNewlyImplemented() {
         return this.github?.status === "closed";
     }
-    // /**
-    //  * @returns True if this card is currently the version being playtested
-    //  */
-    // get isBeingPlaytested() {
-    //     return this.development.versions.playtesting && eq(this.development.versions.current, this.development.versions.playtesting);
-    // }
-    // /**
-    //  * @returns True if this card is the pre 0.0.0 version
-    //  */
-    // get isPreview() {
-    //     return eq(this.development.versions.current, "0.0.0");
-    // }
     /**
      *  @returns True if this card has been changed (eg. not in its initial or currently playtested state)
      */
@@ -280,7 +273,7 @@ class Card {
     }
 
     get needsIssue() {
-        return !this.github && (this.isInitial || this.isChanged);
+        return !this.github && (this.isPreTesting || this.isChanged);
     }
 
     /***

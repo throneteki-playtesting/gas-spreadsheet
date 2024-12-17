@@ -15,18 +15,21 @@ router.post("/", celebrate({
 
     await dataService.reviews.update({ reviews, upsert: true });
 
-    let allSucceeded: number;
-    let allFailed: number;
+    const allCreated = [];
+    const allUpdated = [];
+    const allFailed = [];
 
     const guilds = await discordService.getGuilds();
     for (const [, guild] of guilds) {
-        const { succeeded, failed } = await ReviewThreads.sync(guild, true, ...reviews);
-        allSucceeded += succeeded.length;
-        allFailed += failed.length;
+        const { created, updated, failed } = await ReviewThreads.sync(guild, true, ...reviews);
+        allCreated.push(...created);
+        allUpdated.push(...updated);
+        allFailed.push(...failed);
     }
 
     res.send({
-        synced: allSucceeded,
+        created: allCreated,
+        updated: allUpdated,
         failed: allFailed
     });
 }));

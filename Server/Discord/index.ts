@@ -1,7 +1,7 @@
 import { buildCommands, deployCommands } from "./DeployCommands";
 import { commands } from "./Commands";
 import { logger } from "../Services";
-import { Client, ForumChannel, Guild } from "discord.js";
+import { Client, ForumChannel, Guild, ThreadChannel } from "discord.js";
 
 class DiscordService {
     private client: Client;
@@ -78,21 +78,43 @@ class DiscordService {
     public async getGuilds() {
         return this.client.guilds.cache.filter((guild) => this.isValidGuild(guild));
     }
-    /**
-     * Gets existing threads
-     * @param channel Forum channel to check
-     * @param withTags Tags to filer by
-     * @returns List of ThreadChannel's for that Channel & Tags
-     */
-    public async fetchThreads(channel: ForumChannel) {
-        let before = undefined;
-        do {
-            // Caches all fetched to be used later
-            const batch = await channel.threads.fetch({ archived: { fetchAll: true, before } }, { cache: true });
-            before = batch.hasMore ? Math.min(...batch.threads.map(t => t.archivedAt.getTime())) : undefined;
-        } while (before);
 
-        return channel.threads.cache;
+    /**
+     * Finds a forum thread through a function
+     * @param forum Forum to check for threads
+     * @param threadFunc Function to match thread on
+     * @returns The found thread, or null if none can be found within the given Forum Channel
+     */
+    public async findForumThread(forum: ForumChannel, threadFunc: (thread: ThreadChannel) => boolean) {
+        let result = forum.threads.cache.find(threadFunc);
+        // If thread is not found in cache, refresh cache & check again
+        let before = undefined;
+        if (!result) {
+            do {
+                const batch = await forum.threads.fetch({ archived: { fetchAll: true, before } }, { cache: true });
+                before = batch.hasMore ? Math.min(...batch.threads.map(t => t.archivedAt.getTime())) : undefined;
+
+                result = batch.threads.find(threadFunc) as ThreadChannel<true>;
+
+                // Continue if result has no been found, or if "before" is present (eg. batch.hasMore == true)
+            } while (!result && before);
+        }
+
+        return result;
+    }
+
+    /**
+     * Finds a guild member by name
+     * @param guild Guild to search
+     * @param name Name of member
+     * @returns The found GuildMember, or null if none can be found within the given Guild
+     */
+    public async findMemberByName(guild: Guild, name: string) {
+        const result = await guild.members.fetch({ query: name, limit: 1 });
+        if (result.hasAny()) {
+            return result.first();
+        }
+        return null;
     }
 }
 

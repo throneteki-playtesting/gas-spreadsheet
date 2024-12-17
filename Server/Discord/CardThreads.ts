@@ -1,4 +1,4 @@
-import { BaseMessageOptions, EmbedBuilder, ForumChannel, Guild, GuildForumTag, Message, Role, ThreadChannel } from "discord.js";
+import { BaseMessageOptions, EmbedBuilder, ForumChannel, Guild, GuildForumTag, Role, ThreadChannel } from "discord.js";
 import fs from "fs";
 import path from "path";
 import ejs from "ejs";
@@ -12,105 +12,108 @@ import { discordService, logger } from "../Services";
 
 export default class CardThreads {
     public static async sync(guild: Guild, canCreate: boolean, ...cards: Card[]) {
-        // TODO: Add option for historical updating? (eg. update threads that are not latest)
-        const succeeded: Message<true>[] = [];
+        const created: Card[] = [];
+        const updated: Card[] = [];
         const failed: Card[] = [];
+
         const titleFunc = (card: Card) => `${card.number}. ${card.toString()}`;
         try {
             const { channel, taggedRole, projectTags, factionTags, latestTag } = await CardThreads.validateGuild(guild, ...cards.map((card) => card.project));
 
-            // Collect all cards which should have threads on discord
-            const discordReady = cards.filter((card) => card.isPreview || card.isInitial || card.isChanged);
+            const findCardThreadFor = async (card: Card) => await discordService.findForumThread(channel, (thread) => thread.appliedTags.some((tag) => projectTags[card.project._id].id === tag) && thread.name === titleFunc(card));
+            const autoArchiveDuration = channel.defaultAutoArchiveDuration;
+            const groups = groupCardHistory(cards);
 
-            const ptArray = Object.values(projectTags);
-            const existingThreads = (await discordService.fetchThreads(channel)).filter((thread) => thread.appliedTags.some((tag) => ptArray.some((pt) => pt.id === tag)));
-
-            const groups = groupCardHistory(discordReady);
+            // Looping through each card group, we only want to create/update threads for the "latest" version
             for (const group of groups) {
-                const latest = group.latest;
-                const previous = group.previous[0];
-                const project = latest.project;
-
+                const card = group.latest;
                 try {
-                    const title = titleFunc(latest);
-                    const latestTags = [projectTags[project._id].id, factionTags[latest.faction].id, latestTag.id];
-                    const autoArchiveDuration = channel.defaultAutoArchiveDuration;
+                    // Collect card data
+                    let thread = await findCardThreadFor(card);
+                    const threadTitle = titleFunc(card);
+                    const latestTags = [projectTags[card.project._id].id, factionTags[card.faction].id, latestTag.id];
+                    // Collect previous data (if applicable)
+                    const previous = group.previous.length > 0 ? group.previous[0] : null;
+                    const previousThread = previous ? await findCardThreadFor(previous) : null;
+                    const previousTags = previous ? [projectTags[previous.project._id].id, factionTags[previous.faction].id] : null;
 
-                    // Handle logic for previous url
-                    let previousUrl: string = undefined;
-                    let previousThread: ThreadChannel<true> = undefined;
-                    if (!(latest.isPreview || latest.isInitial)) {
-                        if (!previous) {
-                            throw Error(`Previous card for ${latest.toString()} could not be found`);
-                        }
-                        const previousTitle = titleFunc(previous);
-                        previousThread = existingThreads.find((t) => t.name === previousTitle);
-                        if (!previousThread) {
-                            throw Error(`Failed to find previous thread for ${latest.toString()} named "${previousTitle}"`);
-                        }
-
-                        previousUrl = previousThread.url;
-                    }
-
-                    // Create new thread (if allowed), or update existing (either update starter msg, or send update msg)
-                    const thread = existingThreads.find((t) => t.name === title || (latest.isInitial && t.name === `${latest.number}. ${latest.name}`/* Accounting for legacy names */));
                     if (!thread) {
+                        // Prevent card thread from being created, but warn it was attempted
                         if (!canCreate) {
+                            logger.warn(`Card thread missing for ${card._id}, but thread creation not allowed`);
                             continue;
                         }
-                        const reason = `Design Team discussion for ${project.short} #${latest.number}, ${latest.toString()}`;
-                        const message = CardThreads.generate(taggedRole, latest, previousUrl, project);
 
-                        const newThread = await channel.threads.create({
-                            name: title,
+                        const reason = `Design Team discussion for ${card.project.short} #${card.number}, ${card.toString()}`;
+                        const message = CardThreads.generate(taggedRole, card, previousThread);
+                        thread = await channel.threads.create({
+                            name: threadTitle,
                             reason,
                             message,
                             appliedTags: latestTags,
                             autoArchiveDuration
                         });
 
-                        const starter = await newThread.fetchStarterMessage();
+                        // Pin the first message of the newly-created thread
+                        const starter = await thread.fetchStarterMessage();
                         await starter.pin();
 
                         // Check that previous thread has correct tags (eg. NOT "Latest")
-                        if (previousThread.appliedTags.includes(latestTag.id)) {
-                            const previousTags = [projectTags[project._id].id, factionTags[previous.faction].id];
+                        if (previousThread?.appliedTags.includes(latestTag.id)) {
                             await previousThread.setAppliedTags(previousTags);
                         }
 
-                        succeeded.push(starter);
+                        created.push(card);
                     } else {
                         const wasArchived = thread.archived;
                         const starter = await thread.fetchStarterMessage();
-                        const message = CardThreads.generate(taggedRole, latest, previousUrl, project);
+                        const message = CardThreads.generate(taggedRole, card, previousThread);
 
-                        if (wasArchived) {
-                            await thread.setArchived(false);
+                        const promises: Promise<unknown>[] = [];
+                        // Update title
+                        if (thread.name !== threadTitle) {
+                            promises.push(thread.setName(threadTitle));
                         }
-                        const promises: Promise<unknown>[] = [
-                            thread.setAppliedTags(latestTags),
-                            thread.setAutoArchiveDuration(autoArchiveDuration),
-                            thread.setName(title),
-                            starter.edit(message),
-                            ...(!starter.pinned ? [starter.pin()] : [])
-                        ];
+                        // Update content of starter message
+                        if (starter.content !== message) {
+                            promises.push(starter.edit(message));
+                        }
+                        // Update pinned-ness
+                        if (!starter.pinned && starter.pinnable) {
+                            promises.push(starter.pin());
+                        }
+                        // Update tags
+                        if (thread.appliedTags.length !== latestTags.length || latestTags.some((lt) => !thread.appliedTags.includes(lt))) {
+                            promises.push(thread.setAppliedTags(latestTags));
+                        }
+                        // Update auto archive duration
+                        if (thread.autoArchiveDuration !== autoArchiveDuration) {
+                            promises.push(thread.setAutoArchiveDuration(autoArchiveDuration));
+                        }
 
-                        await Promise.all(promises);
-                        if (wasArchived) {
-                            await thread.setArchived(true);
+                        if (promises.length > 0) {
+                            if (wasArchived) {
+                                await thread.setArchived(false);
+                            }
+                            await Promise.all(promises);
+                            if (wasArchived) {
+                                await thread.setArchived(true);
+                            }
+
+                            updated.push(card);
                         }
-                        succeeded.push(starter);
+
                     }
                 } catch (err) {
                     logger.error(err);
-                    failed.push(latest);
+                    failed.push(card);
                 }
             }
         } catch (err) {
             throw Error(`Failed to sync card threads for forum "${guild.name}"`, { cause: err });
         }
 
-        return { succeeded, failed };
+        return { created, updated, failed };
     }
 
     private static async validateGuild(guild: Guild, ...projects: Project[]) {
@@ -163,16 +166,19 @@ export default class CardThreads {
         return { channel, taggedRole, projectTags, factionTags, latestTag };
     }
 
-    private static generate(taggedRole: Role, latest: Card, previousUrl: string, project: Project) {
-        const type = latest.isPreview ? "Preview" : (latest.isInitial ? "Initial" : latest.note.type);
-        const content = CardThreads.renderTemplate({ type, card: latest, previousUrl, project, role: taggedRole });
-        const image = cardAsAttachment(latest);
+    private static generate(taggedRole: Role, card: Card, previousThread?: ThreadChannel<true>) {
+        // If it's a preview, type as "Preview"
+        // If it's either initial or there is no previous thread (meaning it's the 1.0.0 version), then "Initial"
+        // Otherwise, note type
+        const type = card.isPreview ? "Preview" : (card.isInitial ? "Initial" : card.note.type);
+        const content = CardThreads.renderTemplate({ type, card, project: card.project, previousUrl: previousThread?.url || card.code, role: taggedRole });
+        const image = cardAsAttachment(card);
         const allowedMentions = { parse: ["roles"] };
-        const changeNote = latest.note ? new EmbedBuilder()
-            .setColor(colors[latest.faction as string])
+        const changeNote = card.note && card.note.type !== "Implemented" ? new EmbedBuilder()
+            .setColor(colors[card.faction as string])
             .setTitle(`${emojis["ChangeNotes"]} Change Notes`)
             .addFields(
-                { name: `${emojis[latest.note.type]} ${latest.note.type}`, value: latest.note.text }
+                { name: `${emojis[card.note.type]} ${card.note.type}`, value: card.note.text }
             ) : undefined;
 
         return {
