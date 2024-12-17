@@ -8,6 +8,7 @@ import { CardsController } from "@/GoogleAppScript/Controllers/CardsController";
 import { dataService, GASAPI, githubService, logger, renderService } from "../../Services";
 import { Utils } from "@/Common/Utils";
 import { Cards } from "@/Common/Models/Cards";
+import { CardSheet } from "@/GoogleAppScript/Spreadsheets/DataSheets";
 
 export default class CardsRepository implements IRepository<Card> {
     public database: CardMongoDataSource;
@@ -58,7 +59,7 @@ export default class CardsRepository implements IRepository<Card> {
      * @returns An object?
      */
     public async finalise(projectId: number) {
-        const toUpdate: Card[] = [];
+        const toLatest: Card[] = [];
         const toArchive: Card[] = [];
 
         const [project] = await dataService.projects.read({ codes: [projectId] });
@@ -71,9 +72,10 @@ export default class CardsRepository implements IRepository<Card> {
             // If card has any sort of change, it must be marked to update and/or archive
             if (latest.isChanged || latest.isNewlyImplemented) {
                 if (latest.version !== latest.playtesting) {
-                    const cloned = latest.clone();
-                    toArchive.push(cloned);
+                    // Set playtesting to version (for both all copies)
                     latest.playtesting = latest.version;
+                    // Archive clone (with matching version, notes, issues, etc.)
+                    toArchive.push(latest.clone());
                 }
 
                 // If card has been implemented, remove the github issue details
@@ -82,18 +84,24 @@ export default class CardsRepository implements IRepository<Card> {
                 }
 
                 delete latest.note;
-                toUpdate.push(latest);
+                toLatest.push(latest);
             }
         }
+        if (toArchive.length > 0) {
+            // Archive the current version (with notes, issues, etc.)
+            await dataService.cards.database.update({ cards: toArchive });
+            await dataService.cards.spreadsheet.update({ cards: toArchive, sheets: ["archive"] });
+        }
+        if (toLatest.length > 0) {
+            // Update latest with "cleaned" version
+            await dataService.cards.spreadsheet.update({ cards: toLatest, sheets: ["latest"] });
 
-        if (toUpdate.length > 0) {
-            await dataService.cards.update({ cards: Array.from(toUpdate) });
-
+            // Increment project version & update if any were pushed to latest
             project.releases++;
             await dataService.projects.update({ projects: [project] });
         }
         return {
-            updated: Array.from(toUpdate)
+            updated: toArchive
         };
     }
 }
@@ -187,11 +195,11 @@ class CardGASDataSource implements GASDataSource<Card> {
         return read;
     }
 
-    public async update({ cards, upsert = false, latest = false }: { cards: Card[], upsert?: boolean, latest?: boolean }) {
+    public async update({ cards, upsert = false, sheets }: { cards: Card[], upsert?: boolean, sheets?: CardSheet[] }) {
         const groups = Map.groupBy(cards, (card) => card.project);
         const updated: Card[] = [];
         for (const [project, pCards] of groups.entries()) {
-            const url = `${project.script}/cards/update?upsert=${upsert ? "true" : "false"}&latest=${latest ? "true" : "false"}`;
+            const url = `${project.script}/cards/update?upsert=${upsert ? "true" : "false"}${sheets ? `&sheets=${sheets.join(",")}` : ""}`;
             const models = await Card.toModels(...pCards);
             const body = JSON.stringify(models);
 

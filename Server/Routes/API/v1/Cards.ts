@@ -153,7 +153,7 @@ router.post("/", celebrate({
     if (destroy.length > 0) {
         await dataService.cards.destroy({ matchers: destroy });
     }
-    await dataService.cards.spreadsheet.update({ cards: latest, latest: true });
+    await dataService.cards.spreadsheet.update({ cards: latest, sheets: ["latest"] });
 
     res.send({
         updated: upsert.length + latest.length,
