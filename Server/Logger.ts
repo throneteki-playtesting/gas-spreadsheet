@@ -21,7 +21,6 @@ export default class LoggerService {
             winston.format.printf(({ timestamp, level, message }) => `${timestamp} ${level}: ${message}`)
         ];
         return winston.createLogger({
-            level: "info",
             format: winston.format.combine(...baseFormat),
             transports: [
                 new winston.transports.Console({ format: winston.format.combine(...(process.env.NODE_ENV === "production" ? [] : [winston.format.colorize({ level: true })]), ...baseFormat), level: verbose ? "verbose" : "info" }),
