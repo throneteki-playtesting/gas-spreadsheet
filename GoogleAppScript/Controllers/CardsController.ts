@@ -13,6 +13,7 @@ namespace CardsController {
         // Reads content from archive, or latest if specified
         const models = ids?.split(",").map((id: Cards.Id) => Cards.expandId(id) as Cards.Model);
         const readFunc = models ? (values: string[], index: number) => models.some((model) => CardSerializer.instance.filter(values, index, model)) : undefined;
+        // Defaults to "archive" if latest is not given
         const sheet = latest ? "latest" : "archive";
         const cards = DataSheet.sheets[sheet].read(readFunc);
         const response = { request: e, data: { cards } } as Controller.GASResponse<GASReadCardsResponse>;
@@ -23,7 +24,7 @@ namespace CardsController {
     export interface GASUpdateCardsResponse { updated: Cards.Model[] }
     export interface GASDestroyCardsResponse { destroyed: Cards.Model[] }
     export function doPost(path: string[], e: GoogleAppsScript.Events.DoPost) {
-        const { latest, upsert, ids } = e.parameter;
+        const { sheets, upsert, ids } = e.parameter;
         const cards: Cards.Model[] = e.postData ? JSON.parse(e.postData.contents) : undefined;
 
         const action = path.shift();
@@ -35,10 +36,16 @@ namespace CardsController {
                 return Controller.sendResponse(response);
             }
             case "update": {
-                // Updates cards from archive, or latest if specified
-                const sheet = latest === "true" ? "latest" : "archive" as CardSheet;
                 const isUpsert = upsert === "true";
-                const updated = DataSheet.sheets[sheet].update(cards, false, isUpsert);
+                // Update specified sheet(s), or all sheets if none are specified
+                const cardSheets = sheets?.split(",").map((sheet) => sheet as CardSheet) || ["archive"];
+                const updated = [];
+                for (const sheet of cardSheets) {
+                    const sheetUpdates = DataSheet.sheets[sheet].update(cards, false, isUpsert);
+                    // Concat any cards that were updated & not already on updated list (by _id)
+                    const newUpdates = sheetUpdates.filter((tc) => !updated.some((uc) => uc._id === tc._id));
+                    updated.concat(newUpdates);
+                }
                 const response = { request: e, data: { updated } } as Controller.GASResponse<GASUpdateCardsResponse>;
                 return Controller.sendResponse(response);
             }
