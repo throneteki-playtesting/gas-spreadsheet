@@ -54,40 +54,45 @@ export default class ReviewThreads {
 
                         created.push(review);
                     } else {
-                        const wasArchived = thread.archived;
                         let starter = await thread.fetchStarterMessage();
                         const message = ReviewThreads.generateInitial(review, member);
 
-                        const promises: Promise<unknown>[] = [];
+                        const promises: Map<string, Promise<unknown>> = new Map();
                         // Edit message regardless, as we must compare the resulting embeds for changes
                         // This comparison cannot be done on a BaseMessageOptions (eg. "message" object),
                         // but can be done on discord Messages
-                        promises.push(starter.edit(message));
+                        promises.set("Message content", starter.edit(message));
                         // Update Title
                         if (thread.name !== threadTitle) {
-                            promises.push(thread.setName(threadTitle));
+                            promises.set("Title", thread.setName(threadTitle));
                         }
                         // Update pinned-ness
                         if (!starter.pinned && starter.pinnable) {
-                            promises.push(starter.pin());
+                            // Accounting for a possible Discord bug here: for some unknown reason, starter.pin() is causing an exception
+                            // to be thrown below at "await thread.setArchived(false)" saying it cannot pin as the thread is archived.
+                            // This is happening prior to this promise actually running, but re-fetching the starter message and pinning
+                            // that seems to resolve it. Strange, but it works.
+                            promises.set("Pinned", thread.fetchStarterMessage().then((msg) => msg.pin()));
                         }
                         // Update tags
                         if (thread.appliedTags.length !== tags.length || tags.some((lt) => !thread.appliedTags.includes(lt))) {
-                            promises.push(thread.setAppliedTags(tags));
+                            promises.set("Tags", thread.setAppliedTags(tags));
                         }
                         // Update auto archive duration
-                        if (thread.autoArchiveDuration !== autoArchiveDuration) {
-                            promises.push(thread.setAutoArchiveDuration(autoArchiveDuration));
+                        if (autoArchiveDuration && thread.autoArchiveDuration !== autoArchiveDuration) {
+                            promises.set("Auto Archive Duration", thread.setAutoArchiveDuration(autoArchiveDuration));
                         }
 
-                        if (promises.length > 0) {
-                            if (wasArchived) {
+                        if (promises.size > 0) {
+                            // If thread is currently archived, unarchive & re-archive before/after adjustments are made
+                            if (thread.archived) {
                                 await thread.setArchived(false);
-                            }
-                            await Promise.all(promises);
-                            if (wasArchived) {
+                                await Promise.allSettled(promises.values());
                                 await thread.setArchived(true);
+                            } else {
+                                await Promise.allSettled(promises.values());
                             }
+
                             const oldStarter = starter;
                             starter = await thread.fetchStarterMessage();
 
@@ -119,6 +124,7 @@ export default class ReviewThreads {
                                 await thread.send(updatedMessage);
                             }
                             updated.push(review);
+                            logger.verbose(`Updated the following for ${review._id} review thread: ${Array.from(promises.keys()).join(", ")}`);
                         }
                     }
                 } catch (err) {

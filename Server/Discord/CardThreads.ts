@@ -65,42 +65,47 @@ export default class CardThreads {
 
                         created.push(card);
                     } else {
-                        const wasArchived = thread.archived;
                         const starter = await thread.fetchStarterMessage();
                         const message = CardThreads.generate(taggedRole, card, previousThread);
 
-                        const promises: Promise<unknown>[] = [];
+                        const promises: Map<string, Promise<unknown>> = new Map();
                         // Update title
                         if (thread.name !== threadTitle) {
-                            promises.push(thread.setName(threadTitle));
+                            promises.set("Title", thread.setName(threadTitle));
                         }
                         // Update content of starter message
-                        if (starter.content !== message) {
-                            promises.push(starter.edit(message));
+                        if (starter.content !== message.content) {
+                            promises.set("Message content", starter.edit(message));
                         }
                         // Update pinned-ness
                         if (!starter.pinned && starter.pinnable) {
-                            promises.push(starter.pin());
+                            // Accounting for a possible Discord bug here: for some unknown reason, starter.pin() is causing an exception
+                            // to be thrown below at "await thread.setArchived(false)" saying it cannot pin as the thread is archived.
+                            // This is happening prior to this promise actually running, but re-fetching the starter message and pinning
+                            // that seems to resolve it. Strange, but it works.
+                            promises.set("Pinned", thread.fetchStarterMessage().then((msg) => msg.pin()));
                         }
                         // Update tags
                         if (thread.appliedTags.length !== latestTags.length || latestTags.some((lt) => !thread.appliedTags.includes(lt))) {
-                            promises.push(thread.setAppliedTags(latestTags));
+                            promises.set("Tags", thread.setAppliedTags(latestTags));
                         }
                         // Update auto archive duration
-                        if (thread.autoArchiveDuration !== autoArchiveDuration) {
-                            promises.push(thread.setAutoArchiveDuration(autoArchiveDuration));
+                        if (autoArchiveDuration && thread.autoArchiveDuration !== autoArchiveDuration) {
+                            promises.set("Auto Archive Duration", thread.setAutoArchiveDuration(autoArchiveDuration));
                         }
 
-                        if (promises.length > 0) {
-                            if (wasArchived) {
+                        if (promises.size > 0) {
+                            // If thread is currently archived, unarchive & re-archive before/after adjustments are made
+                            if (thread.archived) {
                                 await thread.setArchived(false);
-                            }
-                            await Promise.all(promises);
-                            if (wasArchived) {
+                                await Promise.allSettled(promises.values());
                                 await thread.setArchived(true);
+                            } else {
+                                await Promise.allSettled(promises.values());
                             }
 
                             updated.push(card);
+                            logger.verbose(`Updated the following for ${card._id} card thread: ${Array.from(promises.keys()).join(", ")}`);
                         }
 
                     }
