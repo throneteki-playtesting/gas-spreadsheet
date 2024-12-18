@@ -291,6 +291,13 @@ export class DataSheet<Model> {
             }
         }
     }
+
+    public processAll() {
+        const processing = this.read(() => true);
+        const subUrl = this.resource;
+        const response = API.post(subUrl, processing);
+        Log.information(`${Utils.titleCase(this.resource)} - Posted ${response.updated} rows(s)`);
+    }
 }
 
 class DataParser {

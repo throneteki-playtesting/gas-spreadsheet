@@ -47,6 +47,11 @@ function processPendingEdits() {
     }
 }
 
+function processAllLatest() {
+    Log.information("Manually processing all latest...");
+    DataSheet.sheets.latest.processAll();
+}
+
 // eslint-disable-next-line @typescript-eslint/no-namespace
 namespace Trigger {
     export function edit(e: GoogleAppsScript.Events.SheetsOnEdit) {
@@ -64,7 +69,11 @@ namespace Trigger {
             ui.createMenu("Admin Tools")
                 .addItem("Set API key", "setAPIKey")
                 .addItem("Initialise/Sync Project", "initialiseProject")
-                .addItem("Push spreadsheet changes", "processPendingEdits")
+                .addSubMenu(
+                    ui.createMenu("Changes/Editing")
+                        .addItem("Push spreadsheet changes", "processPendingEdits")
+                        .addItem("Push all latest", "processAllLatest")
+                )
             //     // .addSubMenu(
             //     //     ui.createMenu("Development")
             //     //         .addSubMenu(
@@ -124,5 +133,6 @@ export {
     onFormSubmit,
     initialiseProject,
     setAPIKey,
-    processPendingEdits
+    processPendingEdits,
+    processAllLatest
 };
