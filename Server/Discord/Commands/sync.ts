@@ -356,7 +356,7 @@ const command = {
             if (failed.length > 0) {
                 results.push(`:exclamation: Failed: ${failed.map((card) => card._id).join(", ")}`);
             }
-            await FollowUpHelper.information(interaction, results.join("\n"));
+            await FollowUpHelper.information(interaction, results.join("\n") || "No actions made");
         }
     }
 };
