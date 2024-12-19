@@ -135,7 +135,10 @@ class GithubService {
         }
 
         if (needsUpdate.length > 0) {
+            // Update to archives
             await dataService.cards.update({ cards: needsUpdate });
+            // Update to latest
+            await dataService.cards.spreadsheet.update({ cards: needsUpdate, sheets:["latest"] });
         }
 
         return responses.map((r) => r.response).filter((r) => r);
