@@ -1,7 +1,7 @@
 import { buildCommands, deployCommands } from "./DeployCommands";
 import { commands } from "./Commands";
 import { logger } from "../Services";
-import { Client, ForumChannel, Guild, ThreadChannel } from "discord.js";
+import { Client, ForumChannel, ForumThreadChannel, Guild, ThreadChannel } from "discord.js";
 
 class DiscordService {
     private client: Client;
@@ -94,7 +94,7 @@ class DiscordService {
                 const batch = await forum.threads.fetch({ archived: { fetchAll: true, before } }, { cache: true });
                 before = batch.hasMore ? Math.min(...batch.threads.map(t => t.archivedAt.getTime())) : undefined;
 
-                result = batch.threads.find(threadFunc) as ThreadChannel<true>;
+                result = batch.threads.find(threadFunc) as ForumThreadChannel;
 
                 // Continue if result has no been found, or if "before" is present (eg. batch.hasMore == true)
             } while (!result && before);
