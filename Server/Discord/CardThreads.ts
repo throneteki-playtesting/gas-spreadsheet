@@ -74,7 +74,8 @@ export default class CardThreads {
                             promises.set("Title", thread.setName(threadTitle));
                         }
                         // Update content of starter message
-                        if (starter.content !== message.content) {
+                        // Casting as EmbedBuilder as built message will always be an array of that, but TS does not deem it accurate
+                        if (starter.content !== message.content || starter.embeds.some((e, ei) => e.fields.some((f, fi) => (message.embeds[ei] as EmbedBuilder).data.fields[fi].value !== f.value))) {
                             promises.set("Message content", starter.edit(message));
                         }
                         // Update pinned-ness
@@ -183,7 +184,7 @@ export default class CardThreads {
             .setColor(colors[card.faction as string])
             .setTitle(`${emojis["ChangeNotes"]} Change Notes`)
             .addFields(
-                { name: `${emojis[card.note.type]} ${card.note.type}`, value: card.note.text }
+                { name: `${emojis[card.note.type]} ${card.note.type}`, value: discordify(card.note.text) }
             ) : undefined;
 
         return {

@@ -55,7 +55,7 @@ export const icons = {
 
 export function discordify(text: string) {
     // Html Converting
-    return text
+    let result = text
         .replace(/<i>|<\/i>/g, "*")
         .replace(/<b>|<\/b>/g, "**")
         .replace(/<em>|<\/em>/g, "*")
@@ -64,6 +64,11 @@ export function discordify(text: string) {
         .replace(/<\/cite>/g, "")
         .replace(/<br>/g, "")
         .replace(/ {2}/g, " &nbsp;");
+    // Replace all potential emojis with their codes
+    for (const [key, emoji] of Object.entries(emojis)) {
+        result = result.replaceAll(`[${key}]`, emoji);
+    }
+    return result;
 }
 
 export function cardAsAttachment(card: Card) {

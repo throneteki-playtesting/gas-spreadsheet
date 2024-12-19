@@ -1,4 +1,4 @@
-import { BaseMessageOptions, EmbedBuilder, ForumChannel, Guild, GuildForumTag, GuildMember } from "discord.js";
+import { BaseMessageOptions, EmbedBuilder, ForumChannel, Guild, GuildForumTag, GuildMember, Message } from "discord.js";
 import Review from "../Data/Models/Review";
 import Project from "../Data/Models/Project";
 import { Cards } from "@/Common/Models/Cards";
@@ -54,17 +54,17 @@ export default class ReviewThreads {
 
                         created.push(review);
                     } else {
-                        let starter = await thread.fetchStarterMessage();
+                        const starter = await thread.fetchStarterMessage();
                         const message = ReviewThreads.generateInitial(review, member);
 
                         const promises: Map<string, Promise<unknown>> = new Map();
-                        // Edit message regardless, as we must compare the resulting embeds for changes
-                        // This comparison cannot be done on a BaseMessageOptions (eg. "message" object),
-                        // but can be done on discord Messages
-                        promises.set("Message content", starter.edit(message));
+                        const changedAnswers = this.getChangedAnswers(starter, message);
                         // Update Title
                         if (thread.name !== threadTitle) {
                             promises.set("Title", thread.setName(threadTitle));
+                        }
+                        if (starter.content !== message.content || changedAnswers.length > 0) {
+                            promises.set("Message content", starter.edit(message));
                         }
                         // Update pinned-ness
                         if (!starter.pinned && starter.pinnable) {
@@ -93,34 +93,8 @@ export default class ReviewThreads {
                                 await Promise.allSettled(promises.values());
                             }
 
-                            const oldStarter = starter;
-                            starter = await thread.fetchStarterMessage();
-
-                            const changed: string[] = [];
-                            // IMPORTANT: If the structure of a review is to change, this needs to be updated!!!
-                            const decks1 = oldStarter.embeds[0].fields[0].value;
-                            const decks2 = starter.embeds[0].fields[0].value;
-                            if (decks1 !== decks2) {
-                                changed.push(`ThronesDB Deck(s): <i>${decks1} -> ${decks2}</i>`);
-                            }
-                            const played1 = oldStarter.embeds[0].fields[1].value;
-                            const played2 = starter.embeds[0].fields[1].value;
-                            if (played1 !== played2) {
-                                changed.push(`Games Played: <i>${played1} -> ${played2}</i>`);
-                            }
-                            const statements1 = oldStarter.embeds[0].fields[3].value;
-                            const statements2 = starter.embeds[0].fields[3].value;
-                            if (statements1 !== statements2) {
-                                changed.push("Statements (agree/disagree): <i>Changed</i>");
-                            }
-                            const additional1 = oldStarter.embeds[0].fields.length > 4 ? oldStarter.embeds[0].fields[4].value : oldStarter.embeds[1].fields[0].value;
-                            const additional2 = starter.embeds[0].fields.length > 4 ? starter.embeds[0].fields[4].value : starter.embeds[1].fields[0].value;
-                            if (additional1 !== additional2) {
-                                changed.push("Additional Comments: <i>Changed</i>");
-                            }
-
-                            if (changed.length > 0) {
-                                const updatedMessage = ReviewThreads.generateUpdated(review, changed, member);
+                            if (changedAnswers.length > 0) {
+                                const updatedMessage = ReviewThreads.generateUpdated(review, changedAnswers, member);
                                 await thread.send(updatedMessage);
                             }
                             updated.push(review);
@@ -184,7 +158,7 @@ export default class ReviewThreads {
             const image = cardAsAttachment(review.card);
             // Segments the decks string into rows of 3, separated by ", "
             const decksString = review.decks.map((deck, index, decks) => `[Deck ${index + 1}](${deck})${(index + 1) === decks.length ? "" : ((index + 1) % 3 ? ", " : "\n")}`).join("");
-            // IMPORTANT: If the structure of these embeds is to change, review/update "getDetails" function
+            // IMPORTANT: If the structure of these embeds is to change, review/update "getChangedAnswers" function
             const embeds = [
                 new EmbedBuilder()
                     .setAuthor({ name: `Review by ${review.reviewer}`, iconURL: icons.reviewer })
@@ -251,6 +225,41 @@ export default class ReviewThreads {
         } catch (err) {
             throw new Error(`Failed to generate update discord review message for ${review._id}`, { cause: err });
         }
+    }
+
+    /**
+     * Compares a starter message with the current generated one, and gathers any answers which have changed
+     * IMPORTANT: If the structure of a review is to change, this needs to be updated.
+     * @param starter The existing starter message
+     * @param current The current message that was generated
+     * @returns A string array of what had changed, or an empty array for no changes
+     */
+    private static getChangedAnswers(starter: Message<true>, current: BaseMessageOptions) {
+        const oldEmbeds = starter.embeds;
+        // Casting as EmbedBuilder as built message will always be an array of that, but TS does not deem it accurate
+        const currentEmbeds = current.embeds.map((e) => e as EmbedBuilder);
+        const changed: string[] = [];
+        const decks1 = oldEmbeds[0].fields[0].value;
+        const decks2 = currentEmbeds[0].data.fields[0].value;
+        if (decks1 !== decks2) {
+            changed.push(`ThronesDB Deck(s): <i>${decks1} -> ${decks2}</i>`);
+        }
+        const played1 = oldEmbeds[0].fields[1].value;
+        const played2 = currentEmbeds[0].data.fields[1].value;
+        if (played1 !== played2) {
+            changed.push(`Games Played: <i>${played1} -> ${played2}</i>`);
+        }
+        const statements1 = oldEmbeds[0].fields[3].value;
+        const statements2 = currentEmbeds[0].data.fields[3].value;
+        if (statements1 !== statements2) {
+            changed.push("Statements (agree/disagree): <i>Changed</i>");
+        }
+        const additional1 = oldEmbeds[0].fields.length > 4 ? oldEmbeds[0].fields[4].value : oldEmbeds[1].fields[0].value;
+        const additional2 = currentEmbeds[0].data.fields.length > 4 ? currentEmbeds[0].data.fields[4].value : currentEmbeds[1].data.fields[0].value;
+        if (additional1 !== additional2) {
+            changed.push("Additional Comments: <i>Changed</i>");
+        }
+        return changed;
     }
 
     private static renderTemplate(data: ejs.Data) {
