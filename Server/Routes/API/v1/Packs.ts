@@ -3,6 +3,7 @@ import { celebrate, Joi, Segments } from "celebrate";
 import asyncHandler from "express-async-handler";
 import { dataService } from "@/Server/Services";
 import { Pack } from "@/Server/Data/Models/Pack";
+import { groupCardHistory } from "@/Server/Data/Repositories/CardsRepository";
 
 const router = express.Router();
 
@@ -15,7 +16,8 @@ router.get("/:project/development", celebrate({
 
     const [project] = await dataService.projects.read({ codes: [projectId] });
     const cards = (await dataService.cards.read({ matchers: [{ projectId }] })).filter((card) => !card.isReleasable);
-    const developmentPack = new Pack(project.short, project.name, cards);
+    const latest = groupCardHistory(cards).map((group) => group.latest);
+    const developmentPack = new Pack(project.short, project.name, latest);
 
     res.json(developmentPack.toJSON());
 }));
