@@ -70,16 +70,22 @@ export default class CardsRepository implements IRepository<Card> {
         const latestCards = groupCardHistory(cards).map((group) => group.latest);
         for (const latest of latestCards) {
             // If card has any sort of change, it must be marked to update and/or archive
-            if (latest.isChanged || latest.isNewlyImplemented) {
+            if (latest.isChanged || latest.implementStatus === "Recently Implemented") {
                 if (latest.version !== latest.playtesting) {
                     // Set playtesting to version (for both all copies)
                     latest.playtesting = latest.version;
-                    // Archive clone (with matching version, notes, issues, etc.)
-                    toArchive.push(latest.clone());
+
+                    // Clone for archive
+                    const archive = latest.clone();
+                    // If was recently implemented, mark archived copy as "complete"
+                    if (archive.implementStatus === "Recently Implemented") {
+                        archive.github.status === "complete";
+                    }
+                    toArchive.push(archive);
                 }
 
-                // If card has been implemented, remove the github issue details
-                if (latest.isNewlyImplemented) {
+                // If card has been implemented, remove the github issue details (for latest only)
+                if (latest.implementStatus === "Recently Implemented") {
                     delete latest.github;
                 }
 

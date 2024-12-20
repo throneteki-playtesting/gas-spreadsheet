@@ -54,7 +54,7 @@ class Card {
         },
         public playtesting?: SemanticVersion,
         public github?: {
-            status: string,
+            status: Cards.GithubStatus,
             issueUrl: string
         },
         public release?: {
@@ -247,33 +247,24 @@ class Card {
     get isPlaytesting() {
         return !!this.playtesting && Ver.eq(this.version, this.playtesting);
     }
-    /**
-     *  @returns True if this card is being or needs to be implemented online
-     */
-    get requiresImplementation() {
-        return this.github ? this.github.status !== "closed" : this.isPreTesting || this.isChanged;
-    }
-    /**
-     *  @returns True if this card has been implemented online
-     */
-    get isImplemented() {
-        return this.isNewlyImplemented || this.isPlaytesting;
-    }
-    /**
-     * @returns True if this card has been implemented online after the previous playtesting update
-     */
-    get isNewlyImplemented() {
-        return this.github?.status === "closed";
+
+    get implementStatus(): "Not Implemented" | "Recently Implemented" | "Implemented" {
+        // If issue is missing or "open"
+        if ((this.github?.status || "open") === "open") {
+            return "Not Implemented";
+        }
+        // If issue has been "closed"
+        if (this.github.status === "closed") {
+            return "Recently Implemented";
+        }
+        // Otherwise is "completed"
+        return "Implemented";
     }
     /**
      *  @returns True if this card has been changed (eg. not in its initial or currently playtested state)
      */
     get isChanged() {
-        return !!this.note && this.note.type !== "Implemented";
-    }
-
-    get needsIssue() {
-        return !this.github && (this.isPreTesting || this.isChanged);
+        return !this.playtesting && !!this.note && this.note.type !== "Implemented";
     }
 
     /***
@@ -322,7 +313,7 @@ class Card {
         }),
         playtesting: Joi.string().regex(Utils.Regex.SemanticVersion),
         github: Joi.object({
-            status: Joi.string().required(),
+            status: Joi.string().required().valid(...Cards.githubStatuses),
             issueUrl: Joi.string().required()
         }),
         release: Joi.object({

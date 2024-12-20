@@ -26,7 +26,7 @@ type NotePackage = { icons: string, title: string, text: string };
 export class Issue {
     static forCard(project: Project, card: Card) {
         const milestone = project.milestone;
-        const type = card.note?.type || (card.isPreTesting && !card.isImplemented ? "Implemented" : null);
+        const type = card.note?.type || (card.isPreTesting && card.implementStatus !== "Implemented" ? "Implemented" : null);
         if (!type) {
             return null;
         }
@@ -91,17 +91,20 @@ export class Issue {
             const noteType = card.note?.type;
             // Only collate cards which have notes on them
             if (noteType && noteTypeOrdered.includes(noteType)) {
-                const icons = [emojis[noteType]];
+                // Set ensures we do not have duplicate icons
+                const icons = new Set();
                 // Some cards can be updated, and can also be implemented in the same update
-                // For these, we need both that note type emoji for that update, plus an "implemented" emoji
-                if (card.isNewlyImplemented && noteType !== "Implemented") {
-                    icons.unshift(emojis["Implemented"]);
+                // For these, add "implemented" emoji first
+                if (card.implementStatus === "Recently Implemented") {
+                    icons.add(emojis["Implemented"]);
                 }
+                // Add note type emoji
+                icons.add(emojis[noteType]);
                 const title = `${card.code} | ${card.name} v${card.version}`;
                 const text = card.note?.text || null;
 
                 const current = map.get(noteType) || [];
-                current.push({ icons: icons.join(""), title, text });
+                current.push({ icons: [...icons].join(""), title, text });
                 map.set(noteType, current);
             }
             return map;
@@ -120,7 +123,7 @@ export class Issue {
         const title = `${project.short} | Playtesting Update ${number}`;
         const labels = ["automated", "playtest-update"];
 
-        return { title, body, labels, milestone } as GeneratedPullRequest;
+        return { title, body: githubify(body), labels, milestone } as GeneratedPullRequest;
     }
 
     private static renderTemplate(data: ejs.Data) {

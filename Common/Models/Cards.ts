@@ -5,10 +5,12 @@ import { Projects } from "./Projects";
 namespace Cards {
     export const factions = ["House Baratheon", "House Greyjoy", "House Lannister", "House Martell", "The Night's Watch", "House Stark", "House Targaryen", "House Tyrell", "Neutral"] as const;
     export const types = ["Character", "Location", "Attachment", "Event", "Plot", "Agenda"] as const;
-    export const noteTypes = ["Replaced", "Reworked", "Updated", "Implemented", "Not Implemented"] as const;
+    export const noteTypes = ["Replaced", "Reworked", "Updated", "Implemented"] as const;
+    export const githubStatuses = ["open", "closed", "complete"] as const;
     export type Faction = typeof factions[number];
     export type Type = typeof types[number];
     export type NoteType = typeof noteTypes[number];
+    export type GithubStatus = typeof githubStatuses[number];
 
     export type Code = `${Projects.Id}${number}`;
     // {code}@{version} (eg. 27501@1.0.0)
@@ -51,7 +53,7 @@ namespace Cards {
         },
         playtesting?: SemanticVersion,
         github?: {
-            status: string,
+            status: GithubStatus,
             issueUrl: string
         },
         release?: {

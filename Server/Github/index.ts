@@ -116,16 +116,13 @@ class GithubService {
             let updated = false;
             // Issue state & card github status are not matching, or URL is different? Update!
             if (card.github?.status !== response.state || card.github.issueUrl !== response.html_url) {
-                card.github = { status: response.state, issueUrl: response.html_url };
+                card.github = { status: response.state as "open" | "closed", issueUrl: response.html_url };
                 updated = true;
             }
 
-            // Unimplemented card has been implemented? Mark as implemented!
-            if (card.isImplemented && !card.note && response.state === "closed") {
-                card.note = {
-                    type: "Implemented",
-                    text: ""
-                };
+            // Mark card as "complete" if already in playtesting (from prior update) & recently implemented
+            if (card.isPlaytesting && card.implementStatus === "Recently Implemented") {
+                card.github.status = "complete";
                 updated = true;
             }
 
@@ -172,7 +169,8 @@ class GithubService {
 
     public async syncPullRequest(project: Project, cards?: Card[]): Promise<PullRequestDetail> {
         cards = cards || await dataService.cards.read({ matchers: [{ projectId: project.code }] });
-        const changes = cards.filter((card) => card.isChanged || card.isNewlyImplemented);
+        // Filter cards which either have changes, or have been implemented in the latest update
+        const changes = cards.filter((card) => card.isChanged || (card.implementStatus === "Recently Implemented"));
         const prs = await this.getPullRequests(project);
 
         const generated = Issue.forUpdate(project, changes);
