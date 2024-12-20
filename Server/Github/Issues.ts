@@ -123,7 +123,7 @@ export class Issue {
         const title = `${project.short} | Playtesting Update ${number}`;
         const labels = ["automated", "playtest-update"];
 
-        return { title, body: githubify(body), labels, milestone } as GeneratedPullRequest;
+        return { title, body, labels, milestone } as GeneratedPullRequest;
     }
 
     private static renderTemplate(data: ejs.Data) {

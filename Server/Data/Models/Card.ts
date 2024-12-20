@@ -264,7 +264,7 @@ class Card {
      *  @returns True if this card has been changed (eg. not in its initial or currently playtested state)
      */
     get isChanged() {
-        return !this.playtesting && !!this.note && this.note.type !== "Implemented";
+        return !this.isPlaytesting && !!this.note && this.note.type !== "Implemented";
     }
 
     /***
