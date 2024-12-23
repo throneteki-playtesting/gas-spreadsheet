@@ -103,7 +103,7 @@ router.get("/:project/:number", celebrate({
 }));
 
 router.post("/", celebrate({
-    [Segments.BODY]: Joi.array().items(Card.schema)
+    [Segments.BODY]: Joi.array().items(Card.playtestingSchema)
 }), asyncHandler(async (req, res) => {
     const cards = await Card.fromModels(...req.body as Cards.Model[]);
 

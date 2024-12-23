@@ -62,8 +62,10 @@ class Card {
             number: number
         }
     ) {
-        this._id = Cards.condenseId({ projectId: this.project.code, number, version });
-        this.code = this._id.split("@")[0] as Cards.Code;
+        if (this.project) {
+            this._id = Cards.condenseId({ projectId: this.project.code, number, version });
+            this.code = this._id.split("@")[0] as Cards.Code;
+        }
         this.quantity = 3;
     }
 
@@ -73,7 +75,7 @@ class Card {
 
     toJSON() {
         const obj = {
-            code: this.isReleasable ? this.project.code + this.release.number.toString().padStart(3, "0") : this.code.toString(),
+            code: this.isReleasable ? this.project?.code + this.release.number.toString().padStart(3, "0") : this.code?.toString(),
             ...(!this.isReleasable && { version: this.version }),
             type: this.type.toLowerCase(),
             name: this.name,
@@ -197,6 +199,10 @@ class Card {
     }
 
     get imageUrl() {
+        if (this.isConcept) {
+            return null;
+        }
+
         if (!this.isReleasable) {
             return Card.generateDevImageUrl(this.project._id, this.number, this.version);
         }
@@ -217,6 +223,12 @@ class Card {
         );
     }
 
+    /**
+     * @returns True if this card is a concept (ie. not part of a project)
+     */
+    get isConcept() {
+        return !this.project;
+    }
     /**
      * @returns True if this card is the preview "pre-1.0.0" version
      */
@@ -278,35 +290,57 @@ class Card {
     }
 
     public static schema = {
-        _id: Joi.string().regex(Utils.Regex.Card.id.full),
-        projectId: Joi.number().required(),
-        number: Joi.number().required(),
-        version: Joi.string().required().regex(Utils.Regex.SemanticVersion),
         faction: Joi.string().required().valid(...Cards.factions),
         name: Joi.string().required(),
         type: Joi.string().required().valid(...Cards.types),
-        loyal: Joi.boolean(),
+        loyal: Joi.when("faction", {
+            is: Joi.not("Neutral"),
+            then: Joi.boolean().required()
+        }),
         traits: Joi.array().items(Joi.string()),
-        text: Joi.string().required(),
+        text: Joi.string(),
         illustrator: Joi.string(),
         flavor: Joi.string(),
         designer: Joi.string(),
         deckLimit: Joi.number(),
         quantity: Joi.number(),
-        cost: JoiXDashNumber,
-        unique: Joi.boolean(),
-        strength: JoiXNumber,
-        icons: Joi.object({
-            military: Joi.boolean().required(),
-            intrigue: Joi.boolean().required(),
-            power: Joi.boolean().required()
+        cost: Joi.when("type", {
+            is: Joi.equal("Character", "Location", "Attachment", "Event"),
+            then: JoiXDashNumber.required()
         }),
-        plotStats: Joi.object({
-            income: JoiXNumber.required(),
-            initiative: JoiXNumber.required(),
-            claim: JoiXNumber.required(),
-            reserve: JoiXNumber.required()
+        unique: Joi.when("type", {
+            is: Joi.equal("Character", "Location", "Attachment"),
+            then: Joi.boolean().required()
         }),
+        strength: Joi.when("type", {
+            is: Joi.equal("Character"),
+            then: JoiXNumber.required()
+        }),
+        icons: Joi.when("type", {
+            is: Joi.equal("Character"),
+            then: Joi.object({
+                military: Joi.boolean().required(),
+                intrigue: Joi.boolean().required(),
+                power: Joi.boolean().required()
+            }).required()
+        }),
+        plotStats: Joi.when("type", {
+            is: Joi.equal("Plot"),
+            then: Joi.object({
+                income: JoiXNumber.required(),
+                initiative: JoiXNumber.required(),
+                claim: JoiXNumber.required(),
+                reserve: JoiXNumber.required()
+            }).required()
+        })
+    };
+
+    public static playtestingSchema = {
+        ...Card.schema,
+        _id: Joi.string().regex(Utils.Regex.Card.id.full),
+        projectId: Joi.number().required(),
+        number: Joi.number().required(),
+        version: Joi.string().required().regex(Utils.Regex.SemanticVersion),
         note: Joi.object({
             type: Joi.string().required().valid(...Cards.noteTypes),
             text: Joi.string().when("type", {

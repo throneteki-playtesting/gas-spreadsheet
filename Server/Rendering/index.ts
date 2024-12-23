@@ -147,12 +147,12 @@ class RenderingService {
                     .replace(/<br>-\s*(.*?\.)(?=<br>|<\/ul>)/g, "<li>$1</li>"),
                 deckLimit: jCard.deckLimit !== Cards.DefaultDeckLimit[jCard.type] ? `Deck Limit: ${jCard.deckLimit}` : ""
             },
-            ...{
+            ...(!card.isConcept ? {
                 project: {
                     short: card.project.short || "?",
                     code: card.project.code || "?"
                 }
-            }
+            } : undefined)
         } as ejs.Data;
     }
 
