@@ -257,7 +257,7 @@ class Card {
         if (this.github.status === "closed") {
             return "Recently Implemented";
         }
-        // Otherwise is "completed"
+        // Otherwise is "complete"
         return "Implemented";
     }
     /**

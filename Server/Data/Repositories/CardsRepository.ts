@@ -79,7 +79,7 @@ export default class CardsRepository implements IRepository<Card> {
                     const archive = latest.clone();
                     // If was recently implemented, mark archived copy as "complete"
                     if (archive.implementStatus === "Recently Implemented") {
-                        archive.github.status === "complete";
+                        archive.github.status = "complete";
                     }
                     toArchive.push(archive);
                 }
