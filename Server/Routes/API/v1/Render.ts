@@ -36,6 +36,9 @@ router.post("/", celebrate({
             res.send(pdf);
         }
         case "PNG": {
+            if (isArray) {
+                throw Error("Cannot create PNG with multiple cards provided");
+            }
             const png = (await renderService.asPNG(cards)).shiftBuffer();
             res.type("png");
             res.send(png);
