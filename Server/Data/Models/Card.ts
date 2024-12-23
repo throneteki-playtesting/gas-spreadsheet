@@ -248,6 +248,9 @@ class Card {
         return !!this.playtesting && Ver.eq(this.version, this.playtesting);
     }
 
+    /**
+     * @returns The current implementation status of the card, based on its github status
+     */
     get implementStatus(): "Not Implemented" | "Recently Implemented" | "Implemented" {
         // If issue is missing or "open"
         if ((this.github?.status || "open") === "open") {
