@@ -322,12 +322,12 @@ const command = {
 
             // Sort reviews by date (latest first), then distinct the list (keeping first reviews, thus the "latest")
             // This ensures that only the latest version of that review (by _id) is being saved
-            const distinct = response.reviews.sort((r1, r2) => r2.epoch - r1.epoch).filter((r, i, a) => a.findIndex((rv) => rv._id === r._id) === i);
-            const reviews = await Review.fromModels(...distinct);
+            const reviews = await Review.fromModels(...response.reviews);
+            const distinct = reviews.sort((r1, r2) => r2.date.getTime() - r1.date.getTime()).filter((r, i, a) => a.findIndex((rv) => rv._id === r._id) === i);
 
             await dataService.reviews.update({ reviews, upsert: true });
 
-            const { created, updated, failed } = await ReviewThreads.sync(guild, true, ...reviews);
+            const { created, updated, failed } = await ReviewThreads.sync(guild, true, ...distinct);
 
             const results = [];
             if (created.length > 0) {
