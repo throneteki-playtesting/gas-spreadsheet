@@ -254,8 +254,8 @@ export default class ReviewThreads {
         if (statements1 !== statements2) {
             changed.push("Statements (agree/disagree): <i>Changed</i>");
         }
-        const additional1 = oldEmbeds[0].fields.length > 4 ? oldEmbeds[0].fields[4].value : oldEmbeds[1].fields[0].value;
-        const additional2 = currentEmbeds[0].data.fields.length > 4 ? currentEmbeds[0].data.fields[4].value : currentEmbeds[1].data.fields[0].value;
+        const additional1 = oldEmbeds[0].fields.length > 4 ? oldEmbeds[0].fields[4].value : oldEmbeds[1].description;
+        const additional2 = currentEmbeds[0].data.fields.length > 4 ? currentEmbeds[0].data.fields[4].value : currentEmbeds[1].data.description;
         if (additional1 !== additional2) {
             changed.push("Additional Comments: <i>Changed</i>");
         }

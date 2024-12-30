@@ -1,40 +1,40 @@
 import { buildCommands, deployCommands } from "./DeployCommands";
 import { commands } from "./Commands";
 import { logger } from "../Services";
-import { Client, ForumChannel, ForumThreadChannel, Guild, ThreadChannel } from "discord.js";
+import { Client, ForumChannel, ForumThreadChannel, Guild, ThreadChannel, Events } from "discord.js";
+import { updateFormData } from "../Processing/Reviews";
 
 class DiscordService {
     private client: Client;
     private isDevelopment: boolean;
-    constructor(private token: string, private clientId: string, private developerGuildId: string) {
+    constructor(private token: string, private clientId: string, private primaryGuildId: string, private developmentGuildId: string) {
+        // When in development, primaryGuildId is assumed to be development guild's id
         this.isDevelopment = process.env.NODE_ENV !== "production";
+
         this.client = new Client({
             intents: ["Guilds", "GuildMessages", "DirectMessages", "GuildPresences"],
             allowedMentions: { parse: ["users", "roles"], repliedUser: true }
         });
 
-        this.client.once("ready", () => {
+        this.client.once(Events.ClientReady, () => {
             logger.info(`Discord connected with ${this.client.user?.tag}`);
         });
 
         buildCommands().then((available) => {
             const deployOptions = { token: this.token, clientId: this.clientId };
-            if (this.isDevelopment && !developerGuildId) {
-                throw Error("Missing \"developerGuildId\" in config for development discord integration");
-            }
-            this.client.on("guildCreate", async (guild) => {
+            this.client.on(Events.GuildCreate, async (guild) => {
                 if (this.isValidGuild(guild)) {
                     await deployCommands(available, { ...deployOptions, guild });
                 }
             });
-            this.client.on("guildAvailable", async (guild) => {
+            this.client.on(Events.GuildAvailable, async (guild) => {
                 if (this.isValidGuild(guild)) {
                     await deployCommands(available, { ...deployOptions, guild });
                 }
             });
         });
 
-        this.client.on("interactionCreate", async (interaction) => {
+        this.client.on(Events.InteractionCreate, async (interaction) => {
             try {
                 if (!this.isValidGuild(interaction.guild)) {
                     return;
@@ -52,19 +52,21 @@ class DiscordService {
             }
         });
 
-        this.client.on("guildMemberUpdate", (oldMember, newMember) => {
+        this.client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
             if (!this.isValidGuild(newMember.guild)) {
                 return;
             }
-            const playtesterRole = newMember.guild.roles.cache.find((role) => role.name === "Playtester");
+            const playtesterRole = await this.findRoleByName(newMember.guild, "Playtesting Team");
+            if (!playtesterRole) {
+                logger.error(`Detected user "${newMember.nickname || newMember.displayName}" has been updated in guild "${newMember.guild.name}", but "Playtesting Team" role is missing`);
+                return;
+            }
             const oldHas = oldMember.roles.cache.has(playtesterRole.id);
             const newHas = newMember.roles.cache.has(playtesterRole.id);
             // If user lost or gained role
-            if ((oldHas && !newHas) || (!oldHas && newHas)) {
-                // Get all projects
-                // Get cards for each project
-                // Get all playtesters
-                // Post all relevant project cards & playtesters to that script
+            if ((oldHas !== newHas)) {
+                logger.info(`Detected user "${newMember.nickname || newMember.displayName}" has ${newHas ? "gained" : "lost"} the "Playtesting Team" role. Updating form names...`);
+                await updateFormData();
             }
         });
 
@@ -72,11 +74,15 @@ class DiscordService {
     }
 
     private isValidGuild(guild: Guild) {
-        return this.isDevelopment ? guild.id === this.developerGuildId : guild.id !== this.developerGuildId;
+        return this.isDevelopment === (guild.id === this.developmentGuildId);
+    }
+
+    get primaryGuild() {
+        return this.client.guilds.cache.find((guild) => guild.id = this.primaryGuildId);
     }
 
     public async getGuilds() {
-        return this.client.guilds.cache.filter((guild) => this.isValidGuild(guild));
+        return this.client.guilds.cache.filter((guild) => this.isValidGuild(guild)).values();
     }
 
     /**
@@ -110,11 +116,27 @@ class DiscordService {
      * @returns The found GuildMember, or null if none can be found within the given Guild
      */
     public async findMemberByName(guild: Guild, name: string) {
-        const result = await guild.members.fetch({ query: name, limit: 1 });
-        if (result.hasAny()) {
-            return result.first();
+        let result = guild.members.cache.find((m) => m.nickname === name || m.displayName === name);
+        if (!result) {
+            const fetched = await guild.members.fetch({ query: name, limit: 1 });
+            result = fetched.first();
         }
-        return null;
+        return result || null;
+    }
+
+    /**
+     * Finds a guild role by name
+     * @param guild Guild to search
+     * @param name Name of role
+     * @returns The found Role, or null if none can be found within the given Guild
+     */
+    public async findRoleByName(guild: Guild, name: string) {
+        let result = guild.roles.cache.find((r) => r.name === name);
+        if (!result) {
+            const fetched = await guild.roles.fetch();
+            result = fetched.find((r) => r.name === name);
+        }
+        return result || null;
     }
 }
 

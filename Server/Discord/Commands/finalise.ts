@@ -2,6 +2,7 @@ import { Command } from "../DeployCommands";
 import { AutocompleteInteraction, ChatInputCommandInteraction, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
 import { dataService, logger } from "../../Services";
 import { AutoCompleteHelper, FollowUpHelper } from ".";
+import { updateFormData } from "@/Server/Processing/Reviews";
 
 const publish = {
     async data() {
@@ -22,7 +23,10 @@ const publish = {
         try {
             const projectId = parseInt(interaction.options.getString("project"));
 
+            // Finalise card data
             await dataService.cards.finalise(projectId);
+            // Then update relevant resources
+            await updateFormData(projectId);
 
             await FollowUpHelper.success(interaction, "Successfully finalised cards!");
         } catch (err) {

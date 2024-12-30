@@ -133,7 +133,7 @@ export default class CardThreads {
         }
 
         // Check DT role exists
-        const taggedRole = guild.roles.cache.find((r) => r.name === "Design Team");
+        const taggedRole = await discordService.findRoleByName(guild, "Design Team");
         if (!taggedRole) {
             errors.push("\"Design Team\" role does not exist");
         }

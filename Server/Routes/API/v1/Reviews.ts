@@ -20,7 +20,7 @@ router.post("/", celebrate({
     const allFailed = [];
 
     const guilds = await discordService.getGuilds();
-    for (const [, guild] of guilds) {
+    for (const guild of guilds) {
         const { created, updated, failed } = await ReviewThreads.sync(guild, true, ...reviews);
         allCreated.push(...created);
         allUpdated.push(...updated);

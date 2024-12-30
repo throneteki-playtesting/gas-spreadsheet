@@ -6,6 +6,7 @@ import { FormController } from "@/GoogleAppScript/Controllers/FormController";
 import CardThreads from "../CardThreads";
 import Review from "@/Server/Data/Models/Review";
 import ReviewThreads from "../ReviewThreads";
+import { updateFormData } from "@/Server/Processing/Reviews";
 
 const sync = {
     async data() {
@@ -185,7 +186,7 @@ const sync = {
             }
         } catch (err) {
             logger.error(err);
-            await FollowUpHelper.error(interaction, `Failed to sync ${subcommand}. Error has been logged.`);
+            await FollowUpHelper.error(interaction, `Failed to sync ${subcommand}: ${err.message}`);
         }
     },
     async autocomplete(interaction: AutocompleteInteraction) {
@@ -295,28 +296,10 @@ const command = {
         async execute(interaction: ChatInputCommandInteraction) {
             const projectId = parseInt(interaction.options.getString("project"));
 
-            const playtesterRoleId = interaction.guild.roles.cache.find((role) => role.name === "Playtesting Team").id;
-            const playtesterRole = await interaction.guild.roles.fetch(playtesterRoleId);
-            if (!playtesterRole) {
-                await FollowUpHelper.error(interaction, "\"Playtesting Team\" role is missing");
-                throw Error("\"Playtesting Team\" role is missing");
-            }
-            const reviewers = [...new Set(playtesterRole.members.map((member) => member.nickname || member.displayName).sort())];
+            await updateFormData(projectId);
 
-            const [project] = await dataService.projects.read({ codes: [projectId] });
-            const cards = await dataService.cards.read({ matchers: [{ projectId }] });
-            const cardNames = cards.map((card) => `${card.number} - ${card.toString()}`);
-
-            const body = JSON.stringify({ reviewers, cards: cardNames });
-            const response = await GASAPI.post<FormController.GASSetFormValuesResponse>(`${project.script}/form`, body);
-
-            if (response.cards > 0 || response.reviewers > 0) {
-                const content = `Successfully synced ${response.reviewers} reviewers & ${response.cards} cards with form`;
-                await FollowUpHelper.success(interaction, content);
-            } else {
-                const content = "Failed to sync form values";
-                await FollowUpHelper.error(interaction, content);
-            }
+            const content = `Successfully synced form for project ${projectId}`;
+            await FollowUpHelper.success(interaction, content);
         }
     },
     reviews: {
