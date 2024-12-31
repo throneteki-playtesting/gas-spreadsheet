@@ -311,6 +311,7 @@ const command = {
             const version = interaction.options.getString("version") || undefined;
 
             const params = [
+                // TODO: reviewer may need to be changed to be discord id or name string, as if a users nickname or displayname changes, it won't pick up their reviews anymore
                 ...(reviewer ? [`reviewer=${reviewer.nickname || reviewer.displayName}`] : []),
                 ...(number ? [`number=${number}`] : []),
                 ...(version ? [`version=${version}`] : [])
