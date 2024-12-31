@@ -1,4 +1,4 @@
-import { AutocompleteInteraction, ChatInputCommandInteraction, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
+import { AutocompleteInteraction, ChatInputCommandInteraction, GuildMember, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
 import { Command } from "../DeployCommands";
 import { dataService, GASAPI, githubService, logger, renderService } from "../../Services";
 import { AutoCompleteHelper, FollowUpHelper } from ".";
@@ -306,12 +306,12 @@ const command = {
         async execute(interaction: ChatInputCommandInteraction) {
             const guild = interaction.guild;
             const projectId = parseInt(interaction.options.getString("project"));
-            const reviewer = interaction.options.getMember("reviewer") || undefined;
+            const reviewer = interaction.options.getMember("reviewer") as GuildMember || undefined;
             const number = parseInt(interaction.options.getString("card")) || undefined;
             const version = interaction.options.getString("version") || undefined;
 
             const params = [
-                ...(reviewer ? [`reviewer=${reviewer}`] : []),
+                ...(reviewer ? [`reviewer=${reviewer.nickname || reviewer.displayName}`] : []),
                 ...(number ? [`number=${number}`] : []),
                 ...(version ? [`version=${version}`] : [])
             ];
@@ -325,7 +325,7 @@ const command = {
             const reviews = await Review.fromModels(...response.reviews);
             const distinct = reviews.sort((r1, r2) => r2.date.getTime() - r1.date.getTime()).filter((r, i, a) => a.findIndex((rv) => rv._id === r._id) === i);
 
-            await dataService.reviews.update({ reviews, upsert: true });
+            await dataService.reviews.update({ reviews: distinct, upsert: true });
 
             const { created, updated, failed } = await ReviewThreads.sync(guild, true, ...distinct);
 

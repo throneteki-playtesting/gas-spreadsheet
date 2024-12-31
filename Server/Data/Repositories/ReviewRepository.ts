@@ -94,7 +94,7 @@ class ReviewMongoDataSource implements MongoDataSource<Review> {
             }
         })));
 
-        logger.verbose(`${upsert ? "Upserted" : "Updated"} ${results.modifiedCount + results.upsertedCount} values into ${this.name} collection`);
+        logger.verbose(`${upsert ? "Upserted" : "Updated"} ${results.modifiedCount + results.upsertedCount} values out of ${results.matchedCount} into ${this.name} collection`);
         const updatedIds = Object.values(results.insertedIds).concat(Object.values(results.upsertedIds));
         return reviews.filter((review) => updatedIds.includes(review._id));
     }
