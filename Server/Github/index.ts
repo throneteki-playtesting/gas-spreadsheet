@@ -72,8 +72,8 @@ class GithubService {
 
                         promises.push({ card, promise });
                     }
-                    // ...otherwise, simply pass through the existing IssueDetail
-                    else {
+                    // ...otherwise, simply pass through the existing IssueDetail if the card is not currently "complete"
+                    else if (card.github?.status !== "complete") {
                         promises.push({ card, promise: Promise.resolve<IssueDetail>({ number, state, html_url, body }) });
                     }
                 }
@@ -109,12 +109,12 @@ class GithubService {
 
         const needsUpdate = [];
         for (const { card, response } of responses) {
-            // Response threw an error, which was already caught & logged; can continue
-            if (!response) {
+            // Response threw an error, which was already caught & logged OR if card is already marked as implemented (eg. "complete"), then continue
+            if (!response || card.implementStatus === "Implemented") {
                 continue;
             }
             let updated = false;
-            // Issue state & card github status are not matching, or URL is different? Update!
+            // If not already implemented & issue state & card github status are not matching, or URL is different? Update!
             if (card.github?.status !== response.state || card.github.issueUrl !== response.html_url) {
                 card.github = { status: response.state as "open" | "closed", issueUrl: response.html_url };
                 updated = true;

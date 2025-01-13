@@ -248,10 +248,10 @@ class Card {
         return Ver.eq(this.version, "1.0.0");
     }
     /**
-     * @returns True if the card is in a draft state (eg. it is currently being edited, but not pushed to playtesting yet)
+     * @returns True if the card is in a draft state (eg. it is currently being edited)
      */
     get isDraft() {
-        return this.isPreview || this.isPreTesting || this.isChanged;
+        return this.isPreview || this.isPreTesting || (!!this.note && this.note.type !== "Implemented");
     }
     /**
      * @returns True if this card is currently the version being playtested

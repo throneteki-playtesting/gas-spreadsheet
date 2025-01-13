@@ -216,7 +216,7 @@ const command = {
             const guild = interaction.guild;
             const projectId = parseInt(interaction.options.getString("project"));
             const number = parseInt(interaction.options.getString("card")) || undefined;
-            const canCreate = interaction.options.getBoolean("create") || false;
+            const canCreate = interaction.options.getBoolean("create") || true;
 
             const cards = await dataService.cards.read({ matchers: [{ projectId, number }] });
             const { created, updated, failed } = await CardThreads.sync(guild, canCreate, ...cards);
@@ -243,7 +243,7 @@ const command = {
             const [project] = await dataService.projects.read({ codes: [projectId] });
             const issues = await githubService.syncIssues(project, cards);
 
-            const content = issues.length === 1 ? `Successfully synced issue: [#${issues[0].number}](${issues[0].html_url})` : `${issues.length} issues synced.`;
+            const content = issues.length === 1 ? `Successfully synced issue: [#${issues[0].number}](${issues[0].html_url})` : `${issues.length} open card issues synced.`;
             await FollowUpHelper.success(interaction, content);
         }
     },

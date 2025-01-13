@@ -1,4 +1,4 @@
-import { BaseMessageOptions, EmbedBuilder, ForumChannel, Guild, GuildForumTag, Role, ThreadChannel } from "discord.js";
+import { BaseMessageOptions, EmbedBuilder, ForumChannel, ForumThreadChannel, Guild, GuildForumTag, Role, ThreadChannel } from "discord.js";
 import fs from "fs";
 import path from "path";
 import ejs from "ejs";
@@ -58,9 +58,10 @@ export default class CardThreads {
                         const starter = await thread.fetchStarterMessage();
                         await starter.pin();
 
-                        // Check that previous thread has correct tags (eg. NOT "Latest")
-                        if (previousThread?.appliedTags.includes(latestTag.id)) {
-                            await previousThread.setAppliedTags(previousTags);
+                        // Update previous thread, if applicable
+                        const previousPromise = CardThreads.getPreviousThreadPromise(previousThread, latestTag, previousTags);
+                        if (previousPromise) {
+                            await previousPromise;
                         }
 
                         created.push(card);
@@ -69,6 +70,13 @@ export default class CardThreads {
                         const message = CardThreads.generate(taggedRole, card, previousThread);
 
                         const promises: Map<string, Promise<unknown>> = new Map();
+
+                        // Update previous thread, if applicable
+                        const previousPromise = CardThreads.getPreviousThreadPromise(previousThread, latestTag, previousTags);
+                        if (previousPromise) {
+                            promises.set("Previous Thread Updated", previousPromise);
+                        }
+
                         // Update title
                         if (thread.name !== threadTitle) {
                             promises.set("Title", thread.setName(threadTitle));
@@ -120,6 +128,41 @@ export default class CardThreads {
         }
 
         return { created, updated, failed };
+    }
+
+    // TODO: Convert this to a generic "editThread" function which automatically wraps the promise chains in "unarchive + archive" promises
+    private static getPreviousThreadPromise(thread: ForumThreadChannel, latestTag: GuildForumTag, previousTags: string[]) {
+        if (!thread) {
+            return null;
+        }
+        const promises: Promise<unknown>[] = [];
+        // Update the tags
+        if (thread.appliedTags.includes(latestTag.id)) {
+            promises.push(thread.setAppliedTags(previousTags));
+        }
+        // Lock the thread
+        if (!thread.locked) {
+            promises.push(thread.setLocked(true));
+        }
+
+        // If its not archived, or if any of the above are to happen, archive the thread at the end
+        if (!thread.archived || promises.length > 0) {
+            promises.push(thread.setArchived(true));
+        }
+
+        if (promises.length > 0) {
+            // Start with unarchiving if thread is currently archived
+            let promise: Promise<unknown> = thread.archived ? thread.setArchived(false) : undefined;
+            // Then chain all promises
+            for (const p of promises) {
+                promise = promise ? promise.then(() => p) : p;
+            }
+
+            // Return single promise with all changes chained (and capped by unarchiving & archiving)
+            return promise;
+        }
+
+        return null;
     }
 
     private static async validateGuild(guild: Guild, ...projects: Project[]) {
