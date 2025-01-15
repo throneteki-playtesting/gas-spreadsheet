@@ -222,7 +222,7 @@ class CardGASDataSource implements GASDataSource<Card> {
         for (const [projectId, pModels] of groups.entries()) {
             const project = await GASAPI.getProject(projectId);
             // TODO: Alter parameters to allow for any CardModel values to be provided & filtered
-            const ids = pModels.filter((has) => has.number).map((pm) => !pm.version ? `${pm.number}` : `${pm.number}@${pm.version}` as Cards.Id);
+            const ids = pModels.filter((has) => has.number && has.version).map((pm) => Cards.condenseId({ projectId, number: pm.number, version: pm.version }));
             const url = `${project.script}/cards/destroy${ids ? `?ids=${ids.join(",")}` : ""}`;
 
             const response = await GASAPI.post<CardsController.GASDestroyCardsResponse>(url);
