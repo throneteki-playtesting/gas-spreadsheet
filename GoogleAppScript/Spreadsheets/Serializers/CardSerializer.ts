@@ -32,6 +32,7 @@ class CardSerializer extends DataSerializer<Cards.Model> {
             flavor: values[CardColumn.Flavor] || undefined,
             illustrator: values[CardColumn.Illustrator] || undefined,
             designer: values[CardColumn.Designer] || undefined,
+            deckLimit: values[CardColumn.Limit] ? parseInt(values[CardColumn.Limit]) : Cards.DefaultDeckLimit[values[CardColumn.Type] as Cards.Type],
             loyal: (values[CardColumn.Faction] as Cards.Faction) !== "Neutral" ? values[CardColumn.Loyal].toLowerCase() === "loyal" : undefined,
             note: values[CardColumn.NoteType] ? {
                 type: values[CardColumn.NoteType] as Cards.NoteType,
