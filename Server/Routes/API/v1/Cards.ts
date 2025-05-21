@@ -105,6 +105,7 @@ router.get("/:project/:number", celebrate({
 router.post("/", celebrate({
     [Segments.BODY]: Joi.array().items(Card.playtestingSchema)
 }), asyncHandler(async (req, res) => {
+    const forced = req.query.forced as unknown as boolean;
     const cards = await Card.fromModels(...req.body as Cards.Model[]);
 
     const incType = (type: Cards.NoteType) => {
@@ -126,8 +127,8 @@ router.post("/", celebrate({
         }
 
         // If card is currently being drafted (eg. edited)
-        if (card.isDraft) {
-            const expectedVersion = inc(card.playtesting, incType(card.note.type));
+        if (forced || card.isReleasable || card.isDraft) {
+            const expectedVersion = card.note ? inc(card.playtesting, incType(card.note.type)) : card.version;
             // If it's version has not been incremented, increment it, and push new id card to database/archive
             if (card.version !== expectedVersion) {
                 const newCard = card.clone();
