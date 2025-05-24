@@ -15,8 +15,9 @@ router.get("/:project/development", celebrate({
     const projectId = req.params.project as unknown as number;
 
     const [project] = await dataService.projects.read({ codes: [projectId] });
-    const cards = (await dataService.cards.read({ matchers: [{ projectId }] })).filter((card) => !card.isReleasable);
-    const latest = groupCardHistory(cards).map((group) => group.latest);
+    const cards = await dataService.cards.read({ matchers: [{ projectId }] });
+    let latest = groupCardHistory(cards).map((group) => group.latest);
+    latest = latest.filter((card) => !card.isReleasable);
     const developmentPack = new Pack(project.short, project.name, latest);
 
     res.json(developmentPack.toJSON());
